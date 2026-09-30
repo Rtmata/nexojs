@@ -4,12 +4,17 @@ import type { ComponentClass } from './component'
 export const Fragment = Symbol.for('omino.fragment')
 
 /**
- * What JSX produces: a plain description of an element, not HTML yet.
- * `<h1 class="title">NES</h1>` → { type: 'h1', props: { class: 'title', children: 'NES' } }
+ * What JSX produces: a description of an element, not HTML yet.
+ * `<h1 class="title">NES</h1>` → Element('h1', { class: 'title', children: 'NES' })
+ *
+ * A class rather than a plain shape, so a data record that happens to have
+ * `type` and `props` fields is never mistaken for markup.
  */
-export interface Element {
-  type: string | typeof Fragment | ComponentClass
-  props: Record<string, unknown>
+export class Element {
+  constructor(
+    readonly type: string | typeof Fragment | ComponentClass,
+    readonly props: Record<string, unknown>,
+  ) {}
 }
 
 /** Anything that can appear between tags or be returned from `template()`. */
@@ -53,13 +58,4 @@ export class Scoped {
 /** The children of the component whose template is being rendered. */
 export interface Scope {
   children: Scoped | undefined
-}
-
-export function isElement(value: unknown): value is Element {
-  return (
-    typeof value === 'object' &&
-    value !== null &&
-    'type' in value &&
-    'props' in value
-  )
 }

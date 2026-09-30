@@ -47,6 +47,20 @@ describe('elements', () => {
     )
   })
 
+  test('void elements accept children that render nothing, not others', async () => {
+    const show = false
+    expect(await renderToString(<br>{show && 'x'}</br>)).toBe('<br>')
+    expect(await renderToString(<hr>{[]}</hr>)).toBe('<hr>')
+    await expect(renderToString(<br>x</br>)).rejects.toThrow(
+      "can't have children",
+    )
+  })
+
+  test('a data record is never mistaken for an element', async () => {
+    const record = { type: 'consola', props: { id: 'nes' } }
+    await expect(renderToString(record as any)).rejects.toThrow("can't render")
+  })
+
   test('lists, numbers, booleans and fragments', async () => {
     const games = ['Zelda', 'Metroid']
     expect(
@@ -101,9 +115,9 @@ describe('elements', () => {
     await expect(
       renderToString(<img src="x" onError="alert(1)" />),
     ).rejects.toThrow('no event handlers')
-    await expect(
-      renderToString({ type: 'bad tag', props: {} }),
-    ).rejects.toThrow('invalid tag')
+    await expect(renderToString(jsx('bad tag', {}))).rejects.toThrow(
+      'invalid tag',
+    )
   })
 
   test('key is rejected on elements too', () => {
@@ -126,12 +140,54 @@ describe('elements', () => {
     ).toBe('<script>let s = "<\\/SCRIPT><b>x"</script>')
   })
 
+  test('neutralized script text is still valid JSON and JS', async () => {
+    const data = { html: '<script>x</script>', note: '<!--<script' }
+    const page = await renderToString(
+      <script type="application/ld+json">{JSON.stringify(data)}</script>,
+    )
+    const inner = page.slice(
+      '<script type="application/ld+json">'.length,
+      -'</script>'.length,
+    )
+    expect(inner).not.toContain('<script')
+    expect(inner).not.toContain('</script')
+    expect(JSON.parse(inner)).toEqual(data)
+    expect(new Function(`return ${inner}`)()).toEqual(data)
+  })
+
+  test('a slot can be placed inside script or style', async () => {
+    class Inline extends Component {
+      template() {
+        return (
+          <script>
+            <Slot>console.log(1)</Slot>
+          </script>
+        )
+      }
+    }
+    // Fallback text, then text passed as children.
+    expect(await renderToString(<Inline />)).toBe(
+      '<script>console.log(1)</script>',
+    )
+    expect(await renderToString(<Inline>{'let a = 2'}</Inline>)).toBe(
+      '<script>let a = 2</script>',
+    )
+    // Markup is still refused, even through a slot.
+    await expect(
+      renderToString(
+        <Inline>
+          <b>x</b>
+        </Inline>,
+      ),
+    ).rejects.toThrow('only accepts text')
+  })
+
   test('an opening script tag inside script text is neutralized too', async () => {
     // `<!--<script` would otherwise start the "double escaped" state, in
     // which the real closing tag no longer ends the element.
     expect(
       await renderToString(<script>{'x = "<!--<script>"; y = 1'}</script>),
-    ).toBe('<script>x = "<!--<\\script>"; y = 1</script>')
+    ).toBe('<script>x = "<!--<\\u0073cript>"; y = 1</script>')
     expect(
       await renderToString(<style>{'a::after { content: "<script>" }'}</style>),
     ).toBe('<style>a::after { content: "<script>" }</style>')
@@ -203,6 +259,18 @@ describe('components', () => {
     }
     expect(await renderToString(<Labeled />)).toBe('<b>sin nombre</b>')
     expect(await renderToString(<Labeled>NES</Labeled>)).toBe('<b>NES</b>')
+
+    // Default children are visible to <Slot /> too.
+    class Slotted extends Labeled {
+      template() {
+        return (
+          <i>
+            <Slot />
+          </i>
+        )
+      }
+    }
+    expect(await renderToString(<Slotted />)).toBe('<i>sin nombre</i>')
   })
 
   test('if also works on components', async () => {
@@ -232,9 +300,9 @@ describe('components', () => {
 
   test('plain functions are rejected with a clear error', async () => {
     const NotAClass = () => <p />
-    await expect(
-      renderToString({ type: NotAClass as any, props: {} }),
-    ).rejects.toThrow('extend Component')
+    await expect(renderToString(jsx(NotAClass as any, {}))).rejects.toThrow(
+      'extend Component',
+    )
   })
 })
 
@@ -445,6 +513,8 @@ class Titled extends Component<{ title: string }> {
   }
 }
 
+const FnComponent = () => <p />
+
 export function typeChecks() {
   return [
     <Titled title="ok" />,
@@ -457,5 +527,7 @@ export function typeChecks() {
     <Titled title="ok" key="1" />,
     // @ts-expect-error not on elements either
     <li key="1" />,
+    // @ts-expect-error function components are not accepted
+    <FnComponent />,
   ]
 }

@@ -9,8 +9,8 @@
  * That is the whole transformation: `jsx()` only records what was written.
  * Turning it into HTML happens later, in `render()`.
  */
-import type { Child, Element as OminoElement } from './element'
-import { Fragment } from './element'
+import type { ComponentClass } from './component'
+import { Element as OminoElement, Fragment, type Child } from './element'
 import type { ClassValue } from './html'
 
 export { Fragment }
@@ -25,7 +25,7 @@ export function jsx(
       'omino: `key` does nothing here (nothing is diffed), so it is not accepted',
     )
   }
-  return { type, props }
+  return new OminoElement(type, props)
 }
 
 /** Same as `jsx`; the compiler uses it when there are several static children. */
@@ -46,6 +46,8 @@ export interface HtmlAttributes {
 
 export declare namespace JSX {
   type Element = OminoElement
+  /** What can be used as a tag: an HTML tag name or a component class. */
+  type ElementType = string | typeof Fragment | ComponentClass
   interface ElementClass {
     template(): Child | Promise<Child>
   }

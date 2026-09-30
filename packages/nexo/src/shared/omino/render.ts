@@ -1,11 +1,10 @@
 import { Component, Slot, type ComponentClass } from './component'
 import {
+  Element,
   Fragment,
-  isElement,
   RawHtml,
   Scoped,
   type Child,
-  type Element,
   type Scope,
 } from './element'
 import {
@@ -59,7 +58,7 @@ async function renderChild(child: Child, scope: Scope): Promise<string> {
     const parts = await Promise.all(child.map((c) => renderChild(c, scope)))
     return parts.join('')
   }
-  if (isElement(child)) return renderElement(child, scope)
+  if (child instanceof Element) return renderElement(child, scope)
 
   throw new Error(
     `omino: can't render ${Object.prototype.toString.call(child)}`,
@@ -92,13 +91,15 @@ async function renderTag(
   const open = `<${tag}${attributes(tag, rest)}>`
 
   if (VOID_ELEMENTS.has(tag)) {
-    if (children !== undefined) {
+    // Children that render nothing (`null`, `false`, `[]`) are fine.
+    if (flatten(children as Child, scope).length > 0) {
       throw new Error(`omino: <${tag}> can't have children`)
     }
     return open
   }
   if (RAW_TEXT_ELEMENTS.has(tag)) {
-    return open + rawText(tag, children as Child) + `</${tag}>`
+    const text = textOf(tag, flatten(children as Child, scope))
+    return open + neutralize(tag, text) + `</${tag}>`
   }
   return open + (await renderChild(children as Child, scope)) + `</${tag}>`
 }
@@ -106,26 +107,46 @@ async function renderTag(
 /**
  * The content of <script> and <style> is not HTML: browsers never decode
  * entities there, so escaping would corrupt inline JS, CSS or JSON-LD.
- * Text goes through verbatim. Only the sequences that could end the element
- * early (`</script`) or confuse the parser (`<script`, which starts the
- * "double escaped" state after a `<!--`) get a backslash after the `<`, as
- * the HTML spec recommends. `<\/` is also valid inside JS strings and JSON.
+ * Only text, `raw()` and slots that resolve to text are accepted.
  */
-function rawText(tag: string, children: Child): string {
-  const text = flatten(children)
-    .map(({ child }) => {
+function textOf(tag: string, items: Placed[]): string {
+  return items
+    .map(({ child, scope }) => {
       if (typeof child === 'string') return child
       if (typeof child === 'number' || typeof child === 'bigint') {
         return String(child)
       }
       if (child instanceof RawHtml) return child.html
+      if (child instanceof Element && child.type === Slot) {
+        return textOf(tag, slotContent(child.props, scope))
+      }
       throw new Error(
         `omino: <${tag}> only accepts text; put markup or components elsewhere`,
       )
     })
     .join('')
-  const dangerous = tag === 'script' ? /<(\/?script)/gi : /<(\/style)/gi
-  return text.replace(dangerous, (_, rest: string) => `<\\${rest}`)
+}
+
+/**
+ * Keep raw text from ending its element early. `</tag` becomes `<\/tag`,
+ * valid as is in JS strings, regexes, JSON and CSS. Inside <script>,
+ * `<script` would also be a problem (after a `<!--` it starts the "double
+ * escaped" state, where the real closing tag no longer counts), so its `s`
+ * is written as `s`: still valid in JS strings, regexes, identifiers
+ * and JSON, and read back as the same text.
+ */
+function neutralize(tag: string, text: string): string {
+  let safe = text.replace(
+    new RegExp(`</${tag}`, 'gi'),
+    (match) => `<\\/${match.slice(2)}`,
+  )
+  if (tag === 'script') {
+    safe = safe.replace(
+      /<script/gi,
+      (match) => `<\\u00${match.charCodeAt(1).toString(16)}${match.slice(2)}`,
+    )
+  }
+  return safe
 }
 
 async function renderComponent(
@@ -139,26 +160,44 @@ async function renderComponent(
   }
   const instance = new type(rest)
   const tree = await instance.template()
-  return renderChild(tree, {
-    children: instance.props.children as Scoped | undefined,
-  })
+  return renderChild(tree, { children: scopedChildren(instance) })
+}
+
+/** The component's children as its slots see them, wherever they came from. */
+function scopedChildren(instance: Component<any>): Scoped | undefined {
+  const children = instance.props.children as Child
+  if (children === undefined) return undefined
+  if (children instanceof Scoped) return children
+  // From `static defaults`: no outer scope to remember.
+  return new Scoped(children, { children: undefined })
 }
 
 /** Place the children marked for this slot, or the slot's fallback content. */
-function renderSlot(
+async function renderSlot(
   props: Record<string, unknown>,
   scope: Scope,
 ): Promise<string> {
+  const parts = await Promise.all(
+    slotContent(props, scope).map(({ child, scope }) =>
+      renderChild(child, scope),
+    ),
+  )
+  return parts.join('')
+}
+
+/** What a <Slot> shows: the children marked for it, else its own fallback. */
+function slotContent(props: Record<string, unknown>, scope: Scope): Placed[] {
   const name = props.name as string | undefined
   const picked = own(scope.children).filter(
     ({ child }) => slotOf(child) === name,
   )
-
-  if (picked.length === 0) return renderChild(props.children as Child, scope)
-
-  return Promise.all(
-    picked.map(({ child, scope }) => renderChild(withoutSlot(child), scope)),
-  ).then((parts) => parts.join(''))
+  if (picked.length > 0) {
+    return picked.map(({ child, scope }) => ({
+      child: withoutSlot(child),
+      scope,
+    }))
+  }
+  return flatten(props.children as Child, scope)
 }
 
 interface Placed {
@@ -199,7 +238,7 @@ function flatten(
   ) {
     return []
   }
-  if (isElement(children)) {
+  if (children instanceof Element) {
     if (isSkipped(children)) return []
     if (children.type === Fragment) {
       return flatten(children.props.children as Child, scope)
@@ -213,13 +252,15 @@ function isSkipped(element: Element): boolean {
 }
 
 function slotOf(child: Child): string | undefined {
-  return isElement(child) ? (child.props.slot as string | undefined) : undefined
+  return child instanceof Element
+    ? (child.props.slot as string | undefined)
+    : undefined
 }
 
 function withoutSlot(child: Child): Child {
-  if (!isElement(child) || !('slot' in child.props)) return child
+  if (!(child instanceof Element) || !('slot' in child.props)) return child
   const { slot: _slot, ...props } = child.props
-  return { type: child.type, props }
+  return new Element(child.type, props)
 }
 
 function isComponentClass(type: unknown): type is ComponentClass {

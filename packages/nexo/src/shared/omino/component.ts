@@ -67,13 +67,20 @@ export class Slot extends Component<{ name?: string }> {
   }
 }
 
-/** Merge `static defaults` from the base class down to `ctor`. */
+const defaultsCache = new WeakMap<Function, object>()
+
+/** Merge `static defaults` from the base class down to `ctor`, once per class. */
 function collectDefaults(ctor: Function): object {
+  const cached = defaultsCache.get(ctor)
+  if (cached) return cached
+
   const chain: object[] = []
   let current: any = ctor
   while (current && current !== Component) {
     if (Object.hasOwn(current, 'defaults')) chain.unshift(current.defaults)
     current = Object.getPrototypeOf(current)
   }
-  return Object.assign({}, ...chain)
+  const merged = Object.freeze(Object.assign({}, ...chain))
+  defaultsCache.set(ctor, merged)
+  return merged
 }
