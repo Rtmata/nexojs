@@ -47,11 +47,13 @@ export declare namespace JSX {
   interface ElementChildrenAttribute {
     children: {}
   }
-  /** Accepted by every component, on top of its own props. */
+  /**
+   * Accepted by every component, on top of its own props. There is no `key`:
+   * omino renders once and never diffs, so it would do nothing.
+   */
   interface IntrinsicAttributes {
     if?: unknown
     slot?: string
-    key?: string | number
   }
   interface IntrinsicElements {
     [tag: string]: HtmlAttributes

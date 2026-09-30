@@ -1,6 +1,9 @@
 import type { Child } from './element'
 
-/** Props every component receives besides its own. */
+/**
+ * Props every component receives besides its own. `children` is opaque:
+ * render it (`{this.props.children}` or `<Slot />`), don't inspect it.
+ */
 export type ComponentProps<P> = P & { children?: Child }
 
 /**
@@ -42,9 +45,10 @@ export type ComponentClass = new (props: any) => Component<any>
 
 /**
  * Where a component shows its children. Without a name, it shows the
- * children that have no `slot` attribute (the same as `this.props.children`);
- * with a name, only the ones marked `slot="name"`. Its own children are the
- * fallback when nothing was passed:
+ * children that have no `slot` attribute (exactly what rendering
+ * `this.props.children` shows); with a name, only the ones marked
+ * `slot="name"`. A child marked for a slot the component never places is
+ * not rendered. Its own children are the fallback when nothing was passed:
  *
  *   <footer><Slot name="footer">Gaming Reservoir</Slot></footer>
  */

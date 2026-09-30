@@ -15,6 +15,9 @@ export const VOID_ELEMENTS = new Set([
   'wbr',
 ])
 
+/** Elements whose content is raw text, never parsed as HTML. */
+export const RAW_TEXT_ELEMENTS = new Set(['script', 'style'])
+
 const TEXT_ENTITIES: Record<string, string> = {
   '&': '&amp;',
   '<': '&lt;',
@@ -75,7 +78,6 @@ export function attributes(
 ): string {
   let html = ''
   for (const [name, raw] of Object.entries(props)) {
-    if (name === 'key') continue
     if (!VALID_ATTRIBUTE.test(name)) {
       throw new Error(`omino: invalid attribute name "${name}" on <${tag}>`)
     }

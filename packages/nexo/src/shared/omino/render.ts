@@ -8,7 +8,13 @@ import {
   type Element,
   type Scope,
 } from './element'
-import { assertTag, attributes, escapeHtml, VOID_ELEMENTS } from './html'
+import {
+  assertTag,
+  attributes,
+  escapeHtml,
+  RAW_TEXT_ELEMENTS,
+  VOID_ELEMENTS,
+} from './html'
 
 /**
  * Render a page and answer with it: `<!doctype html>`, the HTML, and an
@@ -43,7 +49,11 @@ async function renderChild(child: Child, scope: Scope): Promise<string> {
     return String(child)
   }
   if (child instanceof RawHtml) return child.html
-  if (child instanceof Scoped) return renderChild(child.children, child.scope)
+  if (child instanceof Scoped) {
+    // `this.props.children` rendered directly is the default slot: the
+    // children without a `slot` name. Named ones only show through <Slot name>.
+    return renderSlot({}, { children: child })
+  }
   if (Array.isArray(child)) {
     // Siblings render concurrently, so async components load in parallel.
     const parts = await Promise.all(child.map((c) => renderChild(c, scope)))
@@ -60,7 +70,7 @@ async function renderElement(element: Element, scope: Scope): Promise<string> {
   const { type, props } = element
 
   // `if` works on every element and component: falsy means "not rendered".
-  if ('if' in props && !props.if) return ''
+  if (isSkipped(element)) return ''
 
   if (type === Fragment) return renderChild(props.children as Child, scope)
   if (type === Slot) return renderSlot(props, scope)
@@ -87,7 +97,35 @@ async function renderTag(
     }
     return open
   }
+  if (RAW_TEXT_ELEMENTS.has(tag)) {
+    return open + rawText(tag, children as Child) + `</${tag}>`
+  }
   return open + (await renderChild(children as Child, scope)) + `</${tag}>`
+}
+
+/**
+ * The content of <script> and <style> is not HTML: browsers never decode
+ * entities there, so escaping would corrupt inline JS, CSS or JSON-LD.
+ * Text goes through verbatim; only a closing tag inside it is neutralized,
+ * which is also valid inside a JS string or JSON.
+ */
+function rawText(tag: string, children: Child): string {
+  const text = flatten(children)
+    .map(({ child }) => {
+      if (typeof child === 'string') return child
+      if (typeof child === 'number' || typeof child === 'bigint') {
+        return String(child)
+      }
+      if (child instanceof RawHtml) return child.html
+      throw new Error(
+        `omino: <${tag}> only accepts text; put markup or components elsewhere`,
+      )
+    })
+    .join('')
+  return text.replace(
+    new RegExp(`</${tag}`, 'gi'),
+    (match) => `<\\/${match.slice(2)}`,
+  )
 }
 
 async function renderComponent(
@@ -129,13 +167,18 @@ interface Placed {
   scope: Scope
 }
 
-/** List children one by one, each with the scope it was written in. */
+/**
+ * List children one by one, each with the scope it was written in.
+ * Fragments are looked through and children with a falsy `if` are dropped,
+ * so both behave the same whether or not slots are involved.
+ */
 function flatten(
   children: Child,
   scope: Scope = { children: undefined },
 ): Placed[] {
-  if (children instanceof Scoped)
+  if (children instanceof Scoped) {
     return flatten(children.children, children.scope)
+  }
   if (Array.isArray(children)) return children.flatMap((c) => flatten(c, scope))
   if (
     children === null ||
@@ -144,7 +187,17 @@ function flatten(
   ) {
     return []
   }
+  if (isElement(children)) {
+    if (isSkipped(children)) return []
+    if (children.type === Fragment) {
+      return flatten(children.props.children as Child, scope)
+    }
+  }
   return [{ child: children, scope }]
+}
+
+function isSkipped(element: Element): boolean {
+  return 'if' in element.props && !element.props.if
 }
 
 function slotOf(child: Child): string | undefined {

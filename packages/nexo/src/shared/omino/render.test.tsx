@@ -93,12 +93,38 @@ describe('elements', () => {
   })
 
   test('refuses event handlers and bad names with a clear error', async () => {
-    expect(renderToString(<button onclick={() => {}} />)).rejects.toThrow(
+    await expect(renderToString(<button onclick={() => {}} />)).rejects.toThrow(
       'event handlers',
     )
-    expect(renderToString({ type: 'bad tag', props: {} })).rejects.toThrow(
-      'invalid tag',
+    await expect(
+      renderToString({ type: 'bad tag', props: {} }),
+    ).rejects.toThrow('invalid tag')
+  })
+
+  test('script and style content is raw text, not escaped', async () => {
+    const json = JSON.stringify({ '@type': 'VideoGame', name: 'Zelda "II"' })
+    expect(
+      await renderToString(<script type="application/ld+json">{json}</script>),
+    ).toBe(`<script type="application/ld+json">${json}</script>`)
+    expect(await renderToString(<style>{'a > b { color: red }'}</style>)).toBe(
+      '<style>a > b { color: red }</style>',
     )
+  })
+
+  test('a closing tag inside script text cannot break out', async () => {
+    expect(
+      await renderToString(<script>{'let s = "</SCRIPT><b>x"'}</script>),
+    ).toBe('<script>let s = "<\\/SCRIPT><b>x"</script>')
+  })
+
+  test('script and style refuse markup children', async () => {
+    await expect(
+      renderToString(
+        <script>
+          <b>x</b>
+        </script>,
+      ),
+    ).rejects.toThrow('only accepts text')
   })
 })
 
@@ -166,7 +192,7 @@ describe('components', () => {
 
   test('plain functions are rejected with a clear error', async () => {
     const NotAClass = () => <p />
-    expect(
+    await expect(
       renderToString({ type: NotAClass as any, props: {} }),
     ).rejects.toThrow('extend Component')
   })
@@ -209,6 +235,62 @@ describe('slots', () => {
     expect(await renderToString(<Card>solo texto</Card>)).toBe(
       '<article><header></header>solo texto<footer>Gaming Reservoir</footer></article>',
     )
+  })
+
+  test('rendering children directly shows only the unnamed ones', async () => {
+    class Plain extends Component {
+      template() {
+        return <div>{this.props.children}</div>
+      }
+    }
+    expect(
+      await renderToString(
+        <Plain>
+          <h2 slot="header">oculto</h2>
+          <p>visible</p>
+        </Plain>,
+      ),
+    ).toBe('<div><p>visible</p></div>')
+  })
+
+  test('slot children inside fragments reach their slot', async () => {
+    expect(
+      await renderToString(
+        <Card>
+          <>
+            <h2 slot="header">NES</h2>
+            <p>texto</p>
+          </>
+        </Card>,
+      ),
+    ).toBe(
+      '<article><header><h2>NES</h2></header><p>texto</p><footer>Gaming Reservoir</footer></article>',
+    )
+  })
+
+  test('a slot child with a falsy if leaves the fallback in place', async () => {
+    expect(
+      await renderToString(
+        <Card>
+          <a slot="footer" if={false}>
+            no
+          </a>
+          texto
+        </Card>,
+      ),
+    ).toBe(
+      '<article><header></header>texto<footer>Gaming Reservoir</footer></article>',
+    )
+  })
+
+  test('slot is a normal attribute when not a direct child of a component', async () => {
+    expect(
+      await renderToString(
+        <my-element>
+          <span slot="icon">★</span>
+        </my-element>,
+      ),
+    ).toBe('<my-element><span slot="icon">★</span></my-element>')
   })
 
   test('slots keep the scope where they were written', async () => {
@@ -258,13 +340,23 @@ describe('render', () => {
   })
 })
 
-// Type-level checks: these lines must fail to compile.
-// @ts-expect-error unknown prop on a component
-;<Card2 tone="x" />
-class Card2 extends Component<{ title: string }> {
+// Type-level checks: each marked line must fail to compile for the stated
+// reason. Never called; it only exists for `tsc`.
+class Titled extends Component<{ title: string }> {
   template(): Child {
     return <h2>{this.props.title}</h2>
   }
 }
-// @ts-expect-error missing required prop
-;<Card2 />
+
+export function typeChecks() {
+  return [
+    <Titled title="ok" />,
+    <Titled title="ok" if={false} slot="x" />,
+    // @ts-expect-error unknown prop on a component
+    <Titled title="ok" tone="x" />,
+    // @ts-expect-error missing required prop
+    <Titled />,
+    // @ts-expect-error key does nothing in omino, so it is not accepted
+    <Titled title="ok" key="1" />,
+  ]
+}
