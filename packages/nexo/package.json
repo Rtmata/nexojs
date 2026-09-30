@@ -5,8 +5,12 @@
   "type": "module",
   "license": "MIT",
   "exports": {
-    ".": "./src/index.ts"
+    "./boat": "./src/shared/boat/index.ts"
   },
+  "files": [
+    "src",
+    "!src/**/*.test.ts"
+  ],
   "repository": {
     "type": "git",
     "url": "git+https://github.com/Rtmata/nexojs.git",
