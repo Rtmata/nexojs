@@ -5,7 +5,8 @@
   "type": "module",
   "license": "MIT",
   "exports": {
-    "./boat": "./src/shared/boat/index.ts"
+    "./boat": "./src/shared/boat/index.ts",
+    "./keep": "./src/server/keep/index.ts"
   },
   "files": [
     "src",
