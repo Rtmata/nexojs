@@ -7,6 +7,9 @@
   "exports": {
     "./boat": "./src/shared/boat/index.ts",
     "./keep": "./src/server/keep/index.ts",
+    "./omino": "./src/shared/omino/index.ts",
+    "./omino/jsx-runtime": "./src/shared/omino/jsx-runtime.ts",
+    "./omino/jsx-dev-runtime": "./src/shared/omino/jsx-dev-runtime.ts",
     "./witness": "./src/server/witness/index.ts"
   },
   "files": [

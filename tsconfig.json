@@ -10,7 +10,9 @@
     "noEmit": true,
     "verbatimModuleSyntax": true,
     "allowImportingTsExtensions": true,
-    "skipLibCheck": true
+    "skipLibCheck": true,
+    "jsx": "react-jsx",
+    "jsxImportSource": "@nexoamigos/nexo/omino"
   },
   "include": ["packages/*/src"]
 }
