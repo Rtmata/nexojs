@@ -1,0 +1,17 @@
+# Dependencies
+node_modules/
+
+# Environment
+.env
+.env.*
+!.env.example
+
+# Build output
+dist/
+
+# Logs and OS files
+*.log
+.DS_Store
+
+# Private notes (never published)
+VISION.md

@@ -1,0 +1,15 @@
+{
+  "name": "@nexoamigos/nexo",
+  "version": "0.0.0",
+  "description": "A no-magic, server-first full-stack framework for Bun.",
+  "type": "module",
+  "license": "MIT",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Rtmata/nexojs.git",
+    "directory": "packages/nexo"
+  }
+}
