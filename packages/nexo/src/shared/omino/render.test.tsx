@@ -1,6 +1,7 @@
 import { describe, expect, test } from 'bun:test'
-import { Component, Slot } from './component'
+import { Component, Slot, type ComponentProps } from './component'
 import { raw, type Child } from './element'
+import { jsx } from './jsx-runtime'
 import { render, renderToString } from './render'
 
 describe('elements', () => {
@@ -94,11 +95,19 @@ describe('elements', () => {
 
   test('refuses event handlers and bad names with a clear error', async () => {
     await expect(renderToString(<button onclick={() => {}} />)).rejects.toThrow(
-      'event handlers',
+      'no event handlers',
     )
+    // Also as text, which is how injected data would arrive.
+    await expect(
+      renderToString(<img src="x" onError="alert(1)" />),
+    ).rejects.toThrow('no event handlers')
     await expect(
       renderToString({ type: 'bad tag', props: {} }),
     ).rejects.toThrow('invalid tag')
+  })
+
+  test('key is rejected on elements too', () => {
+    expect(() => jsx('li', {}, '1')).toThrow('does nothing')
   })
 
   test('script and style content is raw text, not escaped', async () => {
@@ -115,6 +124,17 @@ describe('elements', () => {
     expect(
       await renderToString(<script>{'let s = "</SCRIPT><b>x"'}</script>),
     ).toBe('<script>let s = "<\\/SCRIPT><b>x"</script>')
+  })
+
+  test('an opening script tag inside script text is neutralized too', async () => {
+    // `<!--<script` would otherwise start the "double escaped" state, in
+    // which the real closing tag no longer ends the element.
+    expect(
+      await renderToString(<script>{'x = "<!--<script>"; y = 1'}</script>),
+    ).toBe('<script>x = "<!--<\\script>"; y = 1</script>')
+    expect(
+      await renderToString(<style>{'a::after { content: "<script>" }'}</style>),
+    ).toBe('<style>a::after { content: "<script>" }</style>')
   })
 
   test('script and style refuse markup children', async () => {
@@ -163,6 +183,26 @@ describe('components', () => {
     expect(await renderToString(<GoldBadge size="sm">x</GoldBadge>)).toBe(
       '<span class="badge badge-gold badge-sm">x</span>',
     )
+  })
+
+  test('a prop passed as undefined keeps its default', async () => {
+    const size: 'sm' | undefined = undefined
+    expect(await renderToString(<Badge size={size}>x</Badge>)).toBe(
+      '<span class="badge badge-gray badge-md">x</span>',
+    )
+  })
+
+  test('children can have a default', async () => {
+    class Labeled extends Component<{ tone?: string }> {
+      static defaults: Partial<ComponentProps<{ tone?: string }>> = {
+        children: 'sin nombre',
+      }
+      template() {
+        return <b>{this.props.children}</b>
+      }
+    }
+    expect(await renderToString(<Labeled />)).toBe('<b>sin nombre</b>')
+    expect(await renderToString(<Labeled>NES</Labeled>)).toBe('<b>NES</b>')
   })
 
   test('if also works on components', async () => {
@@ -251,6 +291,63 @@ describe('slots', () => {
         </Plain>,
       ),
     ).toBe('<div><p>visible</p></div>')
+  })
+
+  test('named children are not forwarded through another component', async () => {
+    class Wrapper extends Component {
+      template() {
+        return <Card>{this.props.children}</Card>
+      }
+    }
+    expect(
+      await renderToString(
+        <Wrapper>
+          <h2 slot="header">oculto</h2>
+          <p>texto</p>
+        </Wrapper>,
+      ),
+    ).toBe(
+      '<article><header></header><p>texto</p><footer>Gaming Reservoir</footer></article>',
+    )
+  })
+
+  test('a slot can be forwarded on purpose', async () => {
+    class Forwarding extends Component {
+      template() {
+        return (
+          <Card>
+            <Slot name="header" slot="header" />
+            <Slot />
+          </Card>
+        )
+      }
+    }
+    expect(
+      await renderToString(
+        <Forwarding>
+          <h2 slot="header">NES</h2>
+          <p>texto</p>
+        </Forwarding>,
+      ),
+    ).toBe(
+      '<article><header><h2>NES</h2></header><p>texto</p><footer>Gaming Reservoir</footer></article>',
+    )
+  })
+
+  test('children inside script use only the unnamed ones', async () => {
+    class Inline extends Component {
+      template() {
+        return <script>{this.props.children}</script>
+      }
+    }
+    expect(
+      await renderToString(
+        <Inline>
+          <b slot="x">no</b>
+          {'y = 1'}
+        </Inline>,
+      ),
+    ).toBe('<script>y = 1</script>')
   })
 
   test('slot children inside fragments reach their slot', async () => {
@@ -358,5 +455,7 @@ export function typeChecks() {
     <Titled />,
     // @ts-expect-error key does nothing in omino, so it is not accepted
     <Titled title="ok" key="1" />,
+    // @ts-expect-error not on elements either
+    <li key="1" />,
   ]
 }

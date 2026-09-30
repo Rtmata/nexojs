@@ -18,7 +18,13 @@ export { Fragment }
 export function jsx(
   type: OminoElement['type'],
   props: Record<string, unknown>,
+  key?: unknown,
 ): OminoElement {
+  if (key !== undefined) {
+    throw new Error(
+      'omino: `key` does nothing here (nothing is diffed), so it is not accepted',
+    )
+  }
   return { type, props }
 }
 
@@ -33,6 +39,8 @@ export interface HtmlAttributes {
   if?: unknown
   /** Which `<Slot name>` of the parent component this goes into. */
   slot?: string
+  /** Not accepted: omino never diffs, so a key would do nothing. */
+  key?: never
   [attribute: string]: unknown
 }
 

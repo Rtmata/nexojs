@@ -106,8 +106,10 @@ async function renderTag(
 /**
  * The content of <script> and <style> is not HTML: browsers never decode
  * entities there, so escaping would corrupt inline JS, CSS or JSON-LD.
- * Text goes through verbatim; only a closing tag inside it is neutralized,
- * which is also valid inside a JS string or JSON.
+ * Text goes through verbatim. Only the sequences that could end the element
+ * early (`</script`) or confuse the parser (`<script`, which starts the
+ * "double escaped" state after a `<!--`) get a backslash after the `<`, as
+ * the HTML spec recommends. `<\/` is also valid inside JS strings and JSON.
  */
 function rawText(tag: string, children: Child): string {
   const text = flatten(children)
@@ -122,10 +124,8 @@ function rawText(tag: string, children: Child): string {
       )
     })
     .join('')
-  return text.replace(
-    new RegExp(`</${tag}`, 'gi'),
-    (match) => `<\\/${match.slice(2)}`,
-  )
+  const dangerous = tag === 'script' ? /<(\/?script)/gi : /<(\/style)/gi
+  return text.replace(dangerous, (_, rest: string) => `<\\${rest}`)
 }
 
 async function renderComponent(
@@ -134,11 +134,10 @@ async function renderComponent(
   scope: Scope,
 ): Promise<string> {
   const { children, if: _if, slot: _slot, ...rest } = props
-  const instance = new type({
-    ...rest,
-    children:
-      children === undefined ? undefined : new Scoped(children as Child, scope),
-  })
+  if (children !== undefined) {
+    rest.children = new Scoped(children as Child, scope)
+  }
+  const instance = new type(rest)
   const tree = await instance.template()
   return renderChild(tree, {
     children: instance.props.children as Scoped | undefined,
@@ -151,7 +150,7 @@ function renderSlot(
   scope: Scope,
 ): Promise<string> {
   const name = props.name as string | undefined
-  const picked = flatten(scope.children).filter(
+  const picked = own(scope.children).filter(
     ({ child }) => slotOf(child) === name,
   )
 
@@ -168,16 +167,29 @@ interface Placed {
 }
 
 /**
+ * A component's own children, one by one, named and unnamed alike. Only the
+ * component that received them sees the names; see `flatten`.
+ */
+function own(children: Scoped | undefined): Placed[] {
+  return children ? flatten(children.children, children.scope) : []
+}
+
+/**
  * List children one by one, each with the scope it was written in.
  * Fragments are looked through and children with a falsy `if` are dropped,
  * so both behave the same whether or not slots are involved.
+ *
+ * A `Scoped` met here is some other component's `this.props.children` being
+ * passed along, and that always means its default slot: named children are
+ * not forwarded by accident. To forward one on purpose, write it out:
+ * `<Slot name="header" slot="header" />`.
  */
 function flatten(
   children: Child,
   scope: Scope = { children: undefined },
 ): Placed[] {
   if (children instanceof Scoped) {
-    return flatten(children.children, children.scope)
+    return own(children).filter(({ child }) => slotOf(child) === undefined)
   }
   if (Array.isArray(children)) return children.flatMap((c) => flatten(c, scope))
   if (

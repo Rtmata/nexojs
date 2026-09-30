@@ -35,7 +35,14 @@ export abstract class Component<P extends object = {}> {
   readonly props: ComponentProps<P>
 
   constructor(props: ComponentProps<P>) {
-    this.props = { ...collectDefaults(new.target), ...props }
+    // A prop passed as `undefined` counts as not passed, so defaults still apply.
+    const given = Object.fromEntries(
+      Object.entries(props).filter(([, value]) => value !== undefined),
+    )
+    this.props = {
+      ...collectDefaults(new.target),
+      ...given,
+    } as ComponentProps<P>
   }
 
   abstract template(): Child | Promise<Child>

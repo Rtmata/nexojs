@@ -81,6 +81,11 @@ export function attributes(
     if (!VALID_ATTRIBUTE.test(name)) {
       throw new Error(`omino: invalid attribute name "${name}" on <${tag}>`)
     }
+    if (/^on/i.test(name)) {
+      throw new Error(
+        `omino: <${tag} ${name}> is not allowed. Server-rendered HTML carries no event handlers; attach behavior in the browser instead`,
+      )
+    }
 
     const value = name === 'class' ? classNames(raw as ClassValue) : raw
     if (value === null || value === undefined || value === false) continue
@@ -89,12 +94,7 @@ export function attributes(
       html += ` ${name}`
       continue
     }
-    if (typeof value === 'function') {
-      throw new Error(
-        `omino: <${tag} ${name}> got a function. Server-rendered HTML can't carry event handlers; attach behavior in the browser instead`,
-      )
-    }
-    if (typeof value === 'object') {
+    if (typeof value === 'function' || typeof value === 'object') {
       throw new Error(
         `omino: <${tag} ${name}> must be a string, number or boolean`,
       )
