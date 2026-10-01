@@ -16,17 +16,45 @@ import {
 } from './html'
 
 /**
+ * What a page may declare for every component to read as `this.context`.
+ * Empty by default; describe yours once, with TypeScript's interface merging:
+ *
+ *   declare module '@nexoamigos/nexo/omino' {
+ *     interface RenderContext { lang: 'en' | 'es'; link: Link<'en' | 'es'> }
+ *   }
+ *
+ * Once it has fields, every `render()` must pass them (the compiler checks).
+ */
+export interface RenderContext {}
+
+/** `render()` options: a normal `ResponseInit`, plus the optional `context`. */
+export type RenderOptions = ResponseInit &
+  ({} extends RenderContext
+    ? { context?: RenderContext }
+    : { context: RenderContext })
+
+/**
  * Render a page and answer with it: `<!doctype html>`, the HTML, and an
- * HTML content type (unless `init` sets its own).
+ * HTML content type (unless `options.headers` sets its own).
  *
  *   router.get('/', () => render(<HomePage />))
  *   router.notFound(() => render(<LostRoom />, { status: 404 }))
+ *
+ * Data reaches components through props. For data every component of the
+ * page may need (the language, a link builder), `context` is an optional
+ * shortcut: any component reads it as `this.context`, without each level
+ * passing it down. It comes only from this call, so it's always traceable.
  */
 export async function render(
   tree: Child,
-  init: ResponseInit = {},
+  ...[options]: {} extends RenderContext
+    ? [options?: RenderOptions]
+    : [options: RenderOptions]
 ): Promise<Response> {
-  const html = '<!doctype html>' + (await renderToString(tree))
+  const { context, ...init } = (options ?? {}) as ResponseInit & {
+    context?: object
+  }
+  const html = '<!doctype html>' + (await renderToString(tree, context))
   const headers = new Headers(init.headers)
   if (!headers.has('content-type')) {
     headers.set('content-type', 'text/html; charset=utf-8')
@@ -35,8 +63,11 @@ export async function render(
 }
 
 /** Turn a tree into HTML text. Internal for now; `render()` is the public API. */
-export function renderToString(tree: Child): Promise<string> {
-  return renderChild(tree, { children: undefined })
+export function renderToString(
+  tree: Child,
+  context: object = {},
+): Promise<string> {
+  return renderChild(tree, { children: undefined, context })
 }
 
 async function renderChild(child: Child, scope: Scope): Promise<string> {
@@ -51,7 +82,7 @@ async function renderChild(child: Child, scope: Scope): Promise<string> {
   if (child instanceof Scoped) {
     // `this.props.children` rendered directly is the default slot: the
     // children without a `slot` name. Named ones only show through <Slot name>.
-    return renderSlot({}, { children: child })
+    return renderSlot({}, { children: child, context: scope.context })
   }
   if (Array.isArray(child)) {
     // Siblings render concurrently, so async components load in parallel.
@@ -159,17 +190,24 @@ async function renderComponent(
     rest.children = new Scoped(children as Child, scope)
   }
   const instance = new type(rest)
+  instance.context = scope.context as RenderContext
   const tree = await instance.template()
-  return renderChild(tree, { children: scopedChildren(instance) })
+  return renderChild(tree, {
+    children: scopedChildren(instance, scope.context),
+    context: scope.context,
+  })
 }
 
 /** The component's children as its slots see them, wherever they came from. */
-function scopedChildren(instance: Component<any>): Scoped | undefined {
+function scopedChildren(
+  instance: Component<any>,
+  context: object,
+): Scoped | undefined {
   const children = instance.props.children as Child
   if (children === undefined) return undefined
   if (children instanceof Scoped) return children
   // From `static defaults`: no outer scope to remember.
-  return new Scoped(children, { children: undefined })
+  return new Scoped(children, { children: undefined, context })
 }
 
 /** Place the children marked for this slot, or the slot's fallback content. */
@@ -225,7 +263,7 @@ function own(children: Scoped | undefined): Placed[] {
  */
 function flatten(
   children: Child,
-  scope: Scope = { children: undefined },
+  scope: Scope = { children: undefined, context: {} },
 ): Placed[] {
   if (children instanceof Scoped) {
     return own(children).filter(({ child }) => slotOf(child) === undefined)

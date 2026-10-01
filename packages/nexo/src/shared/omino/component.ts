@@ -1,4 +1,5 @@
 import type { Child } from './element'
+import type { RenderContext } from './render'
 
 /**
  * Props every component receives besides its own. `children` is opaque:
@@ -33,6 +34,12 @@ export abstract class Component<P extends object = {}> {
   static defaults: object = {}
 
   readonly props: ComponentProps<P>
+
+  /**
+   * The `context` passed to `render()` for this page (see `RenderContext`).
+   * Props stay the main way in; this is for page-wide values like the language.
+   */
+  context: RenderContext = {} as RenderContext
 
   constructor(props: ComponentProps<P>) {
     // A prop passed as `undefined` counts as not passed, so defaults still apply.

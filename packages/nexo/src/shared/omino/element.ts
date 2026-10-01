@@ -58,4 +58,6 @@ export class Scoped {
 /** The children of the component whose template is being rendered. */
 export interface Scope {
   children: Scoped | undefined
+  /** The `context` given to `render()`: the same object for the whole page. */
+  context: object
 }

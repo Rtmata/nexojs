@@ -505,6 +505,63 @@ describe('render', () => {
   })
 })
 
+describe('render context', () => {
+  // Tests don't declare RenderContext, so they read it loosely.
+  const lang = (c: Component<any>) => (c.context as { lang?: string }).lang
+
+  class Flag extends Component {
+    template(): Child {
+      return <span>{lang(this)}</span>
+    }
+  }
+  class Card extends Component<{ children?: Child }> {
+    template(): Child {
+      return <div>{this.props.children}</div>
+    }
+  }
+  class Page extends Component {
+    template(): Child {
+      return (
+        <main>
+          <Flag />
+          <Card>
+            <Flag />
+          </Card>
+        </main>
+      )
+    }
+  }
+
+  test('reaches every component, even through children and slots', async () => {
+    const response = await render(<Page />, { context: { lang: 'es' } } as any)
+    expect(await response.text()).toBe(
+      '<!doctype html><main><span>es</span><div><span>es</span></div></main>',
+    )
+  })
+
+  test('is not sent as a response option', async () => {
+    const response = await render(<Flag />, {
+      status: 404,
+      context: { lang: 'en' },
+    } as any)
+    expect(response.status).toBe(404)
+    expect(await response.text()).toBe('<!doctype html><span>en</span>')
+  })
+
+  test('is empty when render gets none', async () => {
+    expect(await renderToString(<Flag />)).toBe('<span></span>')
+  })
+
+  test('pages rendered at the same time keep their own context', async () => {
+    const [es, en] = await Promise.all([
+      render(<Page />, { context: { lang: 'es' } } as any),
+      render(<Page />, { context: { lang: 'en' } } as any),
+    ])
+    expect(await es.text()).not.toContain('en')
+    expect(await en.text()).not.toContain('es<')
+  })
+})
+
 // Type-level checks: each marked line must fail to compile for the stated
 // reason. Never called; it only exists for `tsc`.
 class Titled extends Component<{ title: string }> {
