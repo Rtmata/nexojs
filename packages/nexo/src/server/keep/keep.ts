@@ -1,19 +1,56 @@
 import { readdir, stat } from 'node:fs/promises'
 import { join, sep } from 'node:path'
-import type { Context, Handler, Router } from '../../shared/boat'
+import type {
+  Context,
+  ErrorHandler,
+  Handler,
+  Link,
+  Params,
+} from '../../shared/boat'
 import { listenWithBun } from '../dock/bun'
 import { serveFile } from './files'
 import { compose, type Middleware } from './middleware'
 
-export interface KeepOptions {
-  router: Router<any>
-  /**
-   * A folder served from the site root, as a fallback when no route matches:
-   * `public/logo.png` → `/logo.png`. Routes always win; files hidden by a
-   * route are reported when the server starts.
-   */
-  static?: string
+/**
+ * What keep needs from a router. A `boat()` router fits as it is; any other
+ * object with these members works too.
+ */
+export interface KeepRouter {
+  /** The route that answers a method and pathname, with its params, or `null`. */
+  match(
+    method: string,
+    pathname: string,
+  ): {
+    route: { handler: Handler; pattern?: { path: string } }
+    params: Params
+  } | null
+  /** The methods that have a route for this pathname (for 405 responses). */
+  allowed(pathname: string): readonly string[]
+  readonly notFoundHandler: Handler
+  readonly errorHandler: ErrorHandler
+  /** Optional: lets every context build links with `ctx.link`. */
+  href?: Link<any>
 }
+
+export type KeepOptions =
+  | {
+      router: KeepRouter
+      /**
+       * A folder served from the site root, as a fallback when no route matches:
+       * `public/logo.png` → `/logo.png`. Routes always win; files hidden by a
+       * route are reported when the server starts.
+       */
+      static?: string
+    }
+  | {
+      /**
+       * Layer 0: one function answers every request, no router at all.
+       * keep still adds middlewares, the trailing-slash redirect and error
+       * safety around it.
+       */
+      fetch: (request: Request) => Response | Promise<Response>
+      static?: never
+    }
 
 export interface Server {
   /** Wrap every request with a middleware. The first one added is the outermost. */
@@ -30,6 +67,10 @@ export interface Server {
  * Create a server.
  *
  *   keep({ router, static: './public' }).listen(3000)
+ *   keep({ fetch: (request) => new Response('hi') }).listen(3000)
+ *
+ * `router` is usually `boat()`, but keep only needs the few members of
+ * `KeepRouter`, so it works with any router — or none, through `fetch`.
  *
  * What happens to every request, in order:
  *   1. a trailing slash is redirected away (301)
@@ -40,7 +81,9 @@ export interface Server {
  * as the answer; anything else thrown goes to the router's error handler,
  * and the server keeps running.
  */
-export function keep({ router, static: staticFolder }: KeepOptions): Server {
+export function keep(options: KeepOptions): Server {
+  const router = 'router' in options ? options.router : fromFetch(options.fetch)
+  const staticFolder = 'router' in options ? options.static : undefined
   const middlewares: Middleware[] = []
   let running: { stop: () => Promise<void> } | null = null
 
@@ -78,7 +121,7 @@ export function keep({ router, static: staticFolder }: KeepOptions): Server {
       if (file) return file
     }
 
-    const allowed: string[] = router.allowed(url.pathname)
+    const allowed = [...router.allowed(url.pathname)]
     if (allowed.length > 0) {
       if (allowed.includes('GET')) allowed.push('HEAD')
       return new Response('Method Not Allowed', {
@@ -101,7 +144,7 @@ export function keep({ router, static: staticFolder }: KeepOptions): Server {
         request,
         url: new URL(request.url),
         params: {},
-        link: router.href,
+        link: router.href ?? noLinks,
       }
       let response: Response
       try {
@@ -137,11 +180,32 @@ export function keep({ router, static: staticFolder }: KeepOptions): Server {
   return server
 }
 
+/** `keep({ fetch })`: a router of one route that answers everything. */
+function fromFetch(
+  fetch: (request: Request) => Response | Promise<Response>,
+): KeepRouter {
+  return {
+    match: () => ({
+      route: { handler: (ctx) => fetch(ctx.request) },
+      params: {},
+    }),
+    allowed: () => [],
+    notFoundHandler: () => new Response('Not Found', { status: 404 }),
+    errorHandler: () => new Response('Internal Server Error', { status: 500 }),
+  }
+}
+
+const noLinks = (() => {
+  throw new Error(
+    'keep: ctx.link needs a router that can build links, like boat()',
+  )
+}) as Link
+
 /**
  * Report, once at startup, a missing static folder or files that can never be
  * served because a route answers their URL first.
  */
-async function checkStaticFolder(router: Router, folder: string) {
+async function checkStaticFolder(router: KeepRouter, folder: string) {
   const info = await stat(folder).catch(() => null)
   if (!info?.isDirectory()) {
     console.warn(`⚠ keep: static folder "${folder}" does not exist`)
@@ -155,7 +219,7 @@ async function checkStaticFolder(router: Router, folder: string) {
     const found = router.match('GET', urlPath)
     if (found) {
       shadowed.push(
-        `    ${join(folder, entry)}  →  ${urlPath}  (route: GET ${found.route.pattern.path})`,
+        `    ${join(folder, entry)}  →  ${urlPath}  (route: GET ${found.route.pattern?.path ?? '?'})`,
       )
     }
   }

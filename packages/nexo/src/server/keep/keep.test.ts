@@ -25,6 +25,47 @@ const get = (
 ) => server.fetch(new Request(`http://museo.test${path}`, init))
 
 describe('keep', () => {
+  test('works without a router: one fetch answers everything', async () => {
+    const server = keep({
+      fetch: (request) => new Response(new URL(request.url).pathname),
+    })
+    expect(await (await get(server, '/any/path')).text()).toBe('/any/path')
+    expect((await get(server, '/slash/')).status).toBe(301)
+  })
+
+  test('works with any router that has the members keep needs', async () => {
+    const tiny = {
+      match: (_method: string, pathname: string) =>
+        pathname === '/hi'
+          ? { route: { handler: () => new Response('hi') }, params: {} }
+          : null,
+      allowed: () => [],
+      notFoundHandler: () => new Response('nope', { status: 404 }),
+      errorHandler: () => new Response('oops', { status: 500 }),
+    }
+    expect(await (await get(keep({ router: tiny }), '/hi')).text()).toBe('hi')
+    expect((await get(keep({ router: tiny }), '/x')).status).toBe(404)
+  })
+
+  test('ctx.link explains itself when the router cannot build links', async () => {
+    const errors = spyOn(console, 'error').mockImplementation(() => {})
+    const tiny = {
+      match: () => ({
+        route: { handler: (ctx: any) => new Response(ctx.link('home')) },
+        params: {},
+      }),
+      allowed: () => [],
+      notFoundHandler: () => new Response('nope', { status: 404 }),
+      errorHandler: ({ error }: any) =>
+        new Response(String(error), { status: 500 }),
+    }
+    const response = await get(keep({ router: tiny }), '/')
+    expect(await response.text()).toContain(
+      'needs a router that can build links',
+    )
+    errors.mockRestore()
+  })
+
   test('a thrown Response is the answer, not an error', async () => {
     const router = boat()
     const findMachine = (id: string) => {

@@ -1,5 +1,5 @@
 export { keep } from './keep'
-export type { KeepOptions, Server } from './keep'
+export type { KeepOptions, KeepRouter, Server } from './keep'
 export { files } from './files'
 export { hooks } from './middleware'
 export type { Hooks, Middleware } from './middleware'
