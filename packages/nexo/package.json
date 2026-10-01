@@ -10,6 +10,7 @@
     "./omino": "./src/shared/omino/index.ts",
     "./omino/jsx-runtime": "./src/shared/omino/jsx-runtime.ts",
     "./omino/jsx-dev-runtime": "./src/shared/omino/jsx-dev-runtime.ts",
+    "./quarry": "./src/shared/quarry/index.ts",
     "./witness": "./src/server/witness/index.ts"
   },
   "files": [
