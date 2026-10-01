@@ -25,6 +25,35 @@ const get = (
 ) => server.fetch(new Request(`http://museo.test${path}`, init))
 
 describe('keep', () => {
+  test('a thrown Response is the answer, not an error', async () => {
+    const router = boat()
+    const findMachine = (id: string) => {
+      if (id !== 'nes') throw new Response('lost', { status: 404 })
+      return 'NES'
+    }
+    router.get('/consola/:id', {
+      load: ({ params }) => findMachine(params.id),
+      page: (name) => new Response(name),
+    })
+    const errors = spyOn(console, 'error').mockImplementation(() => {})
+
+    expect(await (await get(keep({ router }), '/consola/nes')).text()).toBe(
+      'NES',
+    )
+    const lost = await get(keep({ router }), '/consola/zx')
+    expect(lost.status).toBe(404)
+    expect(await lost.text()).toBe('lost')
+    expect(errors).not.toHaveBeenCalled()
+    errors.mockRestore()
+  })
+
+  test('the base context can build links to named routes', async () => {
+    const router = boat()
+    router.get('about', '/about', () => new Response('about'))
+    router.notFound(({ link }) => new Response(link('about'), { status: 404 }))
+    expect(await (await get(keep({ router }), '/nada')).text()).toBe('/about')
+  })
+
   test('answers with the matching route and its params', async () => {
     const router = boat().get(
       '/consola/:id',

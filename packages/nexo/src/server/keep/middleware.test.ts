@@ -1,11 +1,12 @@
 import { describe, expect, test } from 'bun:test'
-import type { Context, Handler } from '../../shared/boat'
+import { boat, type Context, type Handler } from '../../shared/boat'
 import { compose, hooks, type Middleware } from './middleware'
 
 const ctx: Context = {
   request: new Request('http://x/'),
   url: new URL('http://x/'),
   params: {},
+  link: boat().href,
 }
 
 const text: Handler = () => new Response('page')

@@ -125,3 +125,41 @@ function decode(part: string): string {
     return part
   }
 }
+
+/**
+ * The opposite of matching: build a pathname from a pattern and params.
+ * Values are URL-encoded; a missing or unknown param throws, so a broken
+ * link fails loudly instead of pointing somewhere wrong.
+ *
+ *   fillPattern(parsePattern('/consola/:id'), { id: 'nes' })  →  '/consola/nes'
+ */
+export function fillPattern(
+  pattern: Pattern,
+  params: Record<string, string | number> = {},
+): string {
+  const used = new Set<string>()
+  const parts = pattern.segments.flatMap((segment) => {
+    if (segment.kind === 'static') return [encodeURIComponent(segment.value)]
+    const name = segment.kind === 'param' ? segment.name : '*'
+    const value = params[name]
+    if (value === undefined || value === '') {
+      if (segment.kind === 'wildcard') return []
+      throw new Error(
+        `boat: "${pattern.path}" needs the param "${name}" to build a link`,
+      )
+    }
+    used.add(name)
+    if (segment.kind === 'wildcard') {
+      return String(value).split('/').map(encodeURIComponent)
+    }
+    return [encodeURIComponent(String(value))]
+  })
+
+  const unknown = Object.keys(params).filter((name) => !used.has(name))
+  if (unknown.length > 0) {
+    throw new Error(
+      `boat: "${pattern.path}" has no param ${unknown.map((n) => `"${n}"`).join(', ')}`,
+    )
+  }
+  return '/' + parts.join('/')
+}

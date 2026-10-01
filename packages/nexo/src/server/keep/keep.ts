@@ -6,7 +6,7 @@ import { serveFile } from './files'
 import { compose, type Middleware } from './middleware'
 
 export interface KeepOptions {
-  router: Router
+  router: Router<any>
   /**
    * A folder served from the site root, as a fallback when no route matches:
    * `public/logo.png` → `/logo.png`. Routes always win; files hidden by a
@@ -36,8 +36,9 @@ export interface Server {
  *   2. the router's most specific route answers
  *   3. otherwise, a file from the `static` folder (GET and HEAD only)
  *   4. otherwise, 405 if the path exists for other methods, or the router's 404
- * Steps 1–4 run inside the middlewares; errors thrown there go to the
- * router's error handler, and the server keeps running.
+ * Steps 1–4 run inside the middlewares. A `Response` thrown there is sent
+ * as the answer; anything else thrown goes to the router's error handler,
+ * and the server keeps running.
  */
 export function keep({ router, static: staticFolder }: KeepOptions): Server {
   const middlewares: Middleware[] = []
@@ -47,6 +48,9 @@ export function keep({ router, static: staticFolder }: KeepOptions): Server {
     try {
       return await answer(ctx)
     } catch (error) {
+      // A thrown Response is an answer, not a failure: a helper deep inside a
+      // loader can `throw router.notFoundHandler(ctx)` to end the request.
+      if (error instanceof Response) return error
       console.error(
         `keep: error while handling ${ctx.request.method} ${ctx.url.pathname}\n`,
         error,
@@ -93,7 +97,12 @@ export function keep({ router, static: staticFolder }: KeepOptions): Server {
     },
 
     async fetch(request) {
-      const ctx: Context = { request, url: new URL(request.url), params: {} }
+      const ctx: Context = {
+        request,
+        url: new URL(request.url),
+        params: {},
+        link: router.href,
+      }
       let response: Response
       try {
         response = await compose(middlewares, core)(ctx)

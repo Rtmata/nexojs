@@ -64,6 +64,7 @@ describe('boat', () => {
       request: new Request('http://x/'),
       url: new URL('http://x/'),
       params: {},
+      link: router.href,
     }
 
     expect((await router.notFoundHandler(ctx)).status).toBe(404)
