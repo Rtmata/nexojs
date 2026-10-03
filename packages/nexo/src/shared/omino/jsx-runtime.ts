@@ -11,7 +11,7 @@
  */
 import type { ComponentClass } from './component'
 import { Element as OminoElement, Fragment, type Child } from './element'
-import type { ClassValue } from './html'
+import type { ClassValue } from './attributes'
 
 export { Fragment }
 
@@ -20,12 +20,22 @@ export function jsx(
   props: Record<string, unknown>,
   key?: unknown,
 ): OminoElement {
-  if (key !== undefined) {
-    throw new Error(
-      'omino: `key` does nothing here (nothing is diffed), so it is not accepted',
-    )
-  }
+  if (key !== undefined || (props !== null && 'key' in props)) noKey()
   return new OminoElement(type, props)
+}
+
+/**
+ * What the compiler calls instead of `jsx` when a `key` comes after a
+ * spread (`<li {...attrs} key="x" />`). omino has no use for it either.
+ */
+export function createElement(): never {
+  return noKey()
+}
+
+function noKey(): never {
+  throw new Error(
+    'omino: `key` does nothing here (nothing is diffed). Remove it, also from objects spread into the element',
+  )
 }
 
 /** Same as `jsx`; the compiler uses it when there are several static children. */

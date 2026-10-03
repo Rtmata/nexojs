@@ -5,7 +5,9 @@ import type { RenderContext } from './render'
  * Props every component receives besides its own. `children` is opaque:
  * render it (`{this.props.children}` or `<Slot />`), don't inspect it.
  */
-export type ComponentProps<P> = P & { children?: Child }
+export type ComponentProps<P> = P extends unknown
+  ? Omit<P, 'children'> & { children?: Child }
+  : never
 
 /**
  * The base class for components. A component turns props into markup:
@@ -35,12 +37,6 @@ export abstract class Component<P extends object = {}> {
 
   readonly props: ComponentProps<P>
 
-  /**
-   * The `context` passed to `render()` for this page (see `RenderContext`).
-   * Props stay the main way in; this is for page-wide values like the language.
-   */
-  context: RenderContext = {} as RenderContext
-
   constructor(props: ComponentProps<P>) {
     // A prop passed as `undefined` counts as not passed, so defaults still apply.
     const given = Object.fromEntries(
@@ -52,7 +48,19 @@ export abstract class Component<P extends object = {}> {
     } as ComponentProps<P>
   }
 
-  abstract template(): Child | Promise<Child>
+  /**
+   * The markup. `context` is what `render(page, { context })` was given:
+   * the same object for every component of the page (see `RenderContext`).
+   * Take it only when you need it — `template({ lang, link }) { … }` — and
+   * test with `new Badge(props).template(context)`. Props stay the main way
+   * in; the context is for page-wide values like the language.
+   *
+   * Type the parameter as `RenderContext` (declare its fields once, see
+   * `render`). TypeScript lets a method narrow its parameter to any other
+   * type without complaint, and nothing would then check that `render()`
+   * really passes it.
+   */
+  abstract template(context: Readonly<RenderContext>): Child | Promise<Child>
 }
 
 export type ComponentClass = new (props: any) => Component<any>
@@ -67,10 +75,9 @@ export type ComponentClass = new (props: any) => Component<any>
  *   <footer><Slot name="footer">Gaming Reservoir</Slot></footer>
  */
 export class Slot extends Component<{ name?: string }> {
+  /** On its own (outside a component's template), a Slot shows its fallback. */
   template(): Child {
-    throw new Error(
-      'omino: <Slot> is placed by the renderer, never rendered on its own',
-    )
+    return this.props.children
   }
 }
 
@@ -80,14 +87,16 @@ const defaultsCache = new WeakMap<Function, object>()
 function collectDefaults(ctor: Function): object {
   const cached = defaultsCache.get(ctor)
   if (cached) return cached
-
-  const chain: object[] = []
-  let current: any = ctor
-  while (current && current !== Component) {
-    if (Object.hasOwn(current, 'defaults')) chain.unshift(current.defaults)
-    current = Object.getPrototypeOf(current)
-  }
-  const merged = Object.freeze(Object.assign({}, ...chain))
+  const merged = Object.freeze(Object.assign({}, ...defaultsChain(ctor)))
   defaultsCache.set(ctor, merged)
   return merged
+}
+
+/** Each class's own `defaults`, from the one closest to `Component` down. */
+function defaultsChain(ctor: Function): object[] {
+  const chain: object[] = []
+  for (let c: any = ctor; c && c !== Component; c = Object.getPrototypeOf(c)) {
+    if (Object.hasOwn(c, 'defaults')) chain.unshift(c.defaults)
+  }
+  return chain
 }

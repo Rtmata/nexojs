@@ -38,6 +38,8 @@ export class RawHtml {
 /**
  * Insert trusted HTML without escaping: your own Markdown output, JSON-LD,
  * inline SVG files. Never use it with anything a visitor typed.
+ *
+ *   <article>{raw(markdownToHtml(notes))}</article>
  */
 export function raw(html: string): RawHtml {
   return new RawHtml(html)
@@ -58,6 +60,4 @@ export class Scoped {
 /** The children of the component whose template is being rendered. */
 export interface Scope {
   children: Scoped | undefined
-  /** The `context` given to `render()`: the same object for the whole page. */
-  context: object
 }

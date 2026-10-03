@@ -1,6 +1,6 @@
 import { describe, expect, test } from 'bun:test'
 import { Component, Slot, type ComponentProps } from './component'
-import { raw, type Child } from './element'
+import { raw, type Child, type Element } from './element'
 import { jsx } from './jsx-runtime'
 import { render, renderToString } from './render'
 
@@ -50,6 +50,7 @@ describe('elements', () => {
   test('void elements accept children that render nothing, not others', async () => {
     const show = false
     expect(await renderToString(<br>{show && 'x'}</br>)).toBe('<br>')
+    expect(await renderToString(<img>{''}</img>)).toBe('<img>')
     expect(await renderToString(<hr>{[]}</hr>)).toBe('<hr>')
     await expect(renderToString(<br>x</br>)).rejects.toThrow(
       "can't have children",
@@ -116,7 +117,7 @@ describe('elements', () => {
       renderToString(<img src="x" onError="alert(1)" />),
     ).rejects.toThrow('no event handlers')
     await expect(renderToString(jsx('bad tag', {}))).rejects.toThrow(
-      'invalid tag',
+      'is not a tag name',
     )
   })
 
@@ -507,11 +508,11 @@ describe('render', () => {
 
 describe('render context', () => {
   // Tests don't declare RenderContext, so they read it loosely.
-  const lang = (c: Component<any>) => (c.context as { lang?: string }).lang
+  type Loose = { lang?: string }
 
   class Flag extends Component {
-    template(): Child {
-      return <span>{lang(this)}</span>
+    template({ lang }: Loose): Child {
+      return <span>{lang}</span>
     }
   }
   class Card extends Component<{ children?: Child }> {
@@ -532,8 +533,8 @@ describe('render context', () => {
     }
   }
 
-  test('reaches every component, even through children and slots', async () => {
-    const response = await render(<Page />, { context: { lang: 'es' } } as any)
+  test('reaches every template, even through children and slots', async () => {
+    const response = await render(<Page />, { context: { lang: 'es' } })
     expect(await response.text()).toBe(
       '<!doctype html><main><span>es</span><div><span>es</span></div></main>',
     )
@@ -543,22 +544,191 @@ describe('render context', () => {
     const response = await render(<Flag />, {
       status: 404,
       context: { lang: 'en' },
-    } as any)
+    })
     expect(response.status).toBe(404)
     expect(await response.text()).toBe('<!doctype html><span>en</span>')
   })
 
-  test('is empty when render gets none', async () => {
+  test('without one, optional fields read as undefined', async () => {
     expect(await renderToString(<Flag />)).toBe('<span></span>')
+  })
+
+  test('a test hands the context to template() itself', () => {
+    const tree = new Flag({}).template({ lang: 'es' }) as Element
+    expect(tree.props.children).toBe('es')
   })
 
   test('pages rendered at the same time keep their own context', async () => {
     const [es, en] = await Promise.all([
-      render(<Page />, { context: { lang: 'es' } } as any),
-      render(<Page />, { context: { lang: 'en' } } as any),
+      render(<Page />, { context: { lang: 'es' } }),
+      render(<Page />, { context: { lang: 'en' } }),
     ])
-    expect(await es.text()).not.toContain('en')
-    expect(await en.text()).not.toContain('es<')
+    expect(await es.text()).toBe(
+      '<!doctype html><main><span>es</span><div><span>es</span></div></main>',
+    )
+    expect(await en.text()).toBe(
+      '<!doctype html><main><span>en</span><div><span>en</span></div></main>',
+    )
+  })
+
+  test('every template gets the object as given, methods included', async () => {
+    class PageContext {
+      constructor(readonly lang: string) {}
+      greet() {
+        return this.lang === 'es' ? 'hola' : 'hello'
+      }
+    }
+    const given = new PageContext('es')
+    const seen: unknown[] = []
+    class Greeting extends Component {
+      template(context: PageContext): Child {
+        seen.push(context)
+        return <b>{context.greet()}</b>
+      }
+    }
+    const html = await renderToString(
+      <>
+        <Greeting />
+        <Greeting />
+      </>,
+      given,
+    )
+    expect(html).toBe('<b>hola</b><b>hola</b>')
+    expect(seen).toEqual([given, given])
+    expect(seen[0]).toBe(given)
+  })
+})
+
+describe('leaves, tags and scripts', () => {
+  class Layout extends Component<{ children?: Child }> {
+    template(): Child {
+      return (
+        <main>
+          <Slot>fallback</Slot>
+        </main>
+      )
+    }
+  }
+
+  test("'' renders nothing, so a slot still shows its fallback", async () => {
+    expect(await renderToString(<Layout>{''}</Layout>)).toBe(
+      '<main>fallback</main>',
+    )
+    expect(await renderToString(<img>{''}</img>)).toBe('<img>')
+  })
+
+  test('void and raw-text tags are known in any case', async () => {
+    expect(await renderToString(<bR />)).toBe('<bR>')
+    expect(await renderToString(<sCript>{'a<b'}</sCript>)).toBe(
+      '<sCript>a<b</sCript>',
+    )
+  })
+
+  test('a non-JS script is written as is, and refuses what would end it', async () => {
+    const tpl = '<p>{{name}}</p>'
+    expect(
+      await renderToString(<script type="text/template">{tpl}</script>),
+    ).toBe(`<script type="text/template">${tpl}</script>`)
+    await expect(
+      renderToString(<script type="text/template">{'</script>'}</script>),
+    ).rejects.toThrow('in a <template> element')
+  })
+
+  test('a key hidden in a spread is refused too', () => {
+    // The editor refuses it too; at runtime it fails as well.
+    const attrs: object = { key: 'x', class: 'a' }
+    expect(() => <div {...attrs} />).toThrow('`key` does nothing')
+  })
+
+  test('a Slot rendered on its own shows its fallback', async () => {
+    expect(await renderToString(<Slot>alone</Slot>)).toBe('alone')
+  })
+})
+
+describe('safety, foreign content and failures', () => {
+  test('a script URL is refused like an event handler', async () => {
+    await expect(
+      renderToString(<a href=" javascript:alert(1)">x</a>),
+    ).rejects.toThrow('holds a script URL')
+    await expect(renderToString(<form action="VBScript:x" />)).rejects.toThrow(
+      'script URL',
+    )
+    expect(await renderToString(<a href="/nes">x</a>)).toBe(
+      '<a href="/nes">x</a>',
+    )
+  })
+
+  test('an event handler with no value writes nothing and passes', async () => {
+    expect(await renderToString(<button onclick={undefined}>ok</button>)).toBe(
+      '<button>ok</button>',
+    )
+  })
+
+  test('inside <svg>, <style> text is escaped like any text', async () => {
+    const css = 'a{}<img src=x onerror=alert(1)>'
+    expect(
+      await renderToString(
+        <svg>
+          <style>{css}</style>
+        </svg>,
+      ),
+    ).toBe('<svg><style>a{}&lt;img src=x onerror=alert(1)&gt;</style></svg>')
+  })
+
+  test('a script with no type, or a legacy JS type, is JavaScript', async () => {
+    const off = false
+    expect(
+      await renderToString(
+        <script type={off && 'module'}>{'"</script>"'}</script>,
+      ),
+    ).toBe('<script>"<\\/script>"</script>')
+  })
+
+  test('the first newline of <pre> survives the HTML parser', async () => {
+    expect(await renderToString(<pre>{'\nline'}</pre>)).toBe(
+      '<pre>\n\nline</pre>',
+    )
+  })
+
+  test('a subclass of Slot keeps its name and its children', async () => {
+    class FooterSlot extends Slot {
+      static defaults = { name: 'footer' }
+    }
+    class Card extends Component<{ children?: Child }> {
+      template(): Child {
+        return (
+          <div>
+            <FooterSlot>fallback</FooterSlot>
+          </div>
+        )
+      }
+    }
+    expect(
+      await renderToString(
+        <Card>
+          <p slot="footer">F</p>
+        </Card>,
+      ),
+    ).toBe('<div><p>F</p></div>')
+  })
+
+  test('a sibling failing at once still lets a slow failure be handled', async () => {
+    class Slow extends Component {
+      async template(): Promise<Child> {
+        await new Promise((r) => setTimeout(r, 5))
+        throw new Error('db down')
+      }
+    }
+    const notChild = { not: 'a child' } as unknown as Child
+    await expect(
+      renderToString(
+        <div>
+          <Slow />
+          {notChild}
+        </div>,
+      ),
+    ).rejects.toThrow("can't render")
+    await new Promise((r) => setTimeout(r, 20)) // Slow fails now; nothing unhandled
   })
 })
 
@@ -588,3 +758,21 @@ export function typeChecks() {
     <FnComponent />,
   ]
 }
+
+/** Type-level: children are opaque, whatever the props say. Never called. */
+export class Shout extends Component<{ children: string }> {
+  template(): Child {
+    // @ts-expect-error children is a Child, not the string the props declared
+    return <b>{this.props.children.toUpperCase()}</b>
+  }
+}
+
+/** Type-level: union props keep working. Never called. */
+export class Either extends Component<
+  { kind: 'a'; a: string } | { kind: 'b'; b: number }
+> {
+  template(): Child {
+    return this.props.kind === 'a' ? this.props.a : this.props.b
+  }
+}
+export const eitherUse = () => <Either kind="a" a="hi" />
