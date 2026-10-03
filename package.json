@@ -8,7 +8,8 @@
   "scripts": {
     "check": "tsc --noEmit",
     "format": "prettier --write .",
-    "format:check": "prettier --check ."
+    "format:check": "prettier --check .",
+    "check:size": "bun scripts/check-size.ts"
   },
   "devDependencies": {
     "@types/bun": "^1.4.2",
