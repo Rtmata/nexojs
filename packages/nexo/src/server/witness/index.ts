@@ -1,1 +1,1 @@
-export { reload, RELOAD_PATH } from './reload'
+export { RELOAD_PATH, witness } from './witness'
