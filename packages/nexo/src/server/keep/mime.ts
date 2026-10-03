@@ -1,10 +1,14 @@
 /** Content types for the file extensions a website usually serves. */
 const TYPES: Record<string, string> = {
   html: 'text/html; charset=utf-8',
+  htm: 'text/html; charset=utf-8',
   css: 'text/css; charset=utf-8',
   js: 'text/javascript; charset=utf-8',
   mjs: 'text/javascript; charset=utf-8',
   json: 'application/json; charset=utf-8',
+  map: 'application/json; charset=utf-8',
+  webmanifest: 'application/manifest+json',
+  csv: 'text/csv; charset=utf-8',
   txt: 'text/plain; charset=utf-8',
   xml: 'application/xml; charset=utf-8',
   svg: 'image/svg+xml',
@@ -20,6 +24,9 @@ const TYPES: Record<string, string> = {
   ttf: 'font/ttf',
   otf: 'font/otf',
   mp3: 'audio/mpeg',
+  m4a: 'audio/mp4',
+  flac: 'audio/flac',
+  opus: 'audio/opus',
   ogg: 'audio/ogg',
   wav: 'audio/wav',
   mp4: 'video/mp4',
@@ -30,6 +37,11 @@ const TYPES: Record<string, string> = {
 
 /** The content type for a file name, or a generic binary type if unknown. */
 export function contentType(fileName: string): string {
-  const extension = fileName.slice(fileName.lastIndexOf('.') + 1).toLowerCase()
-  return TYPES[extension] ?? 'application/octet-stream'
+  const name = fileName.slice(fileName.lastIndexOf('/') + 1)
+  const dot = name.lastIndexOf('.')
+  if (dot <= 0) return 'application/octet-stream' // 'json', '.env': no extension
+  const extension = name.slice(dot + 1).toLowerCase()
+  return Object.hasOwn(TYPES, extension)
+    ? TYPES[extension]!
+    : 'application/octet-stream'
 }

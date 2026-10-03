@@ -1,4 +1,4 @@
-import type { Context, Handler } from '../../shared/boat'
+import type { Context, Handler } from '../../shared/http/types'
 
 /**
  * A middleware is a function that wraps a handler and returns a new one.
@@ -27,6 +27,11 @@ export interface Hooks {
 /**
  * Build a middleware from named hooks — a shortcut for the common
  * "before / after" case. It is just a `Middleware`; read it to see how.
+ *
+ *   server.use(hooks({
+ *     onRequest: (ctx) => (ctx.url.pathname === '/health' ? new Response('ok') : undefined),
+ *     onResponse: (ctx, response) => { response.headers.set('x-museum', 'GR'); return response },
+ *   }))
  */
 export function hooks({ onRequest, onResponse }: Hooks): Middleware {
   return (handler) => async (ctx) => {
