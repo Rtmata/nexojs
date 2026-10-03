@@ -1,2 +1,10 @@
 export { quarry } from './quarry'
-export type { PartialDateOptions, PluralForms, Quarry } from './quarry'
+export type {
+  CalendarOptions,
+  Gender,
+  OrdinalOptions,
+  PartialDateOptions,
+  PluralForms,
+  Quarry,
+  Year,
+} from './quarry'
