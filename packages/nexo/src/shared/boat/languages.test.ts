@@ -210,3 +210,163 @@ describe('{ load, page }', () => {
     expect(await (await visit(router, '/slow')).text()).toBe('42')
   })
 })
+
+describe('langFrom', () => {
+  const request = (url: string, headers: Record<string, string> = {}) =>
+    new Request(new URL(url, 'http://museum.test'), { headers })
+
+  test('reads the language each way, only from declared languages', () => {
+    const of = (langFrom: any, req: Request) =>
+      boat({ languages: ['en', 'es'], langFrom }).langOf(req)
+
+    expect(of('prefix', request('/es/consola/nes'))).toBe('es')
+    expect(of('prefix', request('/fr/x'))).toBeUndefined()
+    expect(of('subdomain', request('http://es.museum.test/arcade'))).toBe('es')
+    expect(
+      of(
+        'header',
+        request('/', { 'accept-language': 'fr;q=1, es-MX;q=0.9, en;q=0.5' }),
+      ),
+    ).toBe('es')
+    expect(
+      of({ cookie: 'lang' }, request('/', { cookie: 'theme=dark; lang=es' })),
+    ).toBe('es')
+    expect(of({ query: 'lang' }, request('/?lang=es'))).toBe('es')
+    expect(
+      of(
+        (r: Request) => r.headers.get('x-lang') ?? undefined,
+        request('/', { 'x-lang': 'es' }),
+      ),
+    ).toBe('es')
+  })
+
+  test('a list tries each way in order', () => {
+    const router = boat({
+      languages: ['en', 'es'],
+      langFrom: ['prefix', { cookie: 'lang' }, 'header'],
+    })
+    expect(router.langOf(request('/es/x', { cookie: 'lang=en' }))).toBe('es')
+    expect(
+      router.langOf(
+        request('/x', { cookie: 'lang=en', 'accept-language': 'es' }),
+      ),
+    ).toBe('en')
+    expect(router.langOf(request('/x', { 'accept-language': 'es' }))).toBe('es')
+    expect(router.langOf(request('/x'))).toBeUndefined()
+  })
+
+  test('two languages may share a path when langFrom tells them apart', () => {
+    const router = boat({ languages: ['en', 'es'], langFrom: 'subdomain' })
+    router.get('arcade', { en: '/arcade', es: '/arcade' }, ok)
+    expect(router.match('GET', '/arcade', 'es')?.route.lang).toBe('es')
+    expect(router.match('GET', '/arcade', 'en')?.route.lang).toBe('en')
+    // No language known: the default one answers.
+    expect(router.match('GET', '/arcade')?.route.lang).toBe('en')
+  })
+
+  test('without langFrom, a shared path is still a clash, with a hint', () => {
+    const router = boat({ languages: ['en', 'es'] })
+    expect(() =>
+      router.get('arcade', { en: '/arcade', es: '/arcade' }, ok),
+    ).toThrow("tell them apart with a langFrom that doesn't read the path")
+  })
+  test('language tags and cookie values are read case-insensitively, quotes allowed', () => {
+    const router = boat({ languages: ['en', 'es'], langFrom: ['header'] })
+    expect(
+      router.langOf(
+        new Request('http://x/', { headers: { 'accept-language': 'ES-mx' } }),
+      ),
+    ).toBe('es')
+    const byCookie = boat({
+      languages: ['en', 'es'],
+      langFrom: { cookie: 'lang' },
+    })
+    expect(
+      byCookie.langOf(
+        new Request('http://x/', { headers: { cookie: 'lang="ES"' } }),
+      ),
+    ).toBe('es')
+  })
+  test('a misspelled or empty langFrom fails with a clear message', () => {
+    expect(() =>
+      boat({ languages: ['en'], langFrom: 'cookies' as any }),
+    ).toThrow('unknown langFrom "cookies"')
+    expect(() => boat({ languages: [], langFrom: 'prefix' })).toThrow(
+      'langFrom needs the languages to look for',
+    )
+  })
+
+  test('alternates of a shared path point at each language through the URL', () => {
+    const bySubdomain = boat({ languages: ['en', 'es'], langFrom: 'subdomain' })
+    bySubdomain.get('arcade', { en: '/arcade', es: '/arcade' }, ok)
+    expect(
+      bySubdomain.alternates({
+        url: new URL('http://es.museum.test/arcade'),
+        lang: 'es',
+      }),
+    ).toEqual({
+      en: 'http://en.museum.test/arcade',
+      es: 'http://es.museum.test/arcade',
+    })
+
+    const byQuery = boat({
+      languages: ['en', 'es'],
+      langFrom: { query: 'lang' },
+    })
+    byQuery.get('arcade', { en: '/arcade', es: '/arcade' }, ok)
+    expect(
+      byQuery.alternates({ url: new URL('http://x/arcade?lang=es') }),
+    ).toEqual({
+      en: '/arcade?lang=en',
+      es: '/arcade?lang=es',
+    })
+
+    const byCookie = boat({
+      languages: ['en', 'es'],
+      langFrom: { cookie: 'lang' },
+    })
+    byCookie.get('arcade', { en: '/arcade', es: '/arcade' }, ok)
+    expect(byCookie.alternates({ url: new URL('http://x/arcade') })).toEqual({})
+  })
+})
+
+describe('languages, more cases', () => {
+  test('ctx.link in a route falls back to the default language', async () => {
+    const router = boat({ languages: ['en', 'es'] })
+    router.get('console', { en: '/en/console/:id', es: '/es/consola/:id' }, ok)
+    router.get('/', (ctx) => new Response(ctx.link('console', { id: 'nes' })))
+    const found = router.match('GET', '/')!
+    const response = await found.route.handler({
+      request: new Request('http://x/'),
+      url: new URL('http://x/'),
+      params: {},
+      link: router.href as Context['link'],
+    })
+    expect(await response.text()).toBe('/en/console/nes')
+  })
+
+  test('alternates skip a language whose path needs a param this URL lacks', () => {
+    const router = boat({ languages: ['en', 'es'] })
+    router.get('c', { en: '/en/console/:slug', es: '/es/consola/:id' }, ok)
+    expect(
+      router.alternates({ url: new URL('http://x/en/console/nes') }),
+    ).toEqual({
+      en: '/en/console/nes',
+    })
+  })
+
+  test('an empty segment is no value for a param', () => {
+    const router = boat().get('/consolas/:id/info', ok)
+    expect(router.match('GET', '/consolas//info')).toBeNull()
+  })
+
+  test('a failed registration leaves nothing behind', () => {
+    const router = boat({ languages: ['en', 'es'] })
+    router.get('/b', ok)
+    expect(() => router.get('x', { en: '/a', es: '/b' }, ok)).toThrow(
+      'match exactly the same URLs',
+    )
+    expect(router.routes.map((r) => r.pattern.path)).toEqual(['/b'])
+    expect(() => router.href('x', {}, 'en')).toThrow('no route named "x"')
+  })
+})

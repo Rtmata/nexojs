@@ -1,28 +1,23 @@
 import { describe, expect, test } from 'bun:test'
-import {
-  compareSpecificity,
-  matchPattern,
-  parsePattern,
-  shapeOf,
-  splitPath,
-} from './pattern'
+import { decodedSegments, splitSegments } from '../url/decode'
+import { Pattern } from './pattern'
 
 const match = (path: string, pathname: string) =>
-  matchPattern(parsePattern(path), splitPath(pathname))
+  new Pattern(path).match(decodedSegments(pathname) ?? [])
 
-describe('splitPath', () => {
+describe('splitSegments', () => {
   test('root has no segments', () => {
-    expect(splitPath('/')).toEqual([])
+    expect(splitSegments('/')).toEqual([])
   })
 
   test('ignores a trailing slash', () => {
-    expect(splitPath('/consola/nes/')).toEqual(['consola', 'nes'])
+    expect(splitSegments('/consola/nes/')).toEqual(['consola', 'nes'])
   })
 })
 
 describe('parsePattern', () => {
   test('parses static, param and wildcard segments', () => {
-    expect(parsePattern('/consola/:id/*').segments).toEqual([
+    expect(new Pattern('/consola/:id/*').segments).toEqual([
       { kind: 'static', value: 'consola' },
       { kind: 'param', name: 'id' },
       { kind: 'wildcard' },
@@ -30,10 +25,10 @@ describe('parsePattern', () => {
   })
 
   test('rejects malformed paths', () => {
-    expect(() => parsePattern('consola')).toThrow('must start with "/"')
-    expect(() => parsePattern('/*/juegos')).toThrow('last segment')
-    expect(() => parsePattern('/consola/:')).toThrow('empty parameter')
-    expect(() => parsePattern('/:id/:id')).toThrow('repeated')
+    expect(() => new Pattern('consola')).toThrow('must start with "/"')
+    expect(() => new Pattern('/*/juegos')).toThrow('last segment')
+    expect(() => new Pattern('/consola/:')).toThrow('empty parameter')
+    expect(() => new Pattern('/:id/:id')).toThrow('repeated')
   })
 })
 
@@ -69,15 +64,15 @@ describe('matchPattern', () => {
 
 describe('shapeOf', () => {
   test('erases param names', () => {
-    expect(shapeOf(parsePattern('/consola/:id'))).toBe(
-      shapeOf(parsePattern('/consola/:slug')),
+    expect(new Pattern('/consola/:id').shape).toBe(
+      new Pattern('/consola/:slug').shape,
     )
   })
 })
 
 describe('compareSpecificity', () => {
   const more = (a: string, b: string) =>
-    compareSpecificity(parsePattern(a), parsePattern(b)) > 0
+    new Pattern(a).compare(new Pattern(b)) > 0
 
   test('static beats param beats wildcard', () => {
     expect(more('/consola/nes', '/consola/:id')).toBe(true)
