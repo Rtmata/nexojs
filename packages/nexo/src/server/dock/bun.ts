@@ -35,3 +35,19 @@ async function stopBun(server: Bun.Server<unknown>, force: boolean) {
 export function fileBlob(path: string): Blob {
   return Bun.file(path)
 }
+
+/**
+ * One browser-ready script from a TypeScript entry file and everything it
+ * imports, types stripped, nothing minified: the one transformation client
+ * code goes through. Bun's bundler does it in memory.
+ */
+export async function bundleForBrowser(entry: string): Promise<string> {
+  const built = await Bun.build({
+    entrypoints: [entry],
+    target: 'browser',
+    format: 'esm',
+  })
+  if (!built.success)
+    throw new Error(`dock: can't bundle ${entry}:\n${built.logs.join('\n')}`)
+  return built.outputs[0]!.text()
+}

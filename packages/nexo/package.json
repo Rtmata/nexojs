@@ -6,6 +6,8 @@
   "license": "MIT",
   "exports": {
     "./boat": "./src/shared/boat/index.ts",
+    "./bridge": "./src/server/bridge/index.ts",
+    "./bridge/client": "./src/client/bridge/bridge.ts",
     "./keep": "./src/server/keep/index.ts",
     "./omino": "./src/shared/omino/index.ts",
     "./omino/jsx-runtime": "./src/shared/omino/jsx-runtime.ts",
