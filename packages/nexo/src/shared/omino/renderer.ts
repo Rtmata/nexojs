@@ -5,6 +5,7 @@ import { assertTag, escapeHtml, RAW_TEXT_ELEMENTS, VOID_ELEMENTS } from './html'
 import { isNothing, rawOf, textOf } from './leaf'
 import { RawText } from './raw-text'
 import type { RenderContext } from './render'
+import type { SegmentPicker } from './segment'
 import { isSkipped, SlotResolver, type Placed } from './slots'
 
 /**
@@ -27,6 +28,8 @@ export class Renderer {
      * <script> there are no raw text, so their text is escaped like any.
      */
     private readonly foreign = false,
+    /** Set by `render(page, { only })`: collects the segments asked for. */
+    private readonly picker?: SegmentPicker,
   ) {
     this.rawText = new RawText(slots)
   }
@@ -111,11 +114,17 @@ export class Renderer {
       this.context,
       this.slots,
       true,
+      this.picker,
     ))
   }
 
   private html(): Renderer {
-    return (this.htmlRenderer ??= new Renderer(this.context, this.slots, false))
+    return (this.htmlRenderer ??= new Renderer(
+      this.context,
+      this.slots,
+      false,
+      this.picker,
+    ))
   }
 
   /** Children that render nothing (`null`, `false`, `''`, `[]`) are fine. */
@@ -136,7 +145,9 @@ export class Renderer {
       rest.children = new Scoped(children as Child, scope)
     const instance = new type(rest)
     const tree = await instance.template(this.context)
-    return this.child(tree, { children: this.childrenOf(instance) })
+    const html = await this.child(tree, { children: this.childrenOf(instance) })
+    this.picker?.offer(instance, html)
+    return html
   }
 
   /** A <Slot> (or a subclass of it, defaults included) shows what its scope gives it. */

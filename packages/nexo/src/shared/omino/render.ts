@@ -1,5 +1,6 @@
 import type { Child } from './element'
 import { Renderer } from './renderer'
+import { SegmentPicker } from './segment'
 
 /**
  * What a page may hand every component's `template(context)`.
@@ -13,9 +14,15 @@ import { Renderer } from './renderer'
  */
 export interface RenderContext {}
 
-/** `render()` options: a normal `ResponseInit`, plus the optional `context`. */
-export type RenderOptions = ResponseInit &
-  ({} extends RenderContext
+/** `render()` options: a normal `ResponseInit`, plus the optional `context` and `only`. */
+export type RenderOptions = ResponseInit & {
+  /**
+   * Answer with these `<Segment>`s only, no doctype, in this order: what
+   * bridge asks for with `?_segment=`. The whole page is still rendered;
+   * a name the page lacks adds nothing.
+   */
+  only?: readonly string[]
+} & ({} extends RenderContext
     ? { context?: RenderContext }
     : { context: RenderContext })
 
@@ -44,13 +51,31 @@ export async function render(
     ? [options?: RenderOptions]
     : [options: RenderOptions]
 ): Promise<Response> {
-  const { context, ...init }: ResponseInit & { context?: RenderContext } =
+  const {
+    context,
+    only,
+    ...init
+  }: ResponseInit & { context?: RenderContext; only?: readonly string[] } =
     options ?? {}
-  const html = '<!doctype html>' + (await renderToString(tree, context))
-  const headers = new Headers(init.headers)
+  const html = await documentOrSegments(tree, context, only)
+  return new Response(html, { ...init, headers: htmlHeaders(init.headers) })
+}
+
+/** The whole document with its doctype, or just the segments asked for. */
+async function documentOrSegments(
+  tree: Child,
+  context: RenderContext | undefined,
+  only: readonly string[] | undefined,
+): Promise<string> {
+  if (only) return renderToString(tree, context, only)
+  return '<!doctype html>' + (await renderToString(tree, context))
+}
+
+function htmlHeaders(given: HeadersInit | undefined): Headers {
+  const headers = new Headers(given)
   if (!headers.has('content-type'))
     headers.set('content-type', 'text/html; charset=utf-8')
-  return new Response(html, { ...init, headers })
+  return headers
 }
 
 /**
@@ -60,10 +85,17 @@ export async function render(
  */
 const EMPTY_CONTEXT = Object.freeze({}) as RenderContext
 
-/** Turn a tree into HTML text. Internal for now; `render()` is the public API. */
-export function renderToString(
+/**
+ * Turn a tree into HTML text; with `only`, just the segments named. Internal
+ * for now; `render()` is the public API.
+ */
+export async function renderToString(
   tree: Child,
   context: RenderContext = EMPTY_CONTEXT,
+  only?: readonly string[],
 ): Promise<string> {
-  return new Renderer(context).page(tree)
+  if (!only) return new Renderer(context).page(tree)
+  const picker = new SegmentPicker(only)
+  await new Renderer(context, undefined, false, picker).page(tree)
+  return picker.html()
 }

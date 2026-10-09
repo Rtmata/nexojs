@@ -3,6 +3,7 @@ import { Component, Slot, type ComponentProps } from './component'
 import { raw, type Child, type Element } from './element'
 import { jsx } from './jsx-runtime'
 import { render, renderToString } from './render'
+import { Segment } from './segment'
 
 describe('elements', () => {
   test('renders tags, attributes and text', async () => {
@@ -776,3 +777,75 @@ export class Either extends Component<
   }
 }
 export const eitherUse = () => <Either kind="a" a="hi" />
+
+describe('segments', () => {
+  class Page extends Component<{ n: number }> {
+    template() {
+      return (
+        <main>
+          <h1>Arcade</h1>
+          <Segment name="counter" tag="span">
+            {this.props.n} games
+          </Segment>
+          <Segment name="shelf">
+            <ul>
+              <li>sf2</li>
+            </ul>
+          </Segment>
+        </main>
+      )
+    }
+  }
+
+  test('<Segment> is a plain element carrying the attribute bridge looks for', async () => {
+    expect(await renderToString(<Segment name="shelf">x</Segment>)).toBe(
+      '<div data-bridge-segment="shelf">x</div>',
+    )
+    expect(
+      await renderToString(
+        <Segment name="counter" tag="span">
+          3
+        </Segment>,
+      ),
+    ).toBe('<span data-bridge-segment="counter">3</span>')
+  })
+
+  test('render(only) answers the segments asked for, in that order, no doctype', async () => {
+    const response = await render(<Page n={3} />, {
+      only: ['shelf', 'counter'],
+    })
+    expect(await response.text()).toBe(
+      '<div data-bridge-segment="shelf"><ul><li>sf2</li></ul></div><span data-bridge-segment="counter">3 games</span>',
+    )
+    expect(response.headers.get('content-type')).toBe(
+      'text/html; charset=utf-8',
+    )
+  })
+
+  test('a segment the page lacks adds nothing; none found is an empty body', async () => {
+    expect(
+      await renderToString(<Page n={1} />, undefined, ['shelf', 'nope']),
+    ).toBe('<div data-bridge-segment="shelf"><ul><li>sf2</li></ul></div>')
+    expect(await renderToString(<Page n={1} />, undefined, ['nope'])).toBe('')
+  })
+
+  test('nested segments: the outer one includes the inner, both can be asked for', async () => {
+    const tree = (
+      <Segment name="room">
+        <Segment name="shelf">a</Segment>
+      </Segment>
+    )
+    expect(await renderToString(tree, undefined, ['room'])).toBe(
+      '<div data-bridge-segment="room"><div data-bridge-segment="shelf">a</div></div>',
+    )
+    expect(await renderToString(tree, undefined, ['shelf'])).toBe(
+      '<div data-bridge-segment="shelf">a</div>',
+    )
+  })
+
+  test('without only, the page is whole', async () => {
+    const text = await (await render(<Page n={2} />)).text()
+    expect(text).toStartWith('<!doctype html><main><h1>Arcade</h1>')
+    expect(text).toContain('data-bridge-segment="shelf"')
+  })
+})

@@ -1,4 +1,5 @@
 export { Component, Slot } from './component'
+export { Segment } from './segment'
 export type { ComponentProps } from './component'
 export { raw } from './element'
 // The compiler imports it for a `key` after a spread; it only explains.
