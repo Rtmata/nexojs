@@ -810,6 +810,18 @@ describe('segments', () => {
     ).toBe('<span data-bridge-segment="counter">3</span>')
   })
 
+  test('<Segment> passes other attributes on to its element', async () => {
+    expect(
+      await renderToString(
+        <Segment name="counter" tag="span" class="wall" data-bridge-twin>
+          3
+        </Segment>,
+      ),
+    ).toBe(
+      '<span class="wall" data-bridge-twin data-bridge-segment="counter">3</span>',
+    )
+  })
+
   test('render(only) answers the segments asked for, in that order, no doctype', async () => {
     const response = await render(<Page n={3} />, {
       only: ['shelf', 'counter'],

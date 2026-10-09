@@ -23,6 +23,17 @@ describe('withSegments', () => {
     expect(url.href).toBe('http://m.test/es/arcade?page=2#top')
   })
 
+  test('several names keep their commas readable', () => {
+    const url = new URL('http://m.test/es/arcade')
+    expect(withSegments(url, ['shelf', 'counter']).href).toBe(
+      'http://m.test/es/arcade?_segment=shelf,counter',
+    )
+    expect(segmentsOf(withSegments(url, ['shelf', 'counter']))).toEqual([
+      'shelf',
+      'counter',
+    ])
+  })
+
   test('with no names, removes it', () => {
     const url = new URL('http://m.test/a?_segment=shelf&x=1')
     expect(withSegments(url, []).href).toBe('http://m.test/a?x=1')

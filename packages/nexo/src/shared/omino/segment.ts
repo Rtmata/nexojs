@@ -10,15 +10,26 @@ import { jsx } from './jsx-runtime'
  *   <Segment name="shelf"><ul>…</ul></Segment>
  *   → <div data-bridge-segment="shelf"><ul>…</ul></div>
  *
- * `tag` picks the element (`div` by default): `<Segment name="shelf" tag="section">`.
+ * `tag` picks the element (`div` by default); any other attribute goes on
+ * it as written: `<Segment name="shelf" tag="section" class="wall" data-bridge-twin>`.
  */
-export class Segment extends Component<{ name: string; tag?: string }> {
-  static defaults: Partial<{ name: string; tag?: string }> = { tag: 'div' }
+export class Segment extends Component<SegmentProps> {
+  static defaults: Partial<SegmentProps> = { tag: 'div' }
 
   template(): Child {
-    const { name, tag, children } = this.props
-    return jsx(tag!, { [SEGMENT_ATTRIBUTE]: name, children })
+    const { name, tag, children, ...attributes } = this.props
+    return jsx(tag as string, {
+      ...attributes,
+      [SEGMENT_ATTRIBUTE]: name,
+      children,
+    })
   }
+}
+
+export interface SegmentProps {
+  name: string
+  tag?: string
+  [attribute: string]: unknown
 }
 
 /**
@@ -33,7 +44,7 @@ export class SegmentPicker {
 
   offer(instance: Component<any>, html: string): void {
     if (!(instance instanceof Segment)) return
-    const name = instance.props.name
+    const name = instance.props.name as string
     if (this.wanted.includes(name) && !this.found.has(name))
       this.found.set(name, html)
   }

@@ -12,12 +12,23 @@ export function segmentsOf(url: URL | string): string[] {
   return splitNames(value)
 }
 
-/** A copy of `url` asking for `names` (none: a copy asking for the whole page). */
+/**
+ * A copy of `url` asking for `names` (none: a copy asking for the whole
+ * page). The commas stay as written — `?_segment=shelf,counter` — so the
+ * URL reads as it is typed; `URLSearchParams` would spell them `%2C`.
+ */
 export function withSegments(url: URL, names: readonly string[]): URL {
   const copy = new URL(url)
-  if (names.length) copy.searchParams.set(SEGMENT_PARAM, names.join(','))
-  else copy.searchParams.delete(SEGMENT_PARAM)
+  copy.searchParams.delete(SEGMENT_PARAM)
+  if (!names.length) return copy
+  const joint = copy.search ? '&' : '?'
+  copy.search = `${copy.search}${joint}${SEGMENT_PARAM}=${names.join(',')}`
   return copy
+}
+
+/** A copy of `url` asking for the whole page. */
+export function withoutSegments(url: URL): URL {
+  return withSegments(url, [])
 }
 
 /** `"shelf, counter"` → `['shelf', 'counter']`; blanks and empty parts dropped. */

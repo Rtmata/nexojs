@@ -1,83 +1,119 @@
-import { withSegments } from '../../shared/bridge/segment-url'
 import { SEGMENT_ATTRIBUTE } from '../../shared/bridge/vocabulary'
-import { inherited, segmentIn } from './attributes'
+import { segmentIn } from './attributes'
 import { announce } from './events'
+import type { HistoryKeeper } from './history'
+import type { Flight, Inflight } from './inflight'
+import type { Loaded, Loader, Wanted } from './loader'
+import type { Options } from './options'
+import { apply, errorSwap, pairAll, twinNames, type Swap } from './swaps'
 
-/** One link followed by bridge: fetch the page, swap the segments, tell the page. */
+/** What every navigation shares: the cache behind the loader, the requests in flight, the history. */
+export interface Session {
+  loader: Loader
+  inflight: Inflight
+  history: HistoryKeeper
+}
+
+/**
+ * One navigation by segments, from a link, a form or history: announce,
+ * fetch (through the cache), pair the segments, swap, record, scroll,
+ * announce again. Anything that can't be swapped goes to the browser.
+ */
 export class Navigation {
-  readonly url: URL
-
   constructor(
-    private readonly trigger: HTMLAnchorElement,
+    private readonly trigger: Element,
+    private readonly wanted: Omit<Wanted, 'segments'>,
     private readonly names: string[],
-  ) {
-    this.url = new URL(trigger.href)
-  }
+    private readonly options: Options,
+    private readonly session: Session,
+  ) {}
 
   async run(): Promise<void> {
-    const { url, names } = this
-    if (!announce(this.trigger, 'bridge:fetch', { url, targets: names })) return
+    const { url, method } = this.wanted
+    const detail = { url, method, targets: this.names }
+    if (!announce(this.trigger, 'bridge:fetch', detail)) return
+    const { inflight } = this.session
+    await this.fly(inflight.start(this.names, this.trigger, this.busy()))
+  }
+
+  /** The request itself; an aborted one ends quietly, its successor took over. */
+  private async fly(flight: Flight): Promise<void> {
     try {
-      await this.swapFrom(await this.load())
+      await this.swapFrom(await this.load(flight))
     } catch (error) {
-      this.fail(error)
+      if (!flight.aborted) this.fail(error)
+    } finally {
+      flight.end()
     }
   }
 
-  /** The page, asked for its segments only; a server error page swaps in like any other. */
-  private async load(): Promise<Document> {
-    const response = await fetch(withSegments(this.url, this.names), {
-      headers: { accept: 'text/html' },
-    })
-    return new DOMParser().parseFromString(await response.text(), 'text/html')
+  /** Twins ride along in the request, so one response refreshes them too. */
+  private load(flight: Flight): Promise<Loaded> {
+    const segments = [...new Set([...this.names, ...twinNames()])]
+    return this.session.loader.load({ ...this.wanted, segments }, flight.signal)
   }
 
-  private async swapFrom(page: Document): Promise<void> {
-    const swaps = this.names.map((name) => this.pair(name, page))
-    const swap = () =>
-      swaps.forEach(({ current, incoming }) => current.replaceWith(incoming))
-    const detail = { url: this.url, targets: this.names, page, swap }
+  private async swapFrom(loaded: Loaded): Promise<void> {
+    const swaps = this.plan(loaded)
+    if (!swaps) return
+    const detail = { ...loaded, targets: this.names, swap: () => apply(swaps) }
     if (!announce(this.trigger, 'bridge:swap', detail)) return
-    await this.transition(swap)
-    this.done(swaps.map((s) => s.incoming))
+    const elements = await this.transition(() => apply(swaps))
+    this.session.history.record(loaded.url, this.options.history, this.names)
+    this.scroll(elements)
+    this.done(loaded.url, elements)
   }
 
   /**
-   * `bridge:swapped` goes on each new segment, not on the link: the link
-   * usually left with the old content, and a detached element's events
-   * reach nobody.
+   * A normal answer pairs the targets (and twins). An error answer goes
+   * into the fail segment or the targets, unless `bridge:fail` is cancelled.
    */
-  private done(elements: Element[]): void {
+  private plan(loaded: Loaded): Swap[] | null {
+    if (loaded.status < 400)
+      return pairAll(this.names, loaded.page, this.options.swap)
+    const detail = { ...loaded, targets: this.names }
+    if (!announce(this.trigger, 'bridge:fail', detail)) return null
+    const into = this.options.fail ? [this.options.fail] : this.names
+    return into.map((name) => errorSwap(name, loaded.page))
+  }
+
+  private async transition(swap: () => Element[]): Promise<Element[]> {
+    if (!this.options.transition || !document.startViewTransition) return swap()
+    let elements: Element[] = []
+    await document.startViewTransition(() => {
+      elements = swap()
+    }).finished
+    return elements
+  }
+
+  private scroll(elements: Element[]): void {
+    if (this.options.scroll === 'top') scrollTo(0, 0)
+    if (this.options.scroll === 'target') elements[0]?.scrollIntoView()
+  }
+
+  /** `bridge:swapped` goes on each new segment: the trigger may have left with the old content. */
+  private done(url: URL, elements: Element[]): void {
     for (const element of elements) {
       const name = element.getAttribute(SEGMENT_ATTRIBUTE)
-      announce(element, 'bridge:swapped', { url: this.url, name })
+      announce(element, 'bridge:swapped', { url, name })
     }
   }
 
-  /** A segment missing on either side means nothing can be swapped: the browser navigates. */
-  private pair(
-    name: string,
-    page: Document,
-  ): { current: Element; incoming: Element } {
-    const current = segmentIn(document, name)
-    const incoming = segmentIn(page, name)
-    if (!current || !incoming)
-      throw new Error(
-        `bridge: no segment "${name}" ${current ? 'in the response' : 'in this page'}`,
-      )
-    return { current, incoming }
+  /** The targets, plus the segment named by `data-bridge-busy`, carry `aria-busy` meanwhile. */
+  private busy(): Element[] {
+    const names = this.options.busy
+      ? [...this.names, this.options.busy]
+      : this.names
+    return names
+      .map((name) => segmentIn(document, name))
+      .filter((element): element is Element => element !== null)
   }
 
-  /** With `data-bridge-transition="true"` inherited and a browser that can, a view transition. */
-  private async transition(swap: () => void): Promise<void> {
-    const wanted = inherited(this.trigger, 'transition') === 'true'
-    if (wanted && document.startViewTransition)
-      await document.startViewTransition(swap).finished
-    else swap()
-  }
-
+  /** Nothing could be swapped: tell the page, then let the browser do it its way. */
   private fail(error: unknown): void {
-    announce(this.trigger, 'bridge:fail', { url: this.url, error })
-    location.assign(this.url)
+    const { url, method } = this.wanted
+    if (!announce(this.trigger, 'bridge:fail', { url, method, error })) return
+    if (this.trigger instanceof HTMLFormElement) this.trigger.submit()
+    else location.assign(url)
   }
 }
