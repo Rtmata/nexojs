@@ -84,8 +84,10 @@ export interface Server {
   use(middleware: Middleware | Hooks): Server
   /** Answer a single request. Needs no network: handy for tests. */
   fetch(request: Request): Promise<Response>
-  /** Check the setup, then start listening on a port. */
+  /** Check the setup, then start listening on a port (`0` picks a free one: see `url`). */
   listen(port?: number): Promise<Server>
+  /** Where the server listens, once it does; null before `listen()` and after `stop()`. */
+  readonly url: URL | null
   /**
    * Stop listening: no new requests, and those in progress get `grace` ms
    * (5000 by default) to finish before their connections are closed, so an
@@ -133,6 +135,10 @@ class KeepServer implements Server {
     this.contexts = new Contexts(this.router)
     this.flow = new RequestFlow(this.router, this.folders, this.contexts)
     this.idleTimeout = options.idleTimeout ?? 120
+  }
+
+  get url(): URL | null {
+    return this.running?.url ?? null
   }
 
   use(middleware: Middleware | Hooks): this {
