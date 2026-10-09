@@ -18,8 +18,9 @@ export interface RenderContext {}
 export type RenderOptions = ResponseInit & {
   /**
    * Answer with these `<Segment>`s only, no doctype, in this order: what
-   * bridge asks for with `?_segment=`. The whole page is still rendered;
-   * a name the page lacks adds nothing.
+   * bridge asks for with `?_segment=` (an empty list asks for the whole
+   * page). The whole page is still rendered; a name the page lacks adds
+   * nothing.
    */
   only?: readonly string[]
 } & ({} extends RenderContext
@@ -67,7 +68,7 @@ async function documentOrSegments(
   context: RenderContext | undefined,
   only: readonly string[] | undefined,
 ): Promise<string> {
-  if (only) return renderToString(tree, context, only)
+  if (only?.length) return renderToString(tree, context, only)
   return '<!doctype html>' + (await renderToString(tree, context))
 }
 

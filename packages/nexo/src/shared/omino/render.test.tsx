@@ -855,7 +855,9 @@ describe('segments', () => {
     )
   })
 
-  test('without only, the page is whole', async () => {
+  test('without only, or with none asked, the page is whole', async () => {
+    const asked = await (await render(<Page n={2} />, { only: [] })).text()
+    expect(asked).toStartWith('<!doctype html>')
     const text = await (await render(<Page n={2} />)).text()
     expect(text).toStartWith('<!doctype html><main><h1>Arcade</h1>')
     expect(text).toContain('data-bridge-segment="shelf"')
