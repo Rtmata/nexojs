@@ -15,6 +15,8 @@ import type { Context, Handler } from '../../shared/http/types'
 export type Middleware = (handler: Handler) => Handler
 
 export interface Hooks {
+  /** Runs once in `listen()`, before the port opens; a throw stops the server from starting. */
+  onStart?: () => void | Promise<void>
   /** Runs before the handler. Return a `Response` to answer right away and skip it. */
   onRequest?: (ctx: Context) => void | Response | Promise<void | Response>
   /** Runs after the handler with its response. Return the response to send. */
@@ -27,6 +29,7 @@ export interface Hooks {
 /**
  * Build a middleware from named hooks — a shortcut for the common
  * "before / after" case. It is just a `Middleware`; read it to see how.
+ * `onStart` is not part of it: the server runs that one itself.
  *
  *   server.use(hooks({
  *     onRequest: (ctx) => (ctx.url.pathname === '/health' ? new Response('ok') : undefined),

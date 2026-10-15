@@ -8,6 +8,8 @@ import { listenWithBun, type Listening } from '../dock/bun'
 import { Contexts } from './contexts'
 import { FunctionRouter } from './function-router'
 import { compose, hooks, type Hooks, type Middleware } from './middleware'
+
+type Startup = NonNullable<Hooks['onStart']>
 import { RequestFlow } from './request-flow'
 import { ShadowReport } from './static/shadow-report'
 import { StaticFolders, type StaticOption } from './static/static-folders'
@@ -79,7 +81,8 @@ export interface StopOptions {
 export interface Server {
   /**
    * Wrap every request with a middleware, or with `{ onRequest, onResponse }`
-   * hooks. The first one added is the outermost.
+   * hooks. The first one added is the outermost. Hooks may also bring an
+   * `onStart`, run by `listen()` before the port opens.
    */
   use(middleware: Middleware | Hooks): Server
   /** Answer a single request. Needs no network: handy for tests. */
@@ -120,6 +123,8 @@ class KeepServer implements Server {
   private readonly contexts: Contexts
   private readonly flow: RequestFlow
   private readonly middlewares: Middleware[] = []
+  /** What `listen()` runs first, in the order added. */
+  private readonly startups: Startup[] = []
   /** The middlewares composed around the flow, rebuilt only after `use()`. */
   private chain: Handler | null = null
   private running: Listening | null = null
@@ -142,11 +147,15 @@ class KeepServer implements Server {
   }
 
   use(middleware: Middleware | Hooks): this {
-    this.middlewares.push(
-      typeof middleware === 'function' ? middleware : hooks(middleware),
-    )
+    if (typeof middleware === 'function') this.middlewares.push(middleware)
+    else this.useHooks(middleware)
     this.chain = null
     return this
+  }
+
+  private useHooks(added: Hooks): void {
+    this.middlewares.push(hooks(added))
+    if (added.onStart) this.startups.push(added.onStart)
   }
 
   async fetch(request: Request): Promise<Response> {
@@ -170,18 +179,28 @@ class KeepServer implements Server {
     }
   }
 
-  /** Index the folders, then listen. A failure (port taken…) leaves nothing watched. */
+  /** Run the start hooks, index the folders, then listen. A failure (port taken…) leaves nothing watched. */
   private async start(port: number): Promise<Listening> {
     try {
+      await this.runStartups()
       await this.prepareFolders()
-      const fetch = (request: Request) => this.fetch(request)
-      const running = listenWithBun(fetch, port, this.idleTimeout)
-      console.log(`keep: listening on ${running.url}`)
-      return running
+      return this.open(port)
     } catch (error) {
       this.folders.stop()
       throw error
     }
+  }
+
+  private open(port: number): Listening {
+    const fetch = (request: Request) => this.fetch(request)
+    const running = listenWithBun(fetch, port, this.idleTimeout)
+    console.log(`keep: listening on ${running.url}`)
+    return running
+  }
+
+  /** The `onStart` hooks, in the order added; one that throws stops the start. */
+  private async runStartups(): Promise<void> {
+    for (const startup of this.startups) await startup()
   }
 
   /** Not listening yet, and the router's setup can work. */

@@ -117,6 +117,24 @@ describe('keep', () => {
     log.mockRestore()
   })
 
+  test('onStart hooks run in order before listening; one that throws stops the start', async () => {
+    const ran: string[] = []
+    const server = keep({ router: boat() })
+      .use({ onStart: () => void ran.push('first') })
+      .use({ onStart: async () => void ran.push('second') })
+    await server.listen(0)
+    expect(ran).toEqual(['first', 'second'])
+    expect(server.url).not.toBeNull()
+    await server.stop()
+    const broken = keep({ router: boat() }).use({
+      onStart: () => {
+        throw new Error('keep: not today')
+      },
+    })
+    await expect(broken.listen(0)).rejects.toThrow('not today')
+    expect(broken.url).toBeNull()
+  })
+
   test('listen() refuses a router whose setup cannot work', async () => {
     const router = boat()
     router.redirect('/old', 'nowhere')
