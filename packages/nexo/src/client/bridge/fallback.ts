@@ -50,9 +50,10 @@ export class BrowserFallback implements Fallback {
     else location.assign(loaded.url)
   }
 
-  /** The browser's own submission, submitter included: `_none` on the form keeps bridge out of it. */
+  /** The browser's own submission, submitter included: `_none` where bridge reads the options (the submitter, else the form) keeps it out of it. */
   private resubmit(form: HTMLFormElement): void {
-    form.setAttribute(TARGET_ATTRIBUTE, NONE)
+    const reader = this.submitter ?? form
+    reader.setAttribute(TARGET_ATTRIBUTE, NONE)
     form.requestSubmit(this.submitter)
   }
 }

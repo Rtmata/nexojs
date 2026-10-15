@@ -1,5 +1,10 @@
 import { describe, expect, test } from 'bun:test'
-import { isPlainSubmission, wantedFrom, type Submission } from './forms'
+import {
+  isPlainSubmission,
+  MULTIPART,
+  wantedFrom,
+  type Submission,
+} from './forms'
 
 const fields = new FormData()
 fields.set('q', 'ryu')
@@ -8,8 +13,10 @@ const search: Submission = {
   method: 'GET',
   action: 'http://museo.test/es/arcade',
   fields,
+  enctype: '',
   pageOrigin: 'http://museo.test',
   opensElsewhere: false,
+  defaultPrevented: false,
 }
 
 describe('isPlainSubmission', () => {
@@ -18,7 +25,8 @@ describe('isPlainSubmission', () => {
     expect(isPlainSubmission({ ...search, method: 'POST' })).toBe(true)
   })
 
-  test('not a dialog form, one opening elsewhere or one to another site', () => {
+  test('not one already stopped, a dialog form, one opening elsewhere or one to another site', () => {
+    expect(isPlainSubmission({ ...search, defaultPrevented: true })).toBe(false)
     expect(isPlainSubmission({ ...search, method: 'DIALOG' })).toBe(false)
     expect(isPlainSubmission({ ...search, opensElsewhere: true })).toBe(false)
     expect(
@@ -34,9 +42,16 @@ describe('wantedFrom', () => {
     expect(wanted.body).toBeUndefined()
   })
 
-  test('anything else sends them as the body', () => {
+  test('anything else sends them as the body, URL-encoded by default', () => {
     const wanted = wantedFrom({ ...search, method: 'POST' })
     expect(wanted.url.href).toBe('http://museo.test/es/arcade')
-    expect(wanted.body?.get('q')).toBe('ryu')
+    expect(wanted.body).toBeInstanceOf(URLSearchParams)
+    expect(wanted.body?.toString()).toBe('q=ryu')
+  })
+
+  test('multipart sends the fields as they are', () => {
+    const wanted = wantedFrom({ ...search, method: 'POST', enctype: MULTIPART })
+    expect(wanted.body).toBeInstanceOf(FormData)
+    expect((wanted.body as FormData).get('q')).toBe('ryu')
   })
 })

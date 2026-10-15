@@ -41,10 +41,11 @@ export class Navigation {
     await this.fly(inflight.start(this.swapper.targets, this.trigger, busy))
   }
 
-  /** The request itself; an aborted one ends quietly, its successor took over. */
+  /** The request itself; an aborted one ends quietly, its successor took over — even when its response still arrives. */
   private async fly(flight: Flight): Promise<void> {
     try {
-      await this.show(await this.load(flight))
+      const loaded = await this.load(flight)
+      if (!flight.aborted) await this.show(loaded, flight)
     } catch (error) {
       if (!flight.aborted) this.fallback.retry(error)
     } finally {
@@ -57,12 +58,13 @@ export class Navigation {
     return this.session.loader.load({ ...this.wanted, segments }, flight.signal)
   }
 
-  /** The response put in; one that can't be lands where the swapper says. */
-  private async show(loaded: Loaded): Promise<void> {
+  /** The response put in; one that can't be lands where the swapper says, as a navigation of its own once this one's flight is over. */
+  private async show(loaded: Loaded, flight: Flight): Promise<void> {
     try {
       await this.take(loaded)
       this.followUp(loaded)
     } catch (error) {
+      flight.end()
       await this.land(loaded, error)
     }
   }
@@ -86,7 +88,8 @@ export class Navigation {
     const detail = { ...loaded, targets: this.swapper.targets, swap }
     if (!announce(this.trigger, 'bridge:swap', detail)) return
     await prepared.ready()
-    this.done(loaded.url, await this.transition(swap))
+    const scrollBefore = scrollY // read before the new content can shorten the page
+    this.done(loaded.url, await this.transition(swap), scrollBefore)
   }
 
   /** Waits for the DOM update, not the animation: history, scroll and `bridge:swapped` follow the swap, not the end of the crossfade. */
@@ -100,13 +103,11 @@ export class Navigation {
   }
 
   /** Recorded, scrolled, and `bridge:swapped` on each new element: the trigger may have left with the old content. */
-  private done(url: URL, elements: Element[]): void {
-    this.session.history.record(url, this.options.history, this.swapper.targets)
+  private done(url: URL, elements: Element[], scrollBefore: number): void {
+    const { history: mode } = this.options
+    this.session.history.record(url, mode, this.swapper.targets, scrollBefore)
     this.scroll(elements)
-    for (const element of elements) {
-      const name = element.getAttribute(SEGMENT_ATTRIBUTE)
-      announce(element, 'bridge:swapped', { url, name })
-    }
+    for (const element of elements) swapped(element, url)
   }
 
   private scroll(elements: Element[]): void {
@@ -133,11 +134,12 @@ export class Navigation {
     return new Navigation(this.trigger, wanted, swapper, options, this.session)
   }
 
-  /** A stale page shown going back: when a newer one arrives, and the visitor is still there, it is shown as a navigation of its own. */
+  /** A stale page shown going back: when a newer one arrives, the visitor is still there and asked for nothing else meanwhile, it is shown as a navigation of its own. */
   private followUp(loaded: Loaded): void {
     void loaded.revalidated?.then((changed) => {
       const here = samePage(new URL(location.href), loaded.url)
-      if (changed && here) void this.again().run()
+      const idle = this.session.inflight.idle(this.swapper.targets)
+      if (changed && here && idle) void this.again().run()
     })
   }
 
@@ -146,4 +148,9 @@ export class Navigation {
     const { trigger, swapper, options, session, fallback } = this
     return new Navigation(trigger, wanted, swapper, options, session, fallback)
   }
+}
+
+function swapped(element: Element, url: URL): void {
+  const name = element.getAttribute(SEGMENT_ATTRIBUTE)
+  announce(element, 'bridge:swapped', { url, name })
 }

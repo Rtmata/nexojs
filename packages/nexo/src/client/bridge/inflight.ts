@@ -19,6 +19,11 @@ export class Inflight {
     return flight
   }
 
+  /** Nothing running on any of these targets. */
+  idle(targets: string[]): boolean {
+    return !targets.some((name) => this.flights.has(name))
+  }
+
   abortAll(): void {
     for (const flight of new Set(this.flights.values())) flight.cancel()
   }

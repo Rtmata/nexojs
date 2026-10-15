@@ -1,35 +1,51 @@
 /**
  * The browser history as bridge uses it. Each entry remembers its URL,
- * which segments changed to reach it and where the page was scrolled.
- * Back/forward swap the segments again (from the cache when still there)
- * and put the scroll back; `_top` entries swap the whole page.
+ * every segment swapped since the page first loaded, and where the page
+ * was scrolled. Back/forward swap the segments again (from the cache when
+ * still there) and put the scroll back; `_top` entries swap the whole page.
  */
 export interface Entry {
   url: string
-  /** The segments swapped to get here; null for the page as it first loaded. */
+  /**
+   * Every segment swapped since the page first loaded, not just the last
+   * ones: the union of any two entries then covers whatever changed
+   * between them, however far apart. Null for the page as it first loaded.
+   */
   targets: string[] | null
   scrollY: number
 }
 
 export type Restore = (url: URL, targets: string[]) => Promise<void>
 
+/** Milliseconds without scrolling before the position is written. */
+const SETTLE = 150
+
 export class HistoryKeeper {
   private current: Entry
+  private settling: ReturnType<typeof setTimeout> | undefined
 
   constructor(private readonly restore: Restore) {
     history.scrollRestoration = 'manual'
-    this.current = { url: location.href, targets: null, scrollY: 0 }
+    this.current = this.arrival()
     this.write('replaceState', this.current)
+    scrollTo(0, this.current.scrollY)
     addEventListener('popstate', (event: PopStateEvent) =>
       this.travel(event.state?.bridge),
     )
+    addEventListener('scroll', () => this.scrolled(), { passive: true })
   }
 
-  /** Called after a swap: `push` adds an entry, `replace` rewrites the current one. */
-  record(url: URL, mode: 'push' | 'replace' | null, targets: string[]): void {
+  /** Called after a swap, with the scroll as it was before it: `push` adds an entry, `replace` rewrites the current one. */
+  record(
+    url: URL,
+    mode: 'push' | 'replace' | null,
+    targets: string[],
+    scrollBefore: number,
+  ): void {
     if (!mode) return
-    this.rememberScroll()
-    this.current = { url: url.href, targets, scrollY: 0 }
+    this.rememberScroll(scrollBefore)
+    const swapped = [...new Set([...(this.current.targets ?? []), ...targets])]
+    this.current = { url: url.href, targets: swapped, scrollY: 0 }
     this.write(mode === 'push' ? 'pushState' : 'replaceState', this.current)
   }
 
@@ -39,8 +55,26 @@ export class HistoryKeeper {
     this.write('replaceState', this.current)
   }
 
-  private rememberScroll(): void {
-    this.current = { ...this.current, scrollY: scrollY }
+  /**
+   * The entry this page loaded on. A reload, or a return by a full
+   * navigation, finds what bridge wrote when leaving and keeps its
+   * scroll; a first visit starts at the top.
+   */
+  private arrival(): Entry {
+    const kept: Entry | undefined = history.state?.bridge
+    return kept
+      ? { ...kept, url: location.href }
+      : { url: location.href, targets: null, scrollY: 0 }
+  }
+
+  /** The scroll goes into the entry once it settles (writing on every pixel would hit the browser's rate limit), so a reload or a return finds it: the browser's own restoration is off. */
+  private scrolled(): void {
+    clearTimeout(this.settling)
+    this.settling = setTimeout(() => this.rememberScroll(scrollY), SETTLE)
+  }
+
+  private rememberScroll(y: number): void {
+    this.current = { ...this.current, scrollY: y }
     this.write('replaceState', this.current)
   }
 

@@ -15,7 +15,7 @@ export interface Loaded {
 export interface Wanted {
   url: URL
   method: string
-  body?: FormData
+  body?: FormData | URLSearchParams
   segments: string[]
   /** A stale entry will do (going back): shown at once, asked again behind. */
   stale?: boolean
@@ -59,7 +59,8 @@ export class Loader {
     key: string,
     wanted: Wanted,
   ): Promise<Loaded | undefined> {
-    const fresh = this.cache.get(key) ?? (await this.ahead.get(key))
+    const joined = this.ahead.get(key)?.catch(() => undefined) // a failed prefetch: ask normally
+    const fresh = this.cache.get(key) ?? (await joined)
     if (fresh) return parse(fresh)
     const stale = wanted.stale ? this.cache.getStale(key) : undefined
     if (!stale) return undefined

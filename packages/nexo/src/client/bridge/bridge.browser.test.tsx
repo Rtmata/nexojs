@@ -42,6 +42,7 @@ class Shelf extends Component<{ n: number; q: URLSearchParams }> {
                 inner {n}
               </Segment>
             ) : null}
+            {q.has('tall') ? <div class="tall" /> : null}
             <ul>
               <li>game {n}</li>
             </ul>
@@ -99,6 +100,13 @@ class Shelf extends Component<{ n: number; q: URLSearchParams }> {
               data-bridge-prefetch="hover"
             >
               hover slow
+            </a>
+            <a
+              id="hover-flaky"
+              href={`/shelf/${n + 1}?flaky`}
+              data-bridge-prefetch="hover"
+            >
+              hover flaky
             </a>
             <a
               id="plain-hover"
@@ -164,6 +172,24 @@ class Shelf extends Component<{ n: number; q: URLSearchParams }> {
               >
                 delete
               </button>
+            </form>
+            <form id="loop" action="/intent/loop" method="post">
+              <button id="loop-go" data-bridge-target="shelf">
+                loop
+              </button>
+            </form>
+            <form id="urlencoded" action="/echo" method="post">
+              <input name="q" value="ryu" />
+              <button id="urlencoded-go">echo</button>
+            </form>
+            <form
+              id="multipart"
+              action="/echo"
+              method="post"
+              enctype="multipart/form-data"
+            >
+              <input name="q" value="ryu" />
+              <button id="multipart-go">echo</button>
             </form>
             <dialog id="dialog">
               <form method="dialog">
@@ -307,6 +333,15 @@ const router = boat()
     intents.push(`${ctx.url.pathname} ${data.get('intent')}`)
     return redirect('/shelf/1', 303)
   })
+  .post('/intent/loop', () => redirect('/shelf/1', 303))
+  .post('/echo', (ctx) =>
+    render(
+      <Segment name="shelf">
+        sent as {ctx.request.headers.get('content-type')?.split(';')[0]}
+      </Segment>,
+      { only: only(ctx.url) },
+    ),
+  )
   .get('/account', (ctx) =>
     render(
       <main>
@@ -400,6 +435,7 @@ async function open(path: string): Promise<void> {
       'bridge:swap',
       'bridge:swapped',
       'bridge:fail',
+      'bridge:cancel',
     ])
       document.addEventListener(name, () => w.log.push(name))
   })
@@ -529,6 +565,40 @@ describe.if(chrome)('when things go wrong', () => {
     await page.unrouteAll()
   })
 
+  test('a submit button with its own target is also handed to the browser on retry', async () => {
+    await open('/shelf/1')
+    await page.route(
+      (u) => u.pathname === '/intent/loop',
+      (route) =>
+        route.request().resourceType() === 'fetch'
+          ? route.abort()
+          : route.continue(),
+    )
+    await page.click('#loop-go')
+    await page.waitForFunction(() => !('marker' in window)) // a new document
+    await page.waitForSelector('text=game 1')
+    await page.unrouteAll()
+  })
+
+  test('a navigation that joined a prefetch which then fails asks normally', async () => {
+    await open('/shelf/1')
+    let first = true
+    await page.route(
+      (u) => u.searchParams.has('flaky'),
+      async (route) => {
+        if (!first) return route.continue()
+        first = false
+        await new Promise((r) => setTimeout(r, 100))
+        return route.abort()
+      },
+    )
+    await page.hover('#hover-flaky')
+    await page.click('#hover-flaky')
+    await page.waitForSelector('text=game 2')
+    expect(await sameDocument()).toBe(true)
+    await page.unrouteAll()
+  })
+
   test('no response at all: the browser follows the link its own way', async () => {
     await open('/shelf/1')
     await page.route(
@@ -641,6 +711,22 @@ describe.if(chrome)('history and scroll', () => {
     expect(await sameDocument()).toBe(true)
   })
 
+  test('a newer page arriving while the visitor asked for something else yields to it', async () => {
+    await open('/shelf/1')
+    version = 1
+    await page.click('#etag-slow')
+    await page.waitForSelector('text=v1')
+    await page.goBack()
+    await page.waitForSelector('text=game 1')
+    version = 2
+    await page.goForward() // stale v1 at once; revalidation takes 200 ms
+    await page.waitForSelector('text=v1')
+    await page.click('#slow') // /shelf/2?delay=300 on the same target
+    await page.waitForTimeout(600)
+    expect(await page.$('#version')).toBeNull() // the slow page, not v2
+    expect(await text('[data-bridge-segment="shelf"] li')).toBe('game 3')
+  })
+
   test('a newer page arriving after the visitor moved on is not shown', async () => {
     await open('/shelf/1')
     version = 1
@@ -670,6 +756,42 @@ describe.if(chrome)('history and scroll', () => {
     expect(page.url()).toBe(url('/shelf/1'))
   })
 
+  test('a jump over several entries restores everything swapped in between', async () => {
+    await open('/shelf/1')
+    await page.click('#push') // entry 2: shelf
+    await page.waitForSelector('text=game 2')
+    await page.evaluate(() =>
+      document
+        .getElementById('counter-link')!
+        .setAttribute('data-bridge-history', 'push'),
+    )
+    await page.click('#counter-link') // entry 3: counter
+    await page.waitForSelector('text=3 games')
+    await page.evaluate(() => history.go(-2))
+    await page.waitForSelector('text=game 1')
+    expect(await text('[data-bridge-segment="counter"]')).toBe('1 games')
+    expect(page.url()).toBe(url('/shelf/1'))
+  })
+
+  test('the scroll remembered for back is the one before the swap, not after the page shrank', async () => {
+    await open('/shelf/1?tall')
+    await page.evaluate(() => scrollTo(0, 5000))
+    await page.evaluate(() => document.getElementById('push')!.click()) // shelf 2 is short
+    await page.waitForSelector('text=game 2')
+    expect(await page.evaluate(() => scrollY)).toBeLessThan(5000)
+    await page.goBack()
+    await page.waitForSelector('text=game 1')
+    await page.waitForFunction(() => scrollY === 5000)
+  })
+
+  test('a reload comes back where the page was scrolled', async () => {
+    await open('/shelf/1')
+    await page.evaluate(() => scrollTo(0, 700))
+    await page.waitForTimeout(300) // the position settles into the entry
+    await page.reload()
+    await page.waitForFunction(() => scrollY === 700)
+  })
+
   test('back restores where the page was scrolled', async () => {
     await open('/shelf/1')
     await page.evaluate(() => scrollTo(0, 500))
@@ -692,6 +814,29 @@ describe.if(chrome)('history and scroll', () => {
 })
 
 describe.if(chrome)('forms', () => {
+  test('a submit something else already stopped is left alone', async () => {
+    await open('/shelf/1')
+    await page.evaluate(() =>
+      document
+        .getElementById('search')!
+        .addEventListener('submit', (e) => e.preventDefault()),
+    )
+    requests.length = 0
+    await page.click('#search-go')
+    await page.waitForTimeout(150)
+    expect(requests).toEqual([])
+    expect(await text('[data-bridge-segment="shelf"] li')).toBe('game 1')
+  })
+
+  test('fields travel URL-encoded by default, multipart when the form says so', async () => {
+    await open('/shelf/1')
+    await page.click('#urlencoded-go')
+    await page.waitForSelector('text=sent as application/x-www-form-urlencoded')
+    await open('/shelf/1')
+    await page.click('#multipart-go')
+    await page.waitForSelector('text=sent as multipart/form-data')
+  })
+
   test('a GET form puts its fields in the URL and swaps its segment', async () => {
     await open('/shelf/1')
     requests.length = 0
@@ -826,6 +971,19 @@ describe.if(chrome)('twins, swap modes and loading state', () => {
     expect(await page.getAttribute('#slow', 'data-bridge-active')).toBe('')
     await page.waitForSelector('text=game 2')
     expect(await page.$('[aria-busy]')).toBeNull()
+  })
+
+  test('a response arriving for a cancelled request is not swapped in', async () => {
+    await open('/shelf/1')
+    await page.hover('#hover-slow') // prefetch of /shelf/2?delay=150 on its way
+    await page.click('#hover-slow') // joins it: not abortable
+    await page.evaluate(() =>
+      document.getElementById('next')!.setAttribute('href', '/shelf/3'),
+    )
+    await page.click('#next') // cancels the first; fast
+    await page.waitForSelector('text=game 3')
+    await page.waitForTimeout(250) // the joined response has arrived by now
+    expect(await text('[data-bridge-segment="shelf"] li')).toBe('game 3')
   })
 
   test('a second request to the same target cancels the first', async () => {

@@ -56,9 +56,9 @@ document.addEventListener('click', (event) => {
 })
 
 document.addEventListener('submit', (event) => {
-  const form = event.target as HTMLFormElement
-  const submission = submissionOf(form, event.submitter)
+  const submission = submissionOf(event)
   if (!isPlainSubmission(submission)) return
+  const form = event.target as HTMLFormElement
   const wanted = wantedFrom(submission)
   follow(event, event.submitter ?? form, form, wanted, event.submitter)
 })
