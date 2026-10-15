@@ -6,10 +6,14 @@ const MARGIN = '0px 0px 50% 0px'
 /**
  * Elements that act when they come into view (`data-bridge-load="viewport"`,
  * `data-bridge-prefetch="viewport"`), or at once (`"eager"`). Each element
- * is taken once; new content is scanned as it arrives.
+ * is taken once; new content is scanned as it arrives. A released element
+ * counts again, but only after it has left the view: a failure never
+ * retries in a loop while the element just sits there.
  */
 export class Watch {
   private readonly taken = new WeakSet<Element>()
+  /** Released elements still in view: they wait to leave it first. */
+  private readonly resting = new WeakSet<Element>()
   private readonly observer = new IntersectionObserver(
     (entries) => this.seen(entries),
     { rootMargin: MARGIN },
@@ -30,9 +34,18 @@ export class Watch {
     }
   }
 
+  /** Taken once more, when it comes into view again. */
+  release(element: Element): void {
+    this.taken.delete(element)
+    this.resting.add(element)
+    this.observer.observe(element)
+  }
+
   private seen(entries: IntersectionObserverEntry[]): void {
-    for (const entry of entries)
-      if (entry.isIntersecting) this.take(entry.target)
+    for (const { isIntersecting, target } of entries) {
+      if (!isIntersecting) this.resting.delete(target)
+      else if (!this.resting.has(target)) this.take(target)
+    }
   }
 
   private take(element: Element): void {

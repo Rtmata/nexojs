@@ -1,4 +1,5 @@
 import { splitNames } from '../../shared/bridge/segment-url'
+import { NONE as NONE_VALUE, TOP } from '../../shared/bridge/vocabulary'
 
 /**
  * What a link should replace, read from `data-bridge-target`:
@@ -14,8 +15,8 @@ export function targetOf(
   enclosing: string | null,
 ): Target {
   if (attribute === null) return enclosing ? segments([enclosing]) : NONE
-  if (attribute.trim() === '_top') return { kind: 'top' }
-  if (attribute.trim() === '_none') return NONE
+  if (attribute.trim() === TOP) return { kind: 'top' }
+  if (attribute.trim() === NONE_VALUE) return NONE
   return segments(splitNames(attribute))
 }
 

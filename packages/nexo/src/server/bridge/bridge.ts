@@ -1,6 +1,6 @@
 import { fileURLToPath } from 'node:url'
 import { CLIENT_PATH } from '../../shared/bridge/vocabulary'
-import type { Handler } from '../../shared/http/types'
+import type { Context } from '../../shared/http/types'
 import { bundleForBrowser } from '../dock/bun'
 
 export { CLIENT_PATH }
@@ -16,13 +16,23 @@ export { CLIENT_PATH }
  *   <script type="module" src="/_nexo/bridge.js"></script>
  *
  * The script is bundled from its TypeScript source as soon as `bridge()`
- * is called — before the server listens, so a broken client fails at
- * startup — then kept with an ETag, so browsers revalidate for free.
+ * is called, and `listen()` waits for it through `onStart`, so a broken
+ * client stops the server from starting. Then it is kept with an ETag, so
+ * browsers revalidate for free.
  */
-export function bridge(): (handler: Handler) => Handler {
+export function bridge(): BridgeHooks {
   const script = new ClientScript(CLIENT_ENTRY)
-  return (handler) => (ctx) =>
-    ctx.url.pathname === CLIENT_PATH ? script.answer(ctx.request) : handler(ctx)
+  return {
+    onStart: () => script.ready(),
+    onRequest: (ctx) =>
+      ctx.url.pathname === CLIENT_PATH ? script.answer(ctx.request) : undefined,
+  }
+}
+
+/** What `bridge()` gives `server.use()`: the shape keep's hooks have, without needing keep. */
+export interface BridgeHooks {
+  onStart: () => Promise<void>
+  onRequest: (ctx: Context) => Promise<Response> | undefined
 }
 
 const CLIENT_ENTRY = fileURLToPath(
@@ -35,13 +45,18 @@ interface Built {
 }
 
 /** The bundled script, built once at creation and answered with its ETag. */
-class ClientScript {
+export class ClientScript {
   private readonly built: Promise<Built>
 
   constructor(entry: string) {
     this.built = this.build(entry)
-    // A failure is reported by the first request; this only keeps it from being "unhandled".
+    // A failure surfaces in `ready()` or the first request; this only keeps it from being "unhandled" meanwhile.
     this.built.catch(() => {})
+  }
+
+  /** Resolves once the script is built; rejects with the build error. */
+  async ready(): Promise<void> {
+    await this.built
   }
 
   async answer(request: Request): Promise<Response> {

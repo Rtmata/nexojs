@@ -13,7 +13,9 @@ export interface Swap {
 /**
  * Pairs the segments of the current page with the ones a response
  * brought. Targets must be on both sides; twins (`data-bridge-twin`) come
- * along only when the response has them.
+ * along only when the response has them. A segment inside another one
+ * being swapped comes with it: its new content is already inside the
+ * outer one's, so only the outermost pairs are swapped.
  */
 export function pairAll(
   targets: string[],
@@ -25,7 +27,15 @@ export function pairAll(
   const extra = twins
     .map((name) => tryPair(name, page))
     .filter((swap): swap is Swap => swap !== null)
-  return [...wanted, ...extra]
+  return outermost([...wanted, ...extra])
+}
+
+function outermost(swaps: Swap[]): Swap[] {
+  const inside = (swap: Swap) =>
+    swaps.some(
+      (other) => other !== swap && other.current.contains(swap.current),
+    )
+  return swaps.filter((swap) => !inside(swap))
 }
 
 /** Segments of this page marked as twins: they refresh whenever a response carries them. */

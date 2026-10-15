@@ -5,9 +5,10 @@
  * segment is replaced. Everything else stays with the browser. Read
  * `navigation.ts` for the steps and `events.ts` for what the page can hook.
  */
+import { TOP } from '../../shared/bridge/vocabulary'
 import { ResponseCache } from './cache'
 import { isPlainNavigation, type Click } from './click'
-import { wantedFrom } from './forms'
+import { isPlainSubmission, submissionOf, wantedFrom } from './forms'
 import { HexTrail } from './hex'
 import { HistoryKeeper } from './history'
 import { Inflight } from './inflight'
@@ -15,10 +16,12 @@ import { Lazy } from './lazy'
 import { Loader, type Wanted } from './loader'
 import { Navigation, type Session } from './navigation'
 import { optionsOf, type Options } from './options'
-import { FullPage, TOP } from './page'
+import { WholePage } from './page'
+import { BySegments } from './segments'
+import type { Swapper } from './swapper'
 import { Prefetch } from './prefetch'
 
-/** How long a fetched page may be reused by back/forward, prefetch and twins. */
+/** How long a fetched page stays fresh for prefetch, twins and navigations ahead, unless its `Cache-Control` says otherwise. */
 const CACHE_TTL = 60_000
 
 const session: Session = {
@@ -46,13 +49,9 @@ document.addEventListener('click', (event) => {
 
 document.addEventListener('submit', (event) => {
   const form = event.target as HTMLFormElement
-  if (!sameOriginForm(form)) return
-  follow(
-    event,
-    event.submitter ?? form,
-    wantedFrom(form, event.submitter),
-    form,
-  )
+  const submission = submissionOf(form, event.submitter)
+  if (!isPlainSubmission(submission)) return
+  follow(event, event.submitter ?? form, wantedFrom(submission), form)
 })
 
 /** Navigates when the trigger's options say so (segments or `_top`); else the browser keeps the event. */
@@ -73,27 +72,25 @@ function navigationFor(
   trigger: Element,
   wanted: Omit<Wanted, 'segments'>,
   options: Options,
-): { run(): Promise<void> } {
-  if (options.target.kind === 'segments')
-    return new Navigation(
-      trigger,
-      wanted,
-      options.target.names,
-      options,
-      session,
-    )
+): Navigation {
+  if (options.target.kind === 'segments') {
+    const swapper = new BySegments(options.target.names, options)
+    return new Navigation(trigger, wanted, swapper, options, session)
+  }
   const history = options.history ?? 'push'
-  return new FullPage(trigger, wanted, { ...options, history }, session)
+  const page = { ...options, history }
+  return new Navigation(trigger, wanted, new WholePage(), page, session)
 }
 
-/** Back/forward: what changed to reach that entry is swapped again, nothing recorded. */
+/** Back/forward: what changed to reach that entry is swapped again (a stale copy will do), nothing recorded. */
 function restore(url: URL, targets: string[]): Promise<void> {
   const root = document.documentElement
   const options: Options = { ...optionsOf(root), history: null, scroll: 'keep' }
-  const wanted = { url, method: 'GET' }
-  if (targets.includes(TOP))
-    return new FullPage(root, wanted, options, session).run()
-  return new Navigation(root, wanted, targets, options, session).run()
+  const wanted = { url, method: 'GET', stale: true }
+  const swapper: Swapper = targets.includes(TOP)
+    ? new WholePage()
+    : new BySegments(targets, options)
+  return new Navigation(root, wanted, swapper, options, session).run()
 }
 
 /** The link a plain click landed on, if bridge should follow it. */
@@ -109,13 +106,8 @@ function clickOn(link: HTMLAnchorElement, event: MouseEvent): Click {
     modified: event.altKey || event.ctrlKey || event.metaKey || event.shiftKey,
     defaultPrevented: event.defaultPrevented,
     href: link.href,
-    pageOrigin: location.origin,
+    pageHref: location.href,
     download: link.hasAttribute('download'),
     opensElsewhere: link.target !== '' && link.target !== '_self',
   }
-}
-
-function sameOriginForm(form: HTMLFormElement): boolean {
-  const elsewhere = form.target !== '' && form.target !== '_self'
-  return !elsewhere && new URL(form.action).origin === location.origin
 }

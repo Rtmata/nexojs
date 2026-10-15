@@ -1,21 +1,50 @@
 import type { Wanted } from './loader'
+import { sameOrigin } from './origin'
 
 /**
- * A form submission as a request: the submitter button may override the
- * form's method and action (`formmethod`, `formaction`, read as attributes:
- * the properties answer the page URL when absent). GET puts the fields in
- * the URL, like the browser; anything else sends them as the body.
+ * A form submission as data: the submitter button may override the form's
+ * method and action (`formmethod`, `formaction`, read as attributes — the
+ * properties answer the page URL when absent).
  */
-export function wantedFrom(
+export interface Submission {
+  /** Upper case, as `Request` wants it. */
+  method: string
+  action: string
+  fields: FormData
+  pageOrigin: string
+  opensElsewhere: boolean
+}
+
+export function submissionOf(
   form: HTMLFormElement,
   submitter: HTMLElement | null,
-): Omit<Wanted, 'segments'> {
-  const method = methodOf(form, submitter)
-  const action = submitter?.getAttribute('formaction')
-  const url = new URL(action ?? form.action, location.href)
-  const data = new FormData(form, submitter)
-  if (method !== 'GET') return { url, method, body: data }
-  url.search = new URLSearchParams(data as unknown as string[][]).toString()
+): Submission {
+  const action = submitter?.getAttribute('formaction') ?? form.action
+  return {
+    method: methodOf(form, submitter),
+    action: new URL(action, location.href).href,
+    fields: new FormData(form, submitter),
+    pageOrigin: location.origin,
+    opensElsewhere: form.target !== '' && form.target !== '_self',
+  }
+}
+
+/**
+ * Whether a submission is one bridge can send, or one the browser must
+ * keep: a `dialog` form (it closes its dialog, nothing is sent), a form
+ * that opens elsewhere, or one going to another site.
+ */
+export function isPlainSubmission(submission: Submission): boolean {
+  if (submission.method === 'DIALOG' || submission.opensElsewhere) return false
+  return sameOrigin(submission.action, submission.pageOrigin)
+}
+
+/** The request: GET puts the fields in the URL, like the browser; anything else sends them as the body. */
+export function wantedFrom(submission: Submission): Omit<Wanted, 'segments'> {
+  const { method, fields } = submission
+  const url = new URL(submission.action)
+  if (method !== 'GET') return { url, method, body: fields }
+  url.search = new URLSearchParams(fields as unknown as string[][]).toString()
   return { url, method }
 }
 

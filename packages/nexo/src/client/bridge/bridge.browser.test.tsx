@@ -20,7 +20,7 @@ if (!chrome) console.warn('bridge: browser tests skipped, no Chrome found')
 class Shelf extends Component<{ n: number; q: URLSearchParams }> {
   template() {
     const { n, q } = this.props
-    const next = `/shelf/${n + 1}`
+    const next = `/shelf/${n + 1}${q.has('nested') ? '?nested' : ''}`
     return (
       <html data-bridge-transition={q.get('transition') ?? undefined}>
         <head>
@@ -37,6 +37,11 @@ class Shelf extends Component<{ n: number; q: URLSearchParams }> {
             no errors
           </Segment>
           <Segment name="shelf">
+            {q.has('nested') ? (
+              <Segment name="inner" tag="span" data-bridge-twin>
+                inner {n}
+              </Segment>
+            ) : null}
             <ul>
               <li>game {n}</li>
             </ul>
@@ -64,6 +69,9 @@ class Shelf extends Component<{ n: number; q: URLSearchParams }> {
             <a id="lost" href="/no-shelf">
               lost
             </a>
+            <a id="drop" href={`/shelf/${n + 1}?drop`}>
+              drop
+            </a>
             <a id="broken" href="/broken">
               broken
             </a>
@@ -82,9 +90,42 @@ class Shelf extends Component<{ n: number; q: URLSearchParams }> {
             <a id="hover" href={next} data-bridge-prefetch="hover">
               hover
             </a>
+            <a
+              id="hover-slow"
+              href={`/shelf/${n + 1}?delay=150`}
+              data-bridge-prefetch="hover"
+            >
+              hover slow
+            </a>
+            <a
+              id="plain-hover"
+              href={`/shelf/${n + 20}`}
+              data-bridge-target="_none"
+              data-bridge-prefetch="hover"
+            >
+              plain hover
+            </a>
+            <a id="anchor" href="#far-down">
+              down
+            </a>
             <a id="to-target" href={next} data-bridge-scroll="target">
               scroll to target
             </a>
+            <a
+              id="nostore"
+              href={`/shelf/${n + 1}?nostore`}
+              data-bridge-history="push"
+            >
+              no store
+            </a>
+            <a
+              id="etag"
+              href={`/shelf/${n + 1}?etag`}
+              data-bridge-history="push"
+            >
+              etag
+            </a>
+            {q.has('etag') ? <i id="version">v{version}</i> : null}
             <form id="search" action="/shelf/7" method="get">
               <input name="q" value="ryu" />
               <button id="search-go">go</button>
@@ -93,8 +134,17 @@ class Shelf extends Component<{ n: number; q: URLSearchParams }> {
               <input name="n" value="9" />
               <button id="post-go">post</button>
             </form>
+            <form id="order" action="/order" method="post">
+              <button id="order-go">order</button>
+            </form>
+            <dialog id="dialog">
+              <form method="dialog">
+                <button id="dialog-close">close</button>
+              </form>
+            </dialog>
           </Segment>
           <div class="tall" />
+          <p id="far-down">far down</p>
           <a id="outside" href={next}>
             outside
           </a>
@@ -132,6 +182,14 @@ class LazyBits extends Component<{ n: number }> {
         >
           more
         </a>
+        <div class="tall" />
+        <Segment
+          name="flaky"
+          data-bridge-src="/flaky"
+          data-bridge-load="viewport"
+        >
+          waiting
+        </Segment>
       </>
     )
   }
@@ -147,11 +205,8 @@ class Top extends Component<{ n: number; theme: string }> {
           <title>Top {n}</title>
           <meta name="page" content={`${n}`} />
           <script type="module" src="/_nexo/bridge.js" data-bridge-track />
-          <link
-            rel="stylesheet"
-            href={`/theme-${theme}.css`}
-            data-bridge-track
-          />
+          <link rel="stylesheet" href={`/themes/${theme}`} data-bridge-track />
+          <link rel="stylesheet" href={`/pages/${n}`} />
           <style id={`style-${n}`}>{`body { margin: 0 }`}</style>
         </head>
         <body>
@@ -176,6 +231,9 @@ class Top extends Component<{ n: number; theme: string }> {
 }
 
 const requests: string[] = []
+let orders = 0
+/** The shelf's version, told by an ETag when `?etag` asks for one. */
+let version = 1
 const router = boat()
   .get('/shelf/:n', async (ctx) => {
     // Chrome's own prefetches (Speculation Rules) are not what these tests count.
@@ -183,14 +241,33 @@ const router = boat()
       requests.push(ctx.url.pathname + ctx.url.search)
     const delay = Number(ctx.url.searchParams.get('delay') ?? 0)
     if (delay) await Bun.sleep(delay)
-    const n = Number(ctx.params.n)
     const q = ctx.url.searchParams
-    return render(<Shelf n={n} q={q} />, { only: only(ctx.url) })
+    const tag = `"v${version}"`
+    if (q.has('etag') && ctx.request.headers.get('if-none-match') === tag)
+      return new Response(null, { status: 304, headers: { etag: tag } })
+    const headers: Record<string, string> = q.has('etag')
+      ? { etag: tag, 'cache-control': 'max-age=0' }
+      : q.has('nostore')
+        ? { 'cache-control': 'no-store' }
+        : {}
+    const n = Number(ctx.params.n)
+    return render(<Shelf n={n} q={q} />, { only: only(ctx.url), headers })
   })
   .post('/submit', async (ctx) => {
     const data = await ctx.request.formData()
     return redirect(`/shelf/${data.get('n')}`, 303)
   })
+  .post('/order', () => {
+    orders++
+    return redirect('/thanks', 303)
+  })
+  .get('/thanks', () =>
+    render(
+      <main>
+        <h2>Thanks</h2>
+      </main>,
+    ),
+  )
   .get('/main-error', () =>
     render(
       <main>
@@ -203,23 +280,30 @@ const router = boat()
     const theme = ctx.url.searchParams.get('theme') ?? 'light'
     return render(<Top n={Number(ctx.params.n)} theme={theme} />)
   })
-  .get(
-    '/theme-:name.css',
-    () => new Response('body{}', { headers: { 'content-type': 'text/css' } }),
-  )
+  .get('/themes/:name', () => css('body{}'))
+  .get('/pages/:n', (ctx) => css(`#title{color:rgb(${ctx.params.n},0,0)}`))
   .get('/side', (ctx) => {
     requests.push(ctx.url.pathname + ctx.url.search)
     return render(<Segment name="side">side loaded</Segment>, {
       only: only(ctx.url),
     })
   })
-  .get('/no-shelf', () => render(<p>no segments here</p>))
-  .get('/broken', (ctx) =>
-    render(<Segment name="shelf">something went wrong</Segment>, {
-      status: 500,
+  .get('/flaky', (ctx) =>
+    render(<Segment name="flaky">flaky loaded</Segment>, {
       only: only(ctx.url),
     }),
   )
+  .get('/no-shelf', () => render(<p>no segments here</p>))
+  .get('/broken', (ctx) => {
+    requests.push(ctx.url.pathname + ctx.url.search)
+    return render(<Segment name="shelf">something went wrong</Segment>, {
+      status: 500,
+      only: only(ctx.url),
+    })
+  })
+
+const css = (text: string) =>
+  new Response(text, { headers: { 'content-type': 'text/css' } })
 
 const only = (url: URL) =>
   segmentsOf(url).length ? segmentsOf(url) : undefined
@@ -316,6 +400,16 @@ describe.if(chrome)('a link inside a segment', () => {
     expect(await sameDocument()).toBe(false)
   })
 
+  test('a jump within the page is left to the browser', async () => {
+    await open('/shelf/1')
+    requests.length = 0
+    await page.click('#anchor')
+    await page.waitForFunction(() => location.hash === '#far-down')
+    expect(await page.evaluate(() => scrollY)).toBeGreaterThan(1000)
+    expect(requests).toEqual([])
+    expect(await log()).toEqual([])
+  })
+
   test('outside every segment, the browser navigates', async () => {
     await open('/shelf/1')
     await page.click('#outside')
@@ -325,11 +419,43 @@ describe.if(chrome)('a link inside a segment', () => {
 })
 
 describe.if(chrome)('when things go wrong', () => {
-  test('a response without the segment: bridge:fail, then the browser navigates', async () => {
+  test('a response without the segment lands as the whole page, same document', async () => {
     await open('/shelf/1')
     await page.click('#lost')
-    await page.waitForURL(url('/no-shelf'))
-    expect(await text('p')).toBe('no segments here')
+    await page.waitForSelector('text=no segments here')
+    expect(page.url()).toBe(url('/no-shelf'))
+    expect(await sameDocument()).toBe(true)
+    expect(await log()).toEqual([
+      'bridge:fetch',
+      'bridge:fail',
+      'bridge:swap',
+      'bridge:swapped',
+    ])
+  })
+
+  test('a POST answered with a page without the segment is never sent again', async () => {
+    await open('/shelf/1')
+    orders = 0
+    await page.click('#order-go')
+    await page.waitForSelector('text=Thanks')
+    expect(page.url()).toBe(url('/thanks'))
+    expect(await sameDocument()).toBe(true)
+    expect(orders).toBe(1)
+  })
+
+  test('no response at all: the browser follows the link its own way', async () => {
+    await open('/shelf/1')
+    await page.route(
+      (u) => u.searchParams.has('drop'),
+      (route) =>
+        route.request().resourceType() === 'fetch'
+          ? route.abort()
+          : route.continue(),
+    )
+    await page.click('#drop')
+    await page.waitForURL(url('/shelf/2?drop'))
+    expect(await sameDocument()).toBe(false)
+    await page.unrouteAll()
   })
 
   test('a server error page with the segment swaps in like any other', async () => {
@@ -355,6 +481,19 @@ describe.if(chrome)('when things go wrong', () => {
     expect(await text('[data-bridge-segment="shelf"] li')).toBe('game 1')
   })
 
+  test('an error answer is never kept: asking again asks the server again', async () => {
+    await open('/shelf/1')
+    requests.length = 0
+    await page.click('#failing')
+    await page.waitForSelector('text=something went wrong')
+    await page.click('#failing')
+    await page.waitForTimeout(100)
+    expect(requests).toEqual([
+      '/broken?_segment=shelf,counter',
+      '/broken?_segment=shelf,counter',
+    ])
+  })
+
   test('an error page without the segment: its <main> goes into the target', async () => {
     await open('/shelf/1')
     await page.click('#main-error')
@@ -378,6 +517,41 @@ describe.if(chrome)('history and scroll', () => {
     await page.waitForSelector('text=game 2')
     // the first page was never fetched by segments; the second is in the cache
     expect(requests).toEqual(['/shelf/1?_segment=shelf,counter'])
+    expect(await sameDocument()).toBe(true)
+  })
+
+  test('a response with no-store is never reused: forward fetches it again', async () => {
+    await open('/shelf/1')
+    requests.length = 0
+    await page.click('#nostore')
+    await page.waitForSelector('text=game 2')
+    await page.goBack()
+    await page.waitForSelector('text=game 1')
+    await page.goForward()
+    await page.waitForSelector('text=game 2')
+    expect(requests.filter((r) => r.startsWith('/shelf/2'))).toHaveLength(2)
+  })
+
+  test('going back to a stale page shows it at once and asks again with its ETag', async () => {
+    await open('/shelf/1')
+    version = 1
+    await page.click('#etag')
+    await page.waitForSelector('text=v1')
+    await page.goBack()
+    await page.waitForSelector('text=game 1')
+    requests.length = 0
+    await page.goForward()
+    await page.waitForSelector('text=v1')
+    await page.waitForFunction(() => true)
+    await page.waitForTimeout(100)
+    // one revalidation, answered 304: the page stays as it was
+    expect(requests).toEqual(['/shelf/2?etag=&_segment=shelf,counter'])
+    expect(await text('#version')).toBe('v1')
+    version = 2
+    await page.goBack()
+    await page.waitForSelector('text=game 1')
+    await page.goForward()
+    await page.waitForSelector('text=v2') // shown stale first, then the newer page swapped in
     expect(await sameDocument()).toBe(true)
   })
 
@@ -424,6 +598,22 @@ describe.if(chrome)('forms', () => {
     expect(await sameDocument()).toBe(true)
   })
 
+  test('a POST drops the cache: what was prefetched before is fetched again', async () => {
+    await open('/shelf/1')
+    requests.length = 0
+    await page.hover('#hover')
+    await page.waitForTimeout(100)
+    expect(requests).toEqual(['/shelf/2?_segment=shelf,counter'])
+    await page.click('#post-go')
+    await page.waitForSelector('text=game 9')
+    await page.evaluate(() =>
+      document.getElementById('next')!.setAttribute('href', '/shelf/2'),
+    )
+    await page.click('#next')
+    await page.waitForSelector('text=game 2')
+    expect(requests.filter((r) => r.startsWith('/shelf/2'))).toHaveLength(2)
+  })
+
   test('a POST form follows the 303 and history gets the final URL', async () => {
     await open('/shelf/1')
     await page.evaluate(() =>
@@ -436,6 +626,20 @@ describe.if(chrome)('forms', () => {
     expect(page.url()).toBe(url('/shelf/9'))
     expect(await sameDocument()).toBe(true)
   })
+
+  test('a dialog form is left to the browser: it closes the dialog, nothing is sent', async () => {
+    await open('/shelf/1')
+    requests.length = 0
+    await page.evaluate(() =>
+      (document.getElementById('dialog') as HTMLDialogElement).show(),
+    )
+    await page.click('#dialog-close')
+    await page.waitForFunction(
+      () => !(document.getElementById('dialog') as HTMLDialogElement).open,
+    )
+    expect(requests).toEqual([])
+    expect(await log()).toEqual([])
+  })
 })
 
 describe.if(chrome)('twins, swap modes and loading state', () => {
@@ -444,6 +648,21 @@ describe.if(chrome)('twins, swap modes and loading state', () => {
     await page.click('#next')
     await page.waitForSelector('text=game 2')
     expect(await text('[data-bridge-segment="counter"]')).toBe('2 games')
+  })
+
+  test('a twin inside the target comes with it', async () => {
+    await open('/shelf/1?nested')
+    requests.length = 0
+    await page.click('#next')
+    await page.waitForSelector('text=game 2')
+    expect(await text('[data-bridge-segment="inner"]')).toBe('inner 2')
+    expect(requests).toEqual(['/shelf/2?nested=&_segment=shelf,counter,inner'])
+    expect(await log()).toEqual([
+      'bridge:fetch',
+      'bridge:swap',
+      'bridge:swapped',
+      'bridge:swapped',
+    ])
   })
 
   test('append and prepend keep the old content', async () => {
@@ -507,6 +726,27 @@ describe.if(chrome)('lazy content, markers and prefetch', () => {
     expect(await sameDocument()).toBe(true)
   })
 
+  test('lazy content that fails stays put, and is asked for again on sight', async () => {
+    await open('/shelf/1?lazy')
+    await page.route(
+      (u) => u.pathname === '/flaky',
+      (route) => route.abort(),
+    )
+    const flaky = page.locator('[data-bridge-segment="flaky"]')
+    await flaky.scrollIntoViewIfNeeded()
+    await page.waitForFunction(() =>
+      (window as unknown as { log: string[] }).log.includes('bridge:fail'),
+    )
+    expect(await flaky.textContent()).toBe('waiting')
+    expect(page.url()).toBe(url('/shelf/1?lazy'))
+    expect(await sameDocument()).toBe(true)
+    await page.unrouteAll()
+    await page.evaluate(() => scrollTo(0, 0))
+    await page.waitForTimeout(100)
+    await flaky.scrollIntoViewIfNeeded()
+    await page.waitForSelector('text=flaky loaded')
+  })
+
   test('the topmost visible hex marker gives the URL', async () => {
     await open('/shelf/1?lazy')
     const markers = page.locator('[data-bridge-hex]')
@@ -533,14 +773,43 @@ describe.if(chrome)('lazy content, markers and prefetch', () => {
     expect(requests).toEqual(['/shelf/2?_segment=shelf,counter'])
   })
 
+  test('a prefetch on its way is not started again; the click joins it', async () => {
+    await open('/shelf/1')
+    requests.length = 0
+    await page.focus('#hover-slow')
+    await page.hover('#hover-slow')
+    await page.click('#hover-slow')
+    await page.waitForSelector('text=game 2')
+    const slow = requests.filter((r) => r.startsWith('/shelf/2?delay=150'))
+    expect(slow).toEqual(['/shelf/2?delay=150&_segment=shelf,counter'])
+  })
+
   test('a link left to the browser gets Speculation Rules instead', async () => {
     await open('/shelf/1')
     const rules = await page.textContent('script[type="speculationrules"]')
     expect(JSON.parse(rules!)).toEqual({
       prefetch: [
-        { source: 'list', urls: [url('/shelf/9')], eagerness: 'moderate' },
+        {
+          source: 'list',
+          urls: [url('/shelf/21'), url('/shelf/9')],
+          eagerness: 'moderate',
+        },
       ],
     })
+  })
+
+  test('rules found later go in a fresh script: browsers read a rule set once', async () => {
+    await open('/shelf/1')
+    const script = 'script[data-bridge-rules]'
+    await page.evaluate(
+      (s) => document.querySelector(s)!.setAttribute('data-first', ''),
+      script,
+    )
+    await page.click('#next')
+    await page.waitForSelector('text=game 2')
+    const rules = JSON.parse((await page.textContent(script))!)
+    expect(rules.prefetch[0].urls).toContain(url('/shelf/22'))
+    expect(await page.$(`${script}[data-first]`)).toBeNull()
   })
 })
 
@@ -562,6 +831,19 @@ describe.if(chrome)('the whole page (_top)', () => {
     expect(
       await page.evaluate(() => (window as unknown as { ran: number }).ran),
     ).toBe(1)
+  })
+
+  test('a new stylesheet is in and loaded before the swap; the old one goes', async () => {
+    await open('/top/1')
+    await page.click('#next')
+    await page.waitForSelector('text=Top 2')
+    expect(await page.$('link[href="/pages/1"]')).toBeNull()
+    expect(await page.$('link[href="/pages/2"]')).not.toBeNull()
+    const color = () =>
+      page.evaluate(
+        () => getComputedStyle(document.getElementById('title')!).color,
+      )
+    expect(await color()).toBe('rgb(2, 0, 0)')
   })
 
   test('back brings the previous page back, same document', async () => {

@@ -45,7 +45,11 @@ export class Prefetch {
   }
 }
 
-/** The browser's own prefetch for links bridge leaves to it, one rule set per eagerness. */
+/**
+ * The browser's own prefetch for links bridge leaves to it, one rule set
+ * per eagerness. Browsers read a rule set once, when its script enters the
+ * document, so a changed set is a fresh script in place of the old one.
+ */
 class SpeculationRules {
   private readonly urls = {
     conservative: new Set<string>(),
@@ -54,34 +58,36 @@ class SpeculationRules {
   }
 
   scan(root: ParentNode): void {
-    let changed = false
+    const before = this.count()
     for (const link of root.querySelectorAll<HTMLAnchorElement>('a[href]')) {
       const eagerness = EAGERNESS[inherited(link, 'prefetch') ?? '']
-      if (!eagerness || optionsOf(link).target.kind !== 'none') continue
-      changed = this.urls[eagerness].add(link.href).size > 0 || changed
+      if (eagerness && optionsOf(link).target.kind === 'none')
+        this.urls[eagerness].add(link.href)
     }
-    if (changed) this.write()
+    if (this.count() !== before) this.write()
+  }
+
+  private count(): number {
+    return Object.values(this.urls).reduce((n, urls) => n + urls.size, 0)
   }
 
   private write(): void {
-    const prefetch = Object.entries(this.urls)
+    const script = document.createElement('script')
+    script.type = 'speculationrules'
+    script.setAttribute(OWNED, '')
+    script.textContent = JSON.stringify({ prefetch: this.rules() })
+    document.querySelector(`script[${OWNED}]`)?.remove()
+    document.head.append(script)
+  }
+
+  private rules(): object[] {
+    return Object.entries(this.urls)
       .filter(([, urls]) => urls.size)
       .map(([eagerness, urls]) => ({
         source: 'list',
         urls: [...urls],
         eagerness,
       }))
-    const script = this.script()
-    script.textContent = JSON.stringify({ prefetch })
-  }
-
-  private script(): HTMLScriptElement {
-    const found = document.querySelector<HTMLScriptElement>(`script[${OWNED}]`)
-    if (found) return found
-    const script = document.createElement('script')
-    script.type = 'speculationrules'
-    script.setAttribute(OWNED, '')
-    return document.head.appendChild(script)
   }
 }
 

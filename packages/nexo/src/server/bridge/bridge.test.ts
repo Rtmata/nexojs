@@ -1,7 +1,7 @@
 import { describe, expect, test } from 'bun:test'
 import { boat } from '../../shared/boat'
 import { keep } from '../keep'
-import { bridge, CLIENT_PATH } from './bridge'
+import { bridge, CLIENT_PATH, ClientScript } from './bridge'
 
 const server = keep({
   router: boat().get('/', () => new Response('home')),
@@ -34,5 +34,15 @@ describe('bridge()', () => {
   test('lets every other request through', async () => {
     expect(await (await get('/')).text()).toBe('home')
     expect((await get('/_nexo/other.js')).status).toBe(404)
+  })
+
+  test('a client that cannot be bundled stops the server from starting', async () => {
+    const broken = new ClientScript('/nowhere/bridge.ts')
+    await expect(broken.ready()).rejects.toThrow()
+    const stopped = keep({ router: boat() }).use({
+      onStart: () => broken.ready(),
+    })
+    await expect(stopped.listen(0)).rejects.toThrow()
+    expect(stopped.url).toBeNull()
   })
 })

@@ -5,6 +5,8 @@
  * `bridge:swapped` on each segment that just arrived. Cancelling
  * `bridge:fetch` or `bridge:swap` with `preventDefault()` stops bridge
  * there; the handler owns what happens next (`detail.swap()` does the swap).
+ * `bridge:fail` carries the `error` and, once a response arrived, its
+ * `page`, final `url` and `status`; cancelling it leaves the page as it is.
  */
 export type EventName =
   | 'bridge:fetch'

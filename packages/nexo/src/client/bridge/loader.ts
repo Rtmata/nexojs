@@ -1,11 +1,14 @@
 import { withSegments, withoutSegments } from '../../shared/bridge/segment-url'
 import type { Cached, ResponseCache } from './cache'
+import { freshnessOf } from './freshness'
 
 /** A page as bridge works with it: parsed, with where it came from and how it answered. */
 export interface Loaded {
   page: Document
   url: URL
   status: number
+  /** For a stale page shown going back: whether a newer one arrived and is in the cache now. */
+  revalidated?: Promise<boolean>
 }
 
 /** What to fetch: a URL, how, and with which body (forms). */
@@ -14,48 +17,135 @@ export interface Wanted {
   method: string
   body?: FormData
   segments: string[]
+  /** A stale entry will do (going back): shown at once, asked again behind. */
+  stale?: boolean
 }
 
 /**
  * Fetches pages, through the cache for GET. Redirects are followed by
  * `fetch` itself; the final URL is what history gets (PRG works: a POST
- * answered with 303 lands on the GET page).
+ * answered with 303 lands on the GET page). A prefetch on its way is
+ * remembered, so asking again (another hover, the click itself) joins it
+ * instead of fetching twice. Any other method is a change: afterwards the
+ * whole cache is dropped, so nothing shown is older than the change.
  */
 export class Loader {
+  private readonly ahead = new Map<string, Promise<Cached>>()
+
   constructor(private readonly cache: ResponseCache) {}
 
   async load(wanted: Wanted, signal: AbortSignal): Promise<Loaded> {
     const key = withSegments(wanted.url, wanted.segments).href
-    const hit = wanted.method === 'GET' ? this.cache.get(key) : undefined
-    const cached = hit ?? (await this.fetch(key, wanted, signal))
-    if (wanted.method === 'GET' && !hit) this.cache.set(key, cached)
-    return parse(cached)
+    if (wanted.method !== 'GET')
+      return parse(await this.change(key, wanted, signal))
+    const reused = await this.reuse(key, wanted)
+    return reused ?? parse(await this.keep(key, wanted, signal))
   }
 
-  /** Brings a GET into the cache ahead of time; nothing happens if it's already there. */
-  async prefetch(url: URL, segments: string[]): Promise<void> {
+  /** Brings a GET into the cache ahead of time; nothing happens if it's there or on its way. */
+  prefetch(url: URL, segments: string[]): Promise<void> {
     const key = withSegments(url, segments).href
-    if (this.cache.has(key)) return
+    if (this.cache.has(key) || this.ahead.has(key)) return Promise.resolve()
     const wanted = { url, method: 'GET', segments }
-    this.cache.set(
+    const request = this.keep(key, wanted, NO_ABORT)
+    this.ahead.set(
       key,
-      await this.fetch(key, wanted, new AbortController().signal),
+      request.finally(() => this.ahead.delete(key)),
     )
+    return request.then(() => {})
+  }
+
+  /** A fresh entry, one on its way, or — when stale will do — a stale one asked again behind. */
+  private async reuse(
+    key: string,
+    wanted: Wanted,
+  ): Promise<Loaded | undefined> {
+    const fresh = this.cache.get(key) ?? (await this.ahead.get(key))
+    if (fresh) return parse(fresh)
+    const stale = wanted.stale ? this.cache.getStale(key) : undefined
+    if (!stale) return undefined
+    return { ...parse(stale), revalidated: this.revalidate(key, stale, wanted) }
+  }
+
+  /** The stale entry asked again with its ETag: a 304 renews it, a page replaces it. Without an ETag there is nothing cheap to ask. */
+  private async revalidate(
+    key: string,
+    stale: Cached,
+    wanted: Wanted,
+  ): Promise<boolean> {
+    if (!stale.etag) return false
+    const headers = { 'if-none-match': stale.etag }
+    const answer = await this.fetch(key, wanted, NO_ABORT, headers).catch(
+      () => null,
+    )
+    if (!answer) return false
+    this.store(key, answer.status === 304 ? renewed(stale, answer) : answer)
+    return answer.status !== 304
+  }
+
+  /** Any non-GET: after it, nothing kept can be trusted. */
+  private async change(
+    key: string,
+    wanted: Wanted,
+    signal: AbortSignal,
+  ): Promise<Cached> {
+    const cached = await this.fetch(key, wanted, signal)
+    this.cache.clear()
+    return cached
+  }
+
+  /** Fetches and keeps the answer, for as long as it may be kept. */
+  private async keep(
+    key: string,
+    wanted: Wanted,
+    signal: AbortSignal,
+  ): Promise<Cached> {
+    const cached = await this.fetch(key, wanted, signal)
+    this.store(key, cached)
+    return cached
+  }
+
+  /** Kept for as long as its headers allow; errors and `no-store` not at all. */
+  private store(key: string, cached: Cached): void {
+    const { status, cacheControl } = cached
+    const freshFor = freshnessOf(status, cacheControl, this.cache.ttl)
+    if (freshFor !== null) this.cache.set(key, cached, freshFor)
   }
 
   private async fetch(
     key: string,
     wanted: Wanted,
     signal: AbortSignal,
+    headers = {},
   ): Promise<Cached> {
     const response = await fetch(key, {
       method: wanted.method,
       body: wanted.body,
-      headers: { accept: 'text/html' },
+      headers: { accept: 'text/html', ...headers },
       signal,
     })
-    const url = withoutSegments(new URL(response.url)).href
-    return { html: await response.text(), url, status: response.status }
+    return cachedFrom(response)
+  }
+}
+
+const NO_ABORT = new AbortController().signal
+
+async function cachedFrom(response: Response): Promise<Cached> {
+  return {
+    html: await response.text(),
+    url: withoutSegments(new URL(response.url)).href,
+    status: response.status,
+    etag: response.headers.get('etag'),
+    cacheControl: response.headers.get('cache-control'),
+  }
+}
+
+/** A 304 says the stale entry still holds; the headers it brings replace the old ones (RFC 9111 §4.3.4). */
+function renewed(stale: Cached, answer: Cached): Cached {
+  return {
+    ...stale,
+    etag: answer.etag ?? stale.etag,
+    cacheControl: answer.cacheControl ?? stale.cacheControl,
   }
 }
 

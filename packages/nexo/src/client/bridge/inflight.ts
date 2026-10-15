@@ -1,3 +1,4 @@
+import { TOP } from '../../shared/bridge/vocabulary'
 import { announce } from './events'
 
 /**
@@ -11,6 +12,7 @@ export class Inflight {
   private readonly flights = new Map<string, Flight>()
 
   start(targets: string[], trigger: Element, busy: Element[]): Flight {
+    if (targets.includes(TOP)) this.abortAll()
     for (const name of targets) this.flights.get(name)?.cancel()
     const flight = new Flight(trigger, busy, () => this.forget(flight))
     for (const name of targets) this.flights.set(name, flight)

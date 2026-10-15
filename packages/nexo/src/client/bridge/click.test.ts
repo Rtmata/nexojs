@@ -6,7 +6,7 @@ const plain: Click = {
   modified: false,
   defaultPrevented: false,
   href: 'http://museo.test/es/arcade',
-  pageOrigin: 'http://museo.test',
+  pageHref: 'http://museo.test/es/lobby',
   download: false,
   opensElsewhere: false,
 }
@@ -14,6 +14,7 @@ const plain: Click = {
 describe('isPlainNavigation', () => {
   test('a left click on a same-origin link', () => {
     expect(isPlainNavigation(plain)).toBe(true)
+    expect(isPlainNavigation({ ...plain, href: '/es/arcade#ryu' })).toBe(true)
   })
 
   test('not with a modifier, another button or when already handled', () => {
@@ -29,5 +30,15 @@ describe('isPlainNavigation', () => {
     expect(isPlainNavigation({ ...plain, download: true })).toBe(false)
     expect(isPlainNavigation({ ...plain, opensElsewhere: true })).toBe(false)
     expect(isPlainNavigation({ ...plain, href: 'mailto:x@y.z' })).toBe(false)
+  })
+
+  test('not a jump within the same page: the browser scrolls to the anchor', () => {
+    const page = 'http://museo.test/es/lobby#old'
+    const jump = (href: string) =>
+      isPlainNavigation({ ...plain, pageHref: page, href })
+    expect(jump('http://museo.test/es/lobby#top')).toBe(false)
+    expect(jump('http://museo.test/es/lobby#')).toBe(false)
+    expect(jump('http://museo.test/es/lobby')).toBe(true) // a reload is a navigation
+    expect(jump('http://museo.test/es/arcade#top')).toBe(true)
   })
 })
