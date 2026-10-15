@@ -1,3 +1,4 @@
+import { samePage } from '../../shared/bridge/segment-url'
 import { SEGMENT_ATTRIBUTE } from '../../shared/bridge/vocabulary'
 import { announce } from './events'
 import { BrowserFallback, type Fallback } from './fallback'
@@ -88,12 +89,13 @@ export class Navigation {
     this.done(loaded.url, await this.transition(swap))
   }
 
+  /** Waits for the DOM update, not the animation: history, scroll and `bridge:swapped` follow the swap, not the end of the crossfade. */
   private async transition(swap: () => Element[]): Promise<Element[]> {
     if (!this.options.transition || !document.startViewTransition) return swap()
     let elements: Element[] = []
     await document.startViewTransition(() => {
       elements = swap()
-    }).finished
+    }).updateCallbackDone
     return elements
   }
 
@@ -112,25 +114,30 @@ export class Navigation {
     if (this.options.scroll === 'target') elements[0]?.scrollIntoView()
   }
 
-  /** Nothing to swap: the fallback decides, with the landing (if any) as the other way in. */
+  /**
+   * Nothing to swap: the fallback decides, with the landing (if any) as
+   * the other way in. The response was a fragment asked by segments, so
+   * the page it points at is fetched whole, by GET: nothing is resent.
+   */
   private async land(loaded: Loaded, error: unknown): Promise<void> {
     const landing = this.swapper.landing()
-    const take = landing && ((page: Loaded) => this.onto(landing).take(page))
-    await this.fallback.land(loaded, error, take)
+    const again = landing && (() => this.onto(landing, loaded.url).run())
+    await this.fallback.land(loaded, error, again)
   }
 
-  /** The same navigation swapped another way: a new page, so an entry (unless told to replace) and the top. */
-  private onto(swapper: Swapper): Navigation {
+  /** The page at `url`, swapped another way: a new page, so an entry (unless told to replace) and the top. */
+  private onto(swapper: Swapper, url: URL): Navigation {
     const history = this.options.history ?? 'push'
     const options: Options = { ...this.options, history, scroll: 'top' }
-    const { trigger, wanted, session, fallback } = this
-    return new Navigation(trigger, wanted, swapper, options, session, fallback)
+    const wanted = { url, method: 'GET' }
+    return new Navigation(this.trigger, wanted, swapper, options, this.session)
   }
 
-  /** A stale page shown going back: when a newer one arrives, it is shown as a navigation of its own. */
+  /** A stale page shown going back: when a newer one arrives, and the visitor is still there, it is shown as a navigation of its own. */
   private followUp(loaded: Loaded): void {
     void loaded.revalidated?.then((changed) => {
-      if (changed) void this.again().run()
+      const here = samePage(new URL(location.href), loaded.url)
+      if (changed && here) void this.again().run()
     })
   }
 

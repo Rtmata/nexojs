@@ -31,11 +31,22 @@ export function withoutSegments(url: URL): URL {
   return withSegments(url, [])
 }
 
-/** `"shelf, counter"` → `['shelf', 'counter']`; blanks and empty parts dropped. */
+/** `"shelf, counter"` → `['shelf', 'counter']`; blanks, empty parts and repeats dropped. */
 export function splitNames(value: string | null): string[] {
   if (!value) return []
-  return value
-    .split(',')
-    .map((name) => name.trim())
-    .filter(Boolean)
+  const names = value.split(',').map((name) => name.trim())
+  return [...new Set(names.filter(Boolean))]
+}
+
+/**
+ * Whether two URLs name the same page: origin, path and query, with the
+ * segments and the hash left out, and the query compared by its
+ * parameters (`?etag` and `?etag=` are the same ask).
+ */
+export function samePage(a: URL, b: URL): boolean {
+  const ask = (url: URL) => {
+    const bare = withoutSegments(url)
+    return `${bare.origin}${bare.pathname}?${bare.searchParams}`
+  }
+  return ask(a) === ask(b)
 }

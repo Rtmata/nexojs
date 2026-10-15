@@ -48,10 +48,9 @@ export class Loader {
     if (this.cache.has(key) || this.ahead.has(key)) return Promise.resolve()
     const wanted = { url, method: 'GET', segments }
     const request = this.keep(key, wanted, NO_ABORT)
-    this.ahead.set(
-      key,
-      request.finally(() => this.ahead.delete(key)),
-    )
+    const stored = request.finally(() => this.ahead.delete(key))
+    stored.catch(() => {}) // a failed prefetch is the joiner's to handle, if any
+    this.ahead.set(key, stored)
     return request.then(() => {})
   }
 
@@ -74,16 +73,25 @@ export class Loader {
     wanted: Wanted,
   ): Promise<boolean> {
     if (!stale.etag) return false
-    const headers = { 'if-none-match': stale.etag }
-    const answer = await this.fetch(key, wanted, NO_ABORT, headers).catch(
-      () => null,
-    )
+    const { era } = this.cache
+    const answer = await this.ask(key, wanted, stale.etag)
     if (!answer) return false
-    this.store(key, answer.status === 304 ? renewed(stale, answer) : answer)
-    return answer.status !== 304
+    const unchanged = answer.status === 304
+    this.store(key, unchanged ? renewed(stale, answer) : answer, era)
+    return !unchanged
   }
 
-  /** Any non-GET: after it, nothing kept can be trusted. */
+  /** A conditional GET; null when it couldn't be made. */
+  private ask(
+    key: string,
+    wanted: Wanted,
+    etag: string,
+  ): Promise<Cached | null> {
+    const headers = { 'if-none-match': etag }
+    return this.fetch(key, wanted, NO_ABORT, headers).catch(() => null)
+  }
+
+  /** Any non-GET: after it, nothing kept can be trusted, nor a prefetch still on its way. */
   private async change(
     key: string,
     wanted: Wanted,
@@ -91,6 +99,7 @@ export class Loader {
   ): Promise<Cached> {
     const cached = await this.fetch(key, wanted, signal)
     this.cache.clear()
+    this.ahead.clear()
     return cached
   }
 
@@ -100,16 +109,17 @@ export class Loader {
     wanted: Wanted,
     signal: AbortSignal,
   ): Promise<Cached> {
+    const { era } = this.cache
     const cached = await this.fetch(key, wanted, signal)
-    this.store(key, cached)
+    this.store(key, cached, era)
     return cached
   }
 
   /** Kept for as long as its headers allow; errors and `no-store` not at all. */
-  private store(key: string, cached: Cached): void {
+  private store(key: string, cached: Cached, era: number): void {
     const { status, cacheControl } = cached
     const freshFor = freshnessOf(status, cacheControl, this.cache.ttl)
-    if (freshFor !== null) this.cache.set(key, cached, freshFor)
+    if (freshFor !== null) this.cache.set(key, cached, freshFor, era)
   }
 
   private async fetch(

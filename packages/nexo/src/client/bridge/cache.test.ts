@@ -44,4 +44,25 @@ describe('ResponseCache', () => {
     cache.clear()
     expect(cache.getStale('/a')).toBeUndefined()
   })
+
+  test('what was asked for before a clear is not kept after it', () => {
+    const cache = new ResponseCache(100)
+    const era = cache.era
+    cache.clear()
+    cache.set('/a', page('old'), 100, era)
+    expect(cache.getStale('/a')).toBeUndefined()
+    cache.set('/a', page('new'))
+    expect(cache.get('/a')?.html).toBe('new')
+  })
+
+  test('never holds more than its limit: the oldest goes first', () => {
+    const cache = new ResponseCache(100, () => 0, 2)
+    cache.set('/a', page('a'))
+    cache.set('/b', page('b'))
+    cache.set('/a', page('a2')) // asked again: now the newest
+    cache.set('/c', page('c'))
+    expect(cache.getStale('/b')).toBeUndefined()
+    expect(cache.getStale('/a')?.html).toBe('a2')
+    expect(cache.getStale('/c')?.html).toBe('c')
+  })
 })

@@ -9,6 +9,9 @@ export const ATTRIBUTE_PREFIX = 'data-bridge-'
 /** Marks a region of the page that can be replaced on its own: `data-bridge-segment="shelf"`. */
 export const SEGMENT_ATTRIBUTE = `${ATTRIBUTE_PREFIX}segment`
 
+/** Where a link or form goes: segment names, `_top` or `_none`. */
+export const TARGET_ATTRIBUTE = `${ATTRIBUTE_PREFIX}target`
+
 /** `data-bridge-target` value for the whole page; also the name history gives whole-page entries. */
 export const TOP = '_top'
 

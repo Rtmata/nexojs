@@ -2,9 +2,11 @@ import type { Wanted } from './loader'
 import { sameOrigin } from './origin'
 
 /**
- * A form submission as data: the submitter button may override the form's
- * method and action (`formmethod`, `formaction`, read as attributes — the
- * properties answer the page URL when absent).
+ * A form submission as data. Everything is read as attributes, never as
+ * properties: a control named `action`, `method` or `target` shadows
+ * those properties with itself, and the properties answer the page URL
+ * when absent anyway. The submitter button may override the form's
+ * method and action (`formmethod`, `formaction`).
  */
 export interface Submission {
   /** Upper case, as `Request` wants it. */
@@ -19,13 +21,15 @@ export function submissionOf(
   form: HTMLFormElement,
   submitter: HTMLElement | null,
 ): Submission {
-  const action = submitter?.getAttribute('formaction') ?? form.action
+  const action =
+    submitter?.getAttribute('formaction') ?? form.getAttribute('action') ?? ''
+  const target = form.getAttribute('target') ?? ''
   return {
     method: methodOf(form, submitter),
     action: new URL(action, location.href).href,
     fields: new FormData(form, submitter),
     pageOrigin: location.origin,
-    opensElsewhere: form.target !== '' && form.target !== '_self',
+    opensElsewhere: target !== '' && target !== '_self',
   }
 }
 
@@ -49,6 +53,9 @@ export function wantedFrom(submission: Submission): Omit<Wanted, 'segments'> {
 }
 
 function methodOf(form: HTMLFormElement, submitter: HTMLElement | null) {
-  const method = submitter?.getAttribute('formmethod') || form.method || 'get'
+  const method =
+    submitter?.getAttribute('formmethod') ||
+    form.getAttribute('method') ||
+    'get'
   return method.toUpperCase()
 }

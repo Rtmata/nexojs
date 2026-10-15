@@ -69,6 +69,9 @@ class Shelf extends Component<{ n: number; q: URLSearchParams }> {
             <a id="lost" href="/no-shelf">
               lost
             </a>
+            <a id="account" href="/account">
+              account
+            </a>
             <a id="drop" href={`/shelf/${n + 1}?drop`}>
               drop
             </a>
@@ -125,6 +128,13 @@ class Shelf extends Component<{ n: number; q: URLSearchParams }> {
             >
               etag
             </a>
+            <a
+              id="etag-slow"
+              href={`/shelf/${n + 1}?etag&delay=200`}
+              data-bridge-history="push"
+            >
+              etag slow
+            </a>
             {q.has('etag') ? <i id="version">v{version}</i> : null}
             <form id="search" action="/shelf/7" method="get">
               <input name="q" value="ryu" />
@@ -136,6 +146,24 @@ class Shelf extends Component<{ n: number; q: URLSearchParams }> {
             </form>
             <form id="order" action="/order" method="post">
               <button id="order-go">order</button>
+            </form>
+            <form id="shadow" action="/shelf/7" method="get">
+              <input type="hidden" name="action" value="x" />
+              <input type="hidden" name="method" value="y" />
+              <button id="shadow-go">shadowed</button>
+            </form>
+            <form id="intent" action="/intent" method="post">
+              <button id="intent-archive" name="intent" value="archive">
+                archive
+              </button>
+              <button
+                id="intent-delete"
+                name="intent"
+                value="delete"
+                formaction="/intent/delete"
+              >
+                delete
+              </button>
             </form>
             <dialog id="dialog">
               <form method="dialog">
@@ -167,6 +195,7 @@ class LazyBits extends Component<{ n: number }> {
         <Segment name="side" data-bridge-src="/side" data-bridge-load="eager">
           loading side
         </Segment>
+        <SelfLoading n={n} />
         <h2 data-bridge-hex={`/shelf/${n}`}>Year {n}</h2>
         <div class="tall" />
         <h2 id="far" data-bridge-hex="/shelf/5">
@@ -191,6 +220,17 @@ class LazyBits extends Component<{ n: number }> {
           waiting
         </Segment>
       </>
+    )
+  }
+}
+
+/** A segment that renders itself with its own `src`: it must load once, not forever. */
+class SelfLoading extends Component<{ n: number }> {
+  template() {
+    return (
+      <Segment name="self" data-bridge-src="/self" data-bridge-load="eager">
+        self {this.props.n}
+      </Segment>
     )
   }
 }
@@ -232,6 +272,7 @@ class Top extends Component<{ n: number; theme: string }> {
 
 const requests: string[] = []
 let orders = 0
+const intents: string[] = []
 /** The shelf's version, told by an ETag when `?etag` asks for one. */
 let version = 1
 const router = boat()
@@ -260,6 +301,23 @@ const router = boat()
   .post('/order', () => {
     orders++
     return redirect('/thanks', 303)
+  })
+  .post('/intent/delete', async (ctx) => {
+    const data = await ctx.request.formData()
+    intents.push(`${ctx.url.pathname} ${data.get('intent')}`)
+    return redirect('/shelf/1', 303)
+  })
+  .get('/account', (ctx) =>
+    render(
+      <main>
+        <h2>Account</h2>
+      </main>,
+      { only: only(ctx.url) },
+    ),
+  )
+  .get('/self', (ctx) => {
+    requests.push(ctx.url.pathname + ctx.url.search)
+    return render(<SelfLoading n={99} />, { only: only(ctx.url) })
   })
   .get('/thanks', () =>
     render(
@@ -425,12 +483,22 @@ describe.if(chrome)('when things go wrong', () => {
     await page.waitForSelector('text=no segments here')
     expect(page.url()).toBe(url('/no-shelf'))
     expect(await sameDocument()).toBe(true)
+    // the landing is a navigation of its own: the page fetched whole
     expect(await log()).toEqual([
       'bridge:fetch',
       'bridge:fail',
+      'bridge:fetch',
       'bridge:swap',
       'bridge:swapped',
     ])
+  })
+
+  test('a route that honours ?_segment but lacks the segment: the page is fetched whole', async () => {
+    await open('/shelf/1')
+    await page.click('#account')
+    await page.waitForSelector('h2:has-text("Account")')
+    expect(page.url()).toBe(url('/account'))
+    expect(await sameDocument()).toBe(true)
   })
 
   test('a POST answered with a page without the segment is never sent again', async () => {
@@ -441,6 +509,24 @@ describe.if(chrome)('when things go wrong', () => {
     expect(page.url()).toBe(url('/thanks'))
     expect(await sameDocument()).toBe(true)
     expect(orders).toBe(1)
+  })
+
+  test('no response to a form: the browser submits it again, submitter included', async () => {
+    await open('/shelf/1')
+    intents.length = 0
+    await page.route(
+      (u) => u.pathname === '/intent/delete',
+      (route) =>
+        route.request().resourceType() === 'fetch'
+          ? route.abort()
+          : route.continue(),
+    )
+    await page.click('#intent-delete')
+    await page.waitForFunction(() => !('marker' in window)) // a new document
+    await page.waitForSelector('text=game 1')
+    expect(page.url()).toBe(url('/shelf/1'))
+    expect(intents).toEqual(['/intent/delete delete'])
+    await page.unrouteAll()
   })
 
   test('no response at all: the browser follows the link its own way', async () => {
@@ -555,6 +641,23 @@ describe.if(chrome)('history and scroll', () => {
     expect(await sameDocument()).toBe(true)
   })
 
+  test('a newer page arriving after the visitor moved on is not shown', async () => {
+    await open('/shelf/1')
+    version = 1
+    await page.click('#etag-slow')
+    await page.waitForSelector('text=v1')
+    await page.goBack()
+    await page.waitForSelector('text=game 1')
+    version = 2
+    await page.goForward() // stale v1 at once; revalidation takes 200 ms
+    await page.waitForSelector('text=v1')
+    await page.click('#push') // meanwhile: on to shelf 3
+    await page.waitForSelector('text=game 3')
+    await page.waitForTimeout(400)
+    expect(await text('[data-bridge-segment="shelf"] li')).toBe('game 3')
+    expect(page.url()).toBe(url('/shelf/3'))
+  })
+
   test('replace rewrites the entry', async () => {
     await open('/shelf/1')
     await page.click('#push')
@@ -596,6 +699,33 @@ describe.if(chrome)('forms', () => {
     await page.waitForSelector('text=game 7')
     expect(requests).toEqual(['/shelf/7?q=ryu&_segment=shelf,counter'])
     expect(await sameDocument()).toBe(true)
+  })
+
+  test('fields named action or method do not shadow the form', async () => {
+    await open('/shelf/1')
+    requests.length = 0
+    await page.click('#shadow-go')
+    await page.waitForSelector('text=game 7')
+    expect(requests).toEqual([
+      '/shelf/7?action=x&method=y&_segment=shelf,counter',
+    ])
+  })
+
+  test('a prefetch still on its way when a POST happens is not kept', async () => {
+    await open('/shelf/1')
+    requests.length = 0
+    await page.hover('#hover-slow') // /shelf/2?delay=150 on its way
+    await page.click('#post-go')
+    await page.waitForSelector('text=game 9')
+    await page.waitForTimeout(250) // the prefetch has landed by now
+    await page.evaluate(() =>
+      document
+        .getElementById('next')!
+        .setAttribute('href', '/shelf/2?delay=150'),
+    )
+    await page.click('#next')
+    await page.waitForSelector('text=game 2')
+    expect(requests.filter((r) => r.startsWith('/shelf/2'))).toHaveLength(2)
   })
 
   test('a POST drops the cache: what was prefetched before is fetched again', async () => {
@@ -724,6 +854,16 @@ describe.if(chrome)('lazy content, markers and prefetch', () => {
       () => document.querySelectorAll('li').length === 2,
     )
     expect(await sameDocument()).toBe(true)
+  })
+
+  test('a segment that renders itself with its own src loads once', async () => {
+    requests.length = 0
+    await open('/shelf/1?lazy')
+    await page.waitForSelector('text=self 99')
+    await page.waitForTimeout(300)
+    expect(requests.filter((r) => r.startsWith('/self'))).toEqual([
+      '/self?_segment=self,counter',
+    ])
   })
 
   test('lazy content that fails stays put, and is asked for again on sight', async () => {
@@ -914,7 +1054,8 @@ describe.if(chrome)('hooks for the page', () => {
       document.startViewTransition = (update: () => void) => {
         w.transitions++
         update()
-        return { finished: Promise.resolve() } as ViewTransition
+        const done = Promise.resolve()
+        return { updateCallbackDone: done, finished: done } as ViewTransition
       }
     })
     await page.click('#next')

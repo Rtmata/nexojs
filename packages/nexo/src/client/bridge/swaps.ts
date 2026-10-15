@@ -33,7 +33,8 @@ export function pairAll(
 function outermost(swaps: Swap[]): Swap[] {
   const inside = (swap: Swap) =>
     swaps.some(
-      (other) => other !== swap && other.current.contains(swap.current),
+      (other) =>
+        other.current !== swap.current && other.current.contains(swap.current),
     )
   return swaps.filter((swap) => !inside(swap))
 }
@@ -43,7 +44,7 @@ export function twinNames(): string[] {
   const twins = document.querySelectorAll(
     `[${SEGMENT_ATTRIBUTE}][data-bridge-twin]`,
   )
-  return [...twins].map((twin) => twin.getAttribute(SEGMENT_ATTRIBUTE)!)
+  return [...new Set([...twins].map((t) => t.getAttribute(SEGMENT_ATTRIBUTE)!))]
 }
 
 function pair(name: string, page: Document, mode: Options['swap']): Swap {

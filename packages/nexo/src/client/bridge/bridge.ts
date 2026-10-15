@@ -8,6 +8,7 @@
 import { TOP } from '../../shared/bridge/vocabulary'
 import { ResponseCache } from './cache'
 import { isPlainNavigation, type Click } from './click'
+import { BrowserFallback } from './fallback'
 import { isPlainSubmission, submissionOf, wantedFrom } from './forms'
 import { HexTrail } from './hex'
 import { HistoryKeeper } from './history'
@@ -31,40 +32,55 @@ const session: Session = {
 }
 
 /** What looks at the page as it is and as it changes: lazy content, prefetch, scroll markers. */
-const watchers = [
+interface Watcher {
+  /** `from`: the URL the content in `root` just came from. */
+  scan(root: ParentNode, from?: URL): void
+}
+const watchers: Watcher[] = [
   new Lazy(session),
   new Prefetch(session.loader),
   new HexTrail(session.history),
 ]
-const scan = (root: ParentNode) => watchers.forEach((w) => w.scan(root))
+const scan = (root: ParentNode, from?: URL) =>
+  watchers.forEach((w) => w.scan(root, from))
 scan(document)
-document.addEventListener('bridge:swapped', (event) =>
-  scan(event.target as Element),
-)
+document.addEventListener('bridge:swapped', (event) => {
+  const { url } = (event as CustomEvent<{ url: URL }>).detail
+  scan(event.target as Element, url)
+})
 
 document.addEventListener('click', (event) => {
   const link = linkOf(event)
-  if (link) follow(event, link, { url: new URL(link.href), method: 'GET' })
+  if (link)
+    follow(event, link, link, { url: new URL(link.href), method: 'GET' })
 })
 
 document.addEventListener('submit', (event) => {
   const form = event.target as HTMLFormElement
   const submission = submissionOf(form, event.submitter)
   if (!isPlainSubmission(submission)) return
-  follow(event, event.submitter ?? form, wantedFrom(submission), form)
+  const wanted = wantedFrom(submission)
+  follow(event, event.submitter ?? form, form, wanted, event.submitter)
 })
 
-/** Navigates when the trigger's options say so (segments or `_top`); else the browser keeps the event. */
+/**
+ * Navigates when the reader's options say so (segments or `_top`); else
+ * the browser keeps the event. The reader is where the attributes are
+ * read from (the submit button, when there is one); the trigger is what
+ * carries the events and the active mark (the form).
+ */
 function follow(
   event: Event,
   reader: Element,
+  trigger: Element,
   wanted: Omit<Wanted, 'segments'>,
-  trigger: Element = reader,
+  submitter: HTMLElement | null = null,
 ): void {
   const options = optionsOf(reader)
   if (options.target.kind === 'none') return
   event.preventDefault()
-  void navigationFor(trigger, wanted, options).run()
+  const fallback = new BrowserFallback(trigger, wanted, submitter)
+  void navigationFor(trigger, wanted, options, fallback).run()
 }
 
 /** A whole page always makes an entry unless told to replace; segments only when asked. */
@@ -72,14 +88,14 @@ function navigationFor(
   trigger: Element,
   wanted: Omit<Wanted, 'segments'>,
   options: Options,
+  fallback: BrowserFallback,
 ): Navigation {
-  if (options.target.kind === 'segments') {
-    const swapper = new BySegments(options.target.names, options)
-    return new Navigation(trigger, wanted, swapper, options, session)
-  }
-  const history = options.history ?? 'push'
-  const page = { ...options, history }
-  return new Navigation(trigger, wanted, new WholePage(), page, session)
+  const { target } = options
+  const [swapper, chosen] =
+    target.kind === 'segments'
+      ? [new BySegments(target.names, options), options]
+      : [new WholePage(), { ...options, history: options.history ?? 'push' }]
+  return new Navigation(trigger, wanted, swapper, chosen, session, fallback)
 }
 
 /** Back/forward: what changed to reach that entry is swapped again (a stale copy will do), nothing recorded. */

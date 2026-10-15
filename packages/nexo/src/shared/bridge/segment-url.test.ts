@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'bun:test'
-import { segmentsOf, splitNames, withSegments } from './segment-url'
+import { samePage, segmentsOf, splitNames, withSegments } from './segment-url'
 
 describe('segmentsOf', () => {
   test('reads the names a URL asks for', () => {
@@ -45,5 +45,22 @@ describe('splitNames', () => {
     expect(splitNames(' shelf , counter,,')).toEqual(['shelf', 'counter'])
     expect(splitNames(null)).toEqual([])
     expect(splitNames('')).toEqual([])
+  })
+})
+
+describe('splitNames', () => {
+  test('each name once, blanks dropped', () => {
+    expect(splitNames('shelf, shelf, , counter')).toEqual(['shelf', 'counter'])
+  })
+})
+
+describe('samePage', () => {
+  const page = (href: string) => new URL(href, 'http://m.test')
+  test('ignores segments, the hash and how the query is spelled', () => {
+    expect(samePage(page('/a?etag'), page('/a?etag=&_segment=shelf#x'))).toBe(
+      true,
+    )
+    expect(samePage(page('/a?p=1'), page('/a?p=2'))).toBe(false)
+    expect(samePage(page('/a'), page('/b'))).toBe(false)
   })
 })

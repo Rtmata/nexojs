@@ -34,6 +34,11 @@ export class Watch {
     }
   }
 
+  /** Counted as taken already: it will not act. */
+  skip(element: Element): void {
+    this.taken.add(element)
+  }
+
   /** Taken once more, when it comes into view again. */
   release(element: Element): void {
     this.taken.delete(element)

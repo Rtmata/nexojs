@@ -1,3 +1,4 @@
+import { NONE, TARGET_ATTRIBUTE } from '../../shared/bridge/vocabulary'
 import { announce } from './events'
 import type { Loaded, Wanted } from './loader'
 
@@ -11,37 +12,48 @@ import type { Loaded, Wanted } from './loader'
  */
 export interface Fallback {
   retry(error: unknown): void
-  /** `take` puts the response in another way; null when there is no other way but the browser. */
-  land(loaded: Loaded, error: unknown, take: Take | null): Promise<void>
+  /** `again` brings the page another way (as the whole page); null when there is no other way but the browser. */
+  land(loaded: Loaded, error: unknown, again: Again | null): Promise<void>
 }
 
-/** Puts a loaded page in another way (the whole page, see `Navigation.take`). */
-export type Take = (loaded: Loaded) => Promise<void>
+/** Brings the page the response pointed at, another way (see `Navigation.land`). */
+export type Again = () => Promise<void>
 
 /**
  * For what the visitor asked for (a click, a submit): the page must end
  * up where the server said. No response: the browser repeats the request
  * its own way (the form submitted, the link followed), safe since nothing
- * was sent. A response that couldn't be swapped is put in another way
- * (the whole page in place); if that fails too, or there is no other way,
- * the browser loads its URL as a plain GET.
+ * was sent. A response that couldn't be swapped: the page it points at
+ * is brought another way (as the whole page); when there is no other
+ * way, the browser loads its URL as a plain GET.
  */
 export class BrowserFallback implements Fallback {
   constructor(
     private readonly trigger: Element,
     private readonly wanted: Omit<Wanted, 'segments'>,
+    private readonly submitter: HTMLElement | null = null,
   ) {}
 
   retry(error: unknown): void {
     if (!failed(this.trigger, this.wanted, { error })) return
-    if (this.trigger instanceof HTMLFormElement) this.trigger.submit()
+    if (this.trigger instanceof HTMLFormElement) this.resubmit(this.trigger)
     else location.assign(this.wanted.url)
   }
 
-  async land(loaded: Loaded, error: unknown, take: Take | null): Promise<void> {
+  async land(
+    loaded: Loaded,
+    error: unknown,
+    again: Again | null,
+  ): Promise<void> {
     if (!failed(this.trigger, this.wanted, { error, ...loaded })) return
-    if (!take) return location.assign(loaded.url)
-    await take(loaded).catch(() => location.assign(loaded.url))
+    if (again) await again()
+    else location.assign(loaded.url)
+  }
+
+  /** The browser's own submission, submitter included: `_none` on the form keeps bridge out of it. */
+  private resubmit(form: HTMLFormElement): void {
+    form.setAttribute(TARGET_ATTRIBUTE, NONE)
+    form.requestSubmit(this.submitter)
   }
 }
 
