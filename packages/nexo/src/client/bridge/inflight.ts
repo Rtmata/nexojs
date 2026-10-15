@@ -4,7 +4,8 @@ import { announce } from './events'
 /**
  * Requests in progress, one per target. A new request to a target aborts
  * the one still running there (`bridge:cancel` on its trigger); different
- * targets run side by side; a full-page navigation aborts them all. While
+ * targets run side by side. A whole page covers every target: asking for
+ * it aborts them all, and asking for any of them aborts it. While
  * a request runs, its targets carry `aria-busy="true"` and its trigger
  * `data-bridge-active`, so the site's CSS can show it.
  */
@@ -13,7 +14,7 @@ export class Inflight {
 
   start(targets: string[], trigger: Element, busy: Element[]): Flight {
     if (targets.includes(TOP)) this.abortAll()
-    for (const name of targets) this.flights.get(name)?.cancel()
+    for (const name of [...targets, TOP]) this.flights.get(name)?.cancel()
     const flight = new Flight(trigger, busy, () => this.forget(flight))
     for (const name of targets) this.flights.set(name, flight)
     return flight

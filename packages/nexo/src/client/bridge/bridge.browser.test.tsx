@@ -70,6 +70,20 @@ class Shelf extends Component<{ n: number; q: URLSearchParams }> {
             <a id="lost" href="/no-shelf">
               lost
             </a>
+            <a
+              id="inner-link"
+              href={`/shelf/${n + 5}?nested`}
+              data-bridge-target="inner"
+            >
+              inner
+            </a>
+            <a
+              id="top-slow"
+              href={`/shelf/${n + 1}?delay=300`}
+              data-bridge-target="_top"
+            >
+              whole page, slowly
+            </a>
             <a id="account" href="/account">
               account
             </a>
@@ -155,6 +169,9 @@ class Shelf extends Component<{ n: number; q: URLSearchParams }> {
             <form id="order" action="/order" method="post">
               <button id="order-go">order</button>
             </form>
+            <form id="notify" action="/notify" method="post">
+              <button id="notify-go">notify</button>
+            </form>
             <form id="shadow" action="/shelf/7" method="get">
               <input type="hidden" name="action" value="x" />
               <input type="hidden" name="method" value="y" />
@@ -171,11 +188,6 @@ class Shelf extends Component<{ n: number; q: URLSearchParams }> {
                 formaction="/intent/delete"
               >
                 delete
-              </button>
-            </form>
-            <form id="loop" action="/intent/loop" method="post">
-              <button id="loop-go" data-bridge-target="shelf">
-                loop
               </button>
             </form>
             <form id="urlencoded" action="/echo" method="post">
@@ -298,6 +310,7 @@ class Top extends Component<{ n: number; theme: string }> {
 
 const requests: string[] = []
 let orders = 0
+let notifies = 0
 const intents: string[] = []
 /** The shelf's version, told by an ETag when `?etag` asks for one. */
 let version = 1
@@ -328,12 +341,24 @@ const router = boat()
     orders++
     return redirect('/thanks', 303)
   })
+  .post('/notify', (ctx) => {
+    notifies++
+    return render(<Segment name="other">noted</Segment>, {
+      only: only(ctx.url),
+    })
+  })
+  .get('/notify', () =>
+    render(
+      <main>
+        <h2>Notified</h2>
+      </main>,
+    ),
+  )
   .post('/intent/delete', async (ctx) => {
     const data = await ctx.request.formData()
     intents.push(`${ctx.url.pathname} ${data.get('intent')}`)
     return redirect('/shelf/1', 303)
   })
-  .post('/intent/loop', () => redirect('/shelf/1', 303))
   .post('/echo', (ctx) =>
     render(
       <Segment name="shelf">
@@ -519,11 +544,10 @@ describe.if(chrome)('when things go wrong', () => {
     await page.waitForSelector('text=no segments here')
     expect(page.url()).toBe(url('/no-shelf'))
     expect(await sameDocument()).toBe(true)
-    // the landing is a navigation of its own: the page fetched whole
+    // the response came whole (it has a doctype): it goes in as it is, no second request
     expect(await log()).toEqual([
       'bridge:fetch',
       'bridge:fail',
-      'bridge:fetch',
       'bridge:swap',
       'bridge:swapped',
     ])
@@ -547,7 +571,27 @@ describe.if(chrome)('when things go wrong', () => {
     expect(orders).toBe(1)
   })
 
-  test('no response to a form: the browser submits it again, submitter included', async () => {
+  test('a landing that gets no response: the browser loads the page, the form is never sent again', async () => {
+    await open('/shelf/1')
+    notifies = 0
+    await page.route(
+      (u) => u.pathname === '/notify',
+      (route) => {
+        const request = route.request()
+        const landing =
+          request.method() === 'GET' && request.resourceType() === 'fetch'
+        return landing ? route.abort() : route.continue()
+      },
+    )
+    await page.click('#notify-go') // answered with a fragment for another segment
+    await page.waitForFunction(() => !('marker' in window))
+    await page.waitForSelector('h2:has-text("Notified")')
+    await page.unrouteAll()
+    expect(page.url()).toBe(url('/notify'))
+    expect(notifies).toBe(1)
+  })
+
+  test('no response to a POST: nothing is sent again, bridge:fail tells the page, the form is free', async () => {
     await open('/shelf/1')
     intents.length = 0
     await page.route(
@@ -558,26 +602,15 @@ describe.if(chrome)('when things go wrong', () => {
           : route.continue(),
     )
     await page.click('#intent-delete')
-    await page.waitForFunction(() => !('marker' in window)) // a new document
-    await page.waitForSelector('text=game 1')
-    expect(page.url()).toBe(url('/shelf/1'))
-    expect(intents).toEqual(['/intent/delete delete'])
-    await page.unrouteAll()
-  })
-
-  test('a submit button with its own target is also handed to the browser on retry', async () => {
-    await open('/shelf/1')
-    await page.route(
-      (u) => u.pathname === '/intent/loop',
-      (route) =>
-        route.request().resourceType() === 'fetch'
-          ? route.abort()
-          : route.continue(),
+    await page.waitForFunction(() =>
+      (window as unknown as { log: string[] }).log.includes('bridge:fail'),
     )
-    await page.click('#loop-go')
-    await page.waitForFunction(() => !('marker' in window)) // a new document
-    await page.waitForSelector('text=game 1')
+    await page.waitForTimeout(100)
     await page.unrouteAll()
+    expect(await sameDocument()).toBe(true)
+    expect(page.url()).toBe(url('/shelf/1'))
+    expect(intents).toEqual([])
+    expect(await page.getAttribute('#intent', 'data-bridge-active')).toBeNull()
   })
 
   test('a navigation that joined a prefetch which then fails asks normally', async () => {
@@ -660,6 +693,17 @@ describe.if(chrome)('when things go wrong', () => {
 })
 
 describe.if(chrome)('history and scroll', () => {
+  test('the fresh element an error page goes into carries no loading state', async () => {
+    await open('/shelf/1')
+    await page.click('#main-error')
+    await page.waitForSelector('h2:has-text("Lost room")')
+    const busy = await page.getAttribute(
+      '[data-bridge-segment="shelf"]',
+      'aria-busy',
+    )
+    expect(busy).toBeNull()
+  })
+
   test('push adds an entry; back and forward swap the segment again, from the cache', async () => {
     await open('/shelf/1')
     await page.click('#push')
@@ -802,6 +846,48 @@ describe.if(chrome)('history and scroll', () => {
     await page.goBack()
     await page.waitForSelector('text=game 1')
     await page.waitForFunction(() => scrollY === 500)
+  })
+
+  test('a pushed page reloads where it was, even when never scrolled there', async () => {
+    await open('/shelf/1')
+    await page.evaluate(() => scrollTo(0, 500))
+    await page.evaluate(() => document.getElementById('push')!.click()) // keeps the scroll
+    await page.waitForSelector('text=game 2')
+    await page.reload()
+    await page.waitForFunction(() => scrollY === 500)
+  })
+
+  test('a return whose page can no longer be swapped replaces the entry; forward stays', async () => {
+    await open('/shelf/1')
+    await page.click('#push')
+    await page.waitForSelector('text=game 2')
+    await page.route(
+      (u) => u.pathname === '/shelf/1',
+      (route) =>
+        route.request().resourceType() === 'fetch'
+          ? route.fulfill({
+              contentType: 'text/html',
+              body: '<!doctype html><title>Gone</title><p id="gone">gone</p>',
+            })
+          : route.continue(),
+    )
+    await page.goBack()
+    await page.waitForSelector('#gone')
+    await page.unrouteAll()
+    expect(page.url()).toBe(url('/shelf/1'))
+    await page.goForward()
+    await page.waitForSelector('text=game 2')
+    expect(await sameDocument()).toBe(true)
+  })
+
+  test('a jump to a #hash keeps its hash once the scroll settles', async () => {
+    await open('/shelf/1')
+    await page.click('#anchor')
+    await page.waitForTimeout(400)
+    expect(page.url()).toBe(url('/shelf/1#far-down'))
+    await page.evaluate(() => scrollTo(0, 100))
+    await page.waitForTimeout(300)
+    expect(page.url()).toBe(url('/shelf/1#far-down'))
   })
 
   test('data-bridge-scroll="target" scrolls the new segment into view', async () => {
@@ -986,6 +1072,23 @@ describe.if(chrome)('twins, swap modes and loading state', () => {
     expect(await text('[data-bridge-segment="shelf"] li')).toBe('game 3')
   })
 
+  test('a segment asked for after a whole page cancels it: the later click wins', async () => {
+    await open('/shelf/1')
+    await page.click('#top-slow')
+    await page.click('#next')
+    await page.waitForSelector('text=game 2')
+    await page.waitForTimeout(500)
+    expect(await text('#title')).toBe('Shelf 1')
+    expect(await log()).toEqual([
+      'bridge:fetch',
+      'bridge:fetch',
+      'bridge:cancel',
+      'bridge:swap',
+      'bridge:swapped',
+      'bridge:swapped',
+    ])
+  })
+
   test('a second request to the same target cancels the first', async () => {
     await open('/shelf/1')
     await page.click('#slow')
@@ -1144,6 +1247,33 @@ describe.if(chrome)('the whole page (_top)', () => {
     expect(await color()).toBe('rgb(2, 0, 0)')
   })
 
+  test('a whole page cancelled while its stylesheet loads never swaps in', async () => {
+    await open('/top/1')
+    let held = true
+    await page.route(
+      (u) => u.pathname === '/pages/2',
+      async (route) => {
+        if (held) await new Promise((done) => setTimeout(done, 400))
+        held = false
+        await route.continue()
+      },
+    )
+    await page.click('#next') // waits for /pages/2
+    await page.waitForTimeout(50)
+    await page.click('#replace') // /top/2 too; its sheet is already in the head
+    await page.waitForSelector('h1:has-text("Top 2")')
+    await page.waitForTimeout(600)
+    await page.unrouteAll()
+    expect(await log()).toEqual([
+      'bridge:fetch',
+      'bridge:swap',
+      'bridge:fetch',
+      'bridge:cancel',
+      'bridge:swap',
+      'bridge:swapped',
+    ])
+  })
+
   test('back brings the previous page back, same document', async () => {
     await open('/top/1')
     await page.click('#next')
@@ -1202,6 +1332,26 @@ describe.if(chrome)('hooks for the page', () => {
     await page.click('#next')
     await page.waitForSelector('text=game 2')
     expect(await log()).toEqual(['bridge:fetch', 'bridge:swap'])
+  })
+
+  test('a swap handed over and applied later goes into the segment as it is then', async () => {
+    await open('/shelf/1?nested')
+    await page.evaluate(() => {
+      const w = window as unknown as { held?: () => Element[] }
+      const hold = (event: Event) => {
+        event.preventDefault()
+        w.held = (event as CustomEvent<{ swap: () => Element[] }>).detail.swap
+      }
+      document.addEventListener('bridge:swap', hold, { once: true })
+    })
+    await page.click('#inner-link') // inner 6, held back by the page
+    await page.waitForFunction(() => 'held' in window)
+    await page.click('#next') // the whole shelf, a new inner 2 inside
+    await page.waitForSelector('text=game 2')
+    await page.evaluate(() =>
+      (window as unknown as { held: () => void }).held(),
+    )
+    expect(await text('[data-bridge-segment="inner"]')).toBe('inner 6')
   })
 
   test('data-bridge-transition="true" wraps the swap in a view transition', async () => {

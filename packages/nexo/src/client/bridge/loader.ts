@@ -7,6 +7,8 @@ export interface Loaded {
   page: Document
   url: URL
   status: number
+  /** A whole document, with its doctype; segments picked out of one (`render`'s `only`) come without. */
+  whole: boolean
   /** For a stale page shown going back: whether a newer one arrived and is in the cache now. */
   revalidated?: Promise<boolean>
 }
@@ -162,5 +164,6 @@ function renewed(stale: Cached, answer: Cached): Cached {
 
 function parse(cached: Cached): Loaded {
   const page = new DOMParser().parseFromString(cached.html, 'text/html')
-  return { page, url: new URL(cached.url), status: cached.status }
+  const whole = page.doctype !== null
+  return { page, url: new URL(cached.url), status: cached.status, whole }
 }

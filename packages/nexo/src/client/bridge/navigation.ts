@@ -36,9 +36,26 @@ export class Navigation {
     const { url, method } = this.wanted
     const detail = { url, method, targets: this.swapper.targets }
     if (!announce(this.trigger, 'bridge:fetch', detail)) return
-    const { inflight } = this.session
-    const busy = this.swapper.busy()
-    await this.fly(inflight.start(this.swapper.targets, this.trigger, busy))
+    await this.fly(this.start())
+  }
+
+  /** The page already in hand (a landing that came whole): no request, the rest the same. */
+  async arrive(loaded: Loaded): Promise<void> {
+    const flight = this.start()
+    try {
+      await this.show(loaded, flight)
+    } finally {
+      flight.end()
+    }
+  }
+
+  private start(): Flight {
+    const { targets } = this.swapper
+    return this.session.inflight.start(
+      targets,
+      this.trigger,
+      this.swapper.busy(),
+    )
   }
 
   /** The request itself; an aborted one ends quietly, its successor took over — even when its response still arrives. */
@@ -60,53 +77,69 @@ export class Navigation {
 
   /** The response put in; one that can't be lands where the swapper says, as a navigation of its own once this one's flight is over. */
   private async show(loaded: Loaded, flight: Flight): Promise<void> {
+    let prepared: Prepared
     try {
-      await this.take(loaded)
-      this.followUp(loaded)
+      prepared = this.swapper.prepare(loaded)
     } catch (error) {
       flight.end()
-      await this.land(loaded, error)
+      return this.land(loaded, error)
     }
+    await this.take(loaded, prepared, flight)
+    this.followUp(loaded)
   }
 
   /**
    * The response swapped in: `bridge:fail` first for an error answer (it
    * still goes in unless cancelled), `bridge:swap` before, `bridge:swapped`
-   * on each new element after. Throws when there is nothing to swap.
+   * on each new element after.
    */
-  async take(loaded: Loaded): Promise<void> {
-    const prepared = this.swapper.prepare(loaded)
+  private async take(
+    loaded: Loaded,
+    prepared: Prepared,
+    flight: Flight,
+  ): Promise<void> {
     if (prepared.outdated) return location.assign(loaded.url)
     const detail = { ...loaded, targets: this.swapper.targets }
     if (loaded.status >= 400 && !announce(this.trigger, 'bridge:fail', detail))
       return
-    await this.swap(loaded, prepared)
+    await this.swap(loaded, prepared, flight)
   }
 
-  private async swap(loaded: Loaded, prepared: Prepared): Promise<void> {
+  /** A flight cancelled while the swap waited (for stylesheets, for the transition's capture) swaps nothing: its successor took over. */
+  private async swap(
+    loaded: Loaded,
+    prepared: Prepared,
+    flight: Flight,
+  ): Promise<void> {
     const swap = () => prepared.apply()
     const detail = { ...loaded, targets: this.swapper.targets, swap }
     if (!announce(this.trigger, 'bridge:swap', detail)) return
     await prepared.ready()
+    if (flight.aborted) return
     const scrollBefore = scrollY // read before the new content can shorten the page
-    this.done(loaded.url, await this.transition(swap), scrollBefore)
+    const elements = await this.transition(() =>
+      flight.aborted ? null : swap(),
+    )
+    if (elements) this.done(loaded.url, elements, scrollBefore)
   }
 
   /** Waits for the DOM update, not the animation: history, scroll and `bridge:swapped` follow the swap, not the end of the crossfade. */
-  private async transition(swap: () => Element[]): Promise<Element[]> {
+  private async transition(
+    swap: () => Element[] | null,
+  ): Promise<Element[] | null> {
     if (!this.options.transition || !document.startViewTransition) return swap()
-    let elements: Element[] = []
+    let elements: Element[] | null = null
     await document.startViewTransition(() => {
       elements = swap()
     }).updateCallbackDone
     return elements
   }
 
-  /** Recorded, scrolled, and `bridge:swapped` on each new element: the trigger may have left with the old content. */
+  /** Scrolled, recorded (the entry starts where the page is now) and `bridge:swapped` on each new element: the trigger may have left with the old content. */
   private done(url: URL, elements: Element[], scrollBefore: number): void {
+    this.scroll(elements)
     const { history: mode } = this.options
     this.session.history.record(url, mode, this.swapper.targets, scrollBefore)
-    this.scroll(elements)
     for (const element of elements) swapped(element, url)
   }
 
@@ -117,21 +150,39 @@ export class Navigation {
 
   /**
    * Nothing to swap: the fallback decides, with the landing (if any) as
-   * the other way in. The response was a fragment asked by segments, so
-   * the page it points at is fetched whole, by GET: nothing is resent.
+   * the other way in. A whole page in hand (the server ignored the
+   * segments) goes in as it is; a fragment means the page it points at is
+   * fetched whole, by GET. Nothing is resent either way.
    */
   private async land(loaded: Loaded, error: unknown): Promise<void> {
     const landing = this.swapper.landing()
-    const again = landing && (() => this.onto(landing, loaded.url).run())
+    const own = this.options.history ?? 'push'
+    const again =
+      landing && ((history = own) => this.onto(landing, loaded, history))
     await this.fallback.land(loaded, error, again)
   }
 
-  /** The page at `url`, swapped another way: a new page, so an entry (unless told to replace) and the top. */
-  private onto(swapper: Swapper, url: URL): Navigation {
-    const history = this.options.history ?? 'push'
+  /** The page the response pointed at, brought another way: whole as it came, or fetched whole. */
+  private onto(
+    swapper: Swapper,
+    loaded: Loaded,
+    history: 'push' | 'replace',
+  ): Promise<void> {
+    const next = this.landingOn(swapper, loaded.url, history)
+    return loaded.whole ? next.arrive(loaded) : next.run()
+  }
+
+  /** The landing navigation: a new page, so an entry and the top; a GET, with the fallback of one. */
+  private landingOn(
+    swapper: Swapper,
+    url: URL,
+    history: 'push' | 'replace',
+  ): Navigation {
     const options: Options = { ...this.options, history, scroll: 'top' }
     const wanted = { url, method: 'GET' }
-    return new Navigation(this.trigger, wanted, swapper, options, this.session)
+    const fallback = this.fallback.landing(wanted)
+    const { trigger, session } = this
+    return new Navigation(trigger, wanted, swapper, options, session, fallback)
   }
 
   /** A stale page shown going back: when a newer one arrives, the visitor is still there and asked for nothing else meanwhile, it is shown as a navigation of its own. */

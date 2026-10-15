@@ -8,7 +8,7 @@
 import { TOP } from '../../shared/bridge/vocabulary'
 import { ResponseCache } from './cache'
 import { isPlainNavigation, type Click } from './click'
-import { BrowserFallback } from './fallback'
+import { BrowserFallback, HistoryFallback } from './fallback'
 import { isPlainSubmission, submissionOf, wantedFrom } from './forms'
 import { HexTrail } from './hex'
 import { HistoryKeeper } from './history'
@@ -60,7 +60,7 @@ document.addEventListener('submit', (event) => {
   if (!isPlainSubmission(submission)) return
   const form = event.target as HTMLFormElement
   const wanted = wantedFrom(submission)
-  follow(event, event.submitter ?? form, form, wanted, event.submitter)
+  follow(event, event.submitter ?? form, form, wanted)
 })
 
 /**
@@ -74,12 +74,11 @@ function follow(
   reader: Element,
   trigger: Element,
   wanted: Omit<Wanted, 'segments'>,
-  submitter: HTMLElement | null = null,
 ): void {
   const options = optionsOf(reader)
   if (options.target.kind === 'none') return
   event.preventDefault()
-  const fallback = new BrowserFallback(trigger, wanted, submitter)
+  const fallback = new BrowserFallback(trigger, wanted)
   void navigationFor(trigger, wanted, options, fallback).run()
 }
 
@@ -98,7 +97,7 @@ function navigationFor(
   return new Navigation(trigger, wanted, swapper, chosen, session, fallback)
 }
 
-/** Back/forward: what changed to reach that entry is swapped again (a stale copy will do), nothing recorded. */
+/** Back/forward: what changed to reach that entry is swapped again (a stale copy will do), nothing recorded; whatever fails rewrites the entry, never adds one. */
 function restore(url: URL, targets: string[]): Promise<void> {
   const root = document.documentElement
   const options: Options = { ...optionsOf(root), history: null, scroll: 'keep' }
@@ -106,7 +105,8 @@ function restore(url: URL, targets: string[]): Promise<void> {
   const swapper: Swapper = targets.includes(TOP)
     ? new WholePage()
     : new BySegments(targets, options)
-  return new Navigation(root, wanted, swapper, options, session).run()
+  const fallback = new HistoryFallback(root, wanted)
+  return new Navigation(root, wanted, swapper, options, session, fallback).run()
 }
 
 /** The link a plain click landed on, if bridge should follow it. */

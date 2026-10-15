@@ -35,7 +35,7 @@ export class HistoryKeeper {
     addEventListener('scroll', () => this.scrolled(), { passive: true })
   }
 
-  /** Called after a swap, with the scroll as it was before it: `push` adds an entry, `replace` rewrites the current one. */
+  /** Called after a swap and its scroll, with the scroll as it was before them: `push` adds an entry, `replace` rewrites the current one; either starts where the page is now. */
   record(
     url: URL,
     mode: 'push' | 'replace' | null,
@@ -45,7 +45,7 @@ export class HistoryKeeper {
     if (!mode) return
     this.rememberScroll(scrollBefore)
     const swapped = [...new Set([...(this.current.targets ?? []), ...targets])]
-    this.current = { url: url.href, targets: swapped, scrollY: 0 }
+    this.current = { url: url.href, targets: swapped, scrollY }
     this.write(mode === 'push' ? 'pushState' : 'replaceState', this.current)
   }
 
@@ -84,16 +84,24 @@ export class HistoryKeeper {
 
   /**
    * Going from one entry to another, what changed between them is the
-   * union of what each one swapped: enough whichever direction we travel.
+   * union of what each one swapped: enough whichever direction we travel;
+   * nothing swapped on either side means the same page, nothing to bring.
+   * An entry without bridge's state is the browser's own: adopted.
    */
   private async travel(arriving: Entry | undefined): Promise<void> {
-    if (!arriving) return
+    if (!arriving) return this.adopt()
     const departing = this.current
     const targets = [
       ...new Set([...(departing.targets ?? []), ...(arriving.targets ?? [])]),
     ]
     this.current = arriving
-    await this.restore(new URL(arriving.url), targets)
+    if (targets.length) await this.restore(new URL(arriving.url), targets)
     scrollTo(0, arriving.scrollY)
+  }
+
+  /** The browser made an entry on this page by itself (a jump to a `#hash`): same page, so what it has swapped so far stands; the URL is the browser's. */
+  private adopt(): void {
+    this.current = { ...this.current, url: location.href, scrollY }
+    this.write('replaceState', this.current)
   }
 }
