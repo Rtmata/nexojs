@@ -34,6 +34,21 @@ describe('withSegments', () => {
     ])
   })
 
+  test('the rest of the query stays as written', () => {
+    const raw = new URL(
+      'http://m.test/a?from=/lobby&q=a%20b&_segment=x&tag=c:d',
+    )
+    expect(withSegments(raw, []).href).toBe(
+      'http://m.test/a?from=/lobby&q=a%20b&tag=c:d',
+    )
+    expect(withSegments(new URL('http://m.test/a?etag'), ['s']).href).toBe(
+      'http://m.test/a?etag&_segment=s',
+    )
+    expect(withSegments(new URL('http://m.test/a?_segment=x'), []).href).toBe(
+      'http://m.test/a',
+    )
+  })
+
   test('with no names, removes it', () => {
     const url = new URL('http://m.test/a?_segment=shelf&x=1')
     expect(withSegments(url, []).href).toBe('http://m.test/a?x=1')

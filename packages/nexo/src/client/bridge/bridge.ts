@@ -8,7 +8,7 @@
 import { TOP } from '../../shared/bridge/vocabulary'
 import { ResponseCache } from './cache'
 import { isPlainNavigation, type Click } from './click'
-import { BrowserFallback, HistoryFallback } from './fallback'
+import { BrowserFallback, RETURN } from './fallback'
 import { isPlainSubmission, submissionOf, wantedFrom } from './forms'
 import { HexTrail } from './hex'
 import { HistoryKeeper } from './history'
@@ -19,7 +19,7 @@ import { Navigation, type Session } from './navigation'
 import { optionsOf, type Options } from './options'
 import { WholePage } from './page'
 import { BySegments } from './segments'
-import type { Swapper } from './swapper'
+import { swapperFor, type Swapper } from './swapper'
 import { Prefetch } from './prefetch'
 
 /** How long a fetched page stays fresh for prefetch, twins and navigations ahead, unless its `Cache-Control` says otherwise. */
@@ -76,25 +76,18 @@ function follow(
   wanted: Omit<Wanted, 'segments'>,
 ): void {
   const options = optionsOf(reader)
-  if (options.target.kind === 'none') return
+  const swapper = swapperFor(options)
+  if (!swapper) return
   event.preventDefault()
   const fallback = new BrowserFallback(trigger, wanted)
-  void navigationFor(trigger, wanted, options, fallback).run()
+  const chosen = withEntry(options, swapper)
+  void new Navigation(trigger, wanted, swapper, chosen, session, fallback).run()
 }
 
 /** A whole page always makes an entry unless told to replace; segments only when asked. */
-function navigationFor(
-  trigger: Element,
-  wanted: Omit<Wanted, 'segments'>,
-  options: Options,
-  fallback: BrowserFallback,
-): Navigation {
-  const { target } = options
-  const [swapper, chosen] =
-    target.kind === 'segments'
-      ? [new BySegments(target.names, options), options]
-      : [new WholePage(), { ...options, history: options.history ?? 'push' }]
-  return new Navigation(trigger, wanted, swapper, chosen, session, fallback)
+function withEntry(options: Options, swapper: Swapper): Options {
+  if (!swapper.targets.includes(TOP)) return options
+  return { ...options, history: options.history ?? 'push' }
 }
 
 /** Back/forward: what changed to reach that entry is swapped again (a stale copy will do), nothing recorded; whatever fails rewrites the entry, never adds one. */
@@ -105,7 +98,7 @@ function restore(url: URL, targets: string[]): Promise<void> {
   const swapper: Swapper = targets.includes(TOP)
     ? new WholePage()
     : new BySegments(targets, options)
-  const fallback = new HistoryFallback(root, wanted)
+  const fallback = new BrowserFallback(root, wanted, RETURN)
   return new Navigation(root, wanted, swapper, options, session, fallback).run()
 }
 

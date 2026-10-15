@@ -37,7 +37,7 @@ export class Loader {
   constructor(private readonly cache: ResponseCache) {}
 
   async load(wanted: Wanted, signal: AbortSignal): Promise<Loaded> {
-    const key = withSegments(wanted.url, wanted.segments).href
+    const key = keyOf(wanted)
     if (wanted.method !== 'GET')
       return parse(await this.change(key, wanted, signal))
     const reused = await this.reuse(key, wanted)
@@ -46,7 +46,7 @@ export class Loader {
 
   /** Brings a GET into the cache ahead of time; nothing happens if it's there or on its way. */
   prefetch(url: URL, segments: string[]): Promise<void> {
-    const key = withSegments(url, segments).href
+    const key = keyOf({ url, segments })
     if (this.cache.has(key) || this.ahead.has(key)) return Promise.resolve()
     const wanted = { url, method: 'GET', segments }
     const request = this.keep(key, wanted, NO_ABORT)
@@ -137,16 +137,27 @@ export class Loader {
       headers: { accept: 'text/html', ...headers },
       signal,
     })
-    return cachedFrom(response)
+    return cachedFrom(response, key)
   }
 }
 
 const NO_ABORT = new AbortController().signal
 
-async function cachedFrom(response: Response): Promise<Cached> {
+/** What is asked for: the URL with its segments; the `#hash` is the page's business, not the request's, so one entry serves every hash. */
+function keyOf(wanted: Pick<Wanted, 'url' | 'segments'>): string {
+  const key = withSegments(wanted.url, wanted.segments)
+  key.hash = ''
+  return key.href
+}
+
+/** The response as kept. One a service worker built has no URL of its own: the request's (`key`) stands. */
+export async function cachedFrom(
+  response: Response,
+  key: string,
+): Promise<Cached> {
   return {
     html: await response.text(),
-    url: withoutSegments(new URL(response.url)).href,
+    url: withoutSegments(new URL(response.url || key)).href,
     status: response.status,
     etag: response.headers.get('etag'),
     cacheControl: response.headers.get('cache-control'),

@@ -71,6 +71,23 @@ class Shelf extends Component<{ n: number; q: URLSearchParams }> {
               lost
             </a>
             <a
+              id="hashed"
+              href={`/shelf/${n + 1}#far-down`}
+              data-bridge-history="push"
+            >
+              to far down
+            </a>
+            <a id="bad" href="http://[bad">
+              bad
+            </a>
+            <a
+              id="hover-nostore"
+              href={`/shelf/${n + 1}?nostore`}
+              data-bridge-prefetch="hover"
+            >
+              hover no store
+            </a>
+            <a
               id="inner-link"
               href={`/shelf/${n + 5}?nested`}
               data-bridge-target="inner"
@@ -301,6 +318,9 @@ class Top extends Component<{ n: number; theme: string }> {
           <a id="none" href={`/top/${n + 1}`} data-bridge-target="_none">
             plain
           </a>
+          <a id="hover" href={`/top/${n + 1}`} data-bridge-prefetch="hover">
+            hover
+          </a>
           <script>{'window.ran = (window.ran || 0) + 1'}</script>
         </body>
       </html>
@@ -395,6 +415,8 @@ const router = boat()
     ),
   )
   .get('/top/:n', (ctx) => {
+    if (!ctx.request.headers.get('sec-purpose'))
+      requests.push(ctx.url.pathname + ctx.url.search)
     const theme = ctx.url.searchParams.get('theme') ?? 'light'
     return render(<Top n={Number(ctx.params.n)} theme={theme} />)
   })
@@ -429,13 +451,17 @@ const only = (url: URL) =>
 let server: Server
 let browser: Browser
 let page: Page
+const pageErrors: string[] = []
 
 beforeAll(async () => {
   if (!chrome) return
   server = await keep({ router }).use(bridge()).listen(0)
   browser = await chromium.launch({ channel: 'chrome', headless: true })
   page = await (await browser.newContext()).newPage()
-  page.on('pageerror', (error) => console.error('page error:', error.message))
+  page.on('pageerror', (error) => {
+    pageErrors.push(error.message)
+    console.error('page error:', error.message)
+  })
   page.on('console', (message) => {
     if (message.type() === 'error') console.error('console:', message.text())
   })
@@ -492,6 +518,22 @@ describe.if(chrome)('a link inside a segment', () => {
       'bridge:swapped',
     ])
     expect(await sameDocument()).toBe(true)
+  })
+
+  test('a link with a #hash: the URL keeps it and the page scrolls there', async () => {
+    await open('/shelf/1')
+    await page.click('#hashed')
+    await page.waitForSelector('text=game 2')
+    expect(page.url()).toBe(url('/shelf/2#far-down'))
+    expect(await page.evaluate(() => scrollY)).toBeGreaterThan(2000)
+  })
+
+  test('a link that cannot be parsed is nowhere: the scan of new content goes on', async () => {
+    await open('/shelf/1')
+    pageErrors.length = 0
+    await page.click('#next')
+    await page.waitForSelector('text=game 2')
+    expect(pageErrors).toEqual([])
   })
 
   test('the new segment keeps working: links inside it are bridge links too', async () => {
@@ -745,7 +787,7 @@ describe.if(chrome)('history and scroll', () => {
     await page.waitForFunction(() => true)
     await page.waitForTimeout(100)
     // one revalidation, answered 304: the page stays as it was
-    expect(requests).toEqual(['/shelf/2?etag=&_segment=shelf,counter'])
+    expect(requests).toEqual(['/shelf/2?etag&_segment=shelf,counter'])
     expect(await text('#version')).toBe('v1')
     version = 2
     await page.goBack()
@@ -890,6 +932,30 @@ describe.if(chrome)('history and scroll', () => {
     expect(page.url()).toBe(url('/shelf/1#far-down'))
   })
 
+  test('a first visit to a #hash stays where the browser put it', async () => {
+    await open('/shelf/1#far-down')
+    await page.waitForTimeout(100)
+    expect(await page.evaluate(() => scrollY)).toBeGreaterThan(2000)
+  })
+
+  test("two returns in a row: the scroll is the last entry's", async () => {
+    await open('/shelf/1')
+    await page.evaluate(() => scrollTo(0, 1000))
+    await page.evaluate(() => document.getElementById('push')!.click())
+    await page.waitForSelector('text=game 2')
+    await page.evaluate(() => scrollTo(0, 2000))
+    await page.waitForTimeout(300)
+    await page.evaluate(() => document.getElementById('push')!.click())
+    await page.waitForSelector('text=game 3')
+    await page.evaluate(() => {
+      history.back()
+      setTimeout(() => history.back(), 20)
+    })
+    await page.waitForSelector('text=game 1')
+    await page.waitForTimeout(300)
+    expect(await page.evaluate(() => scrollY)).toBe(1000)
+  })
+
   test('data-bridge-scroll="target" scrolls the new segment into view', async () => {
     await open('/shelf/1')
     await page.evaluate(() => scrollTo(0, 2500))
@@ -1017,7 +1083,7 @@ describe.if(chrome)('twins, swap modes and loading state', () => {
     await page.click('#next')
     await page.waitForSelector('text=game 2')
     expect(await text('[data-bridge-segment="inner"]')).toBe('inner 2')
-    expect(requests).toEqual(['/shelf/2?nested=&_segment=shelf,counter,inner'])
+    expect(requests).toEqual(['/shelf/2?nested&_segment=shelf,counter,inner'])
     expect(await log()).toEqual([
       'bridge:fetch',
       'bridge:swap',
@@ -1174,6 +1240,17 @@ describe.if(chrome)('lazy content, markers and prefetch', () => {
     expect(requests).toEqual(['/shelf/2?_segment=shelf,counter'])
   })
 
+  test('a link brings its page once: hovering again a page that could not be kept asks nothing', async () => {
+    await open('/shelf/1')
+    requests.length = 0
+    await page.hover('#hover-nostore')
+    await page.waitForTimeout(100)
+    await page.hover('#title')
+    await page.hover('#hover-nostore')
+    await page.waitForTimeout(100)
+    expect(requests).toEqual(['/shelf/2?nostore&_segment=shelf,counter'])
+  })
+
   test('a prefetch on its way is not started again; the click joins it', async () => {
     await open('/shelf/1')
     requests.length = 0
@@ -1272,6 +1349,17 @@ describe.if(chrome)('the whole page (_top)', () => {
       'bridge:swap',
       'bridge:swapped',
     ])
+  })
+
+  test('prefetch="hover" on a whole-page link brings it into the cache', async () => {
+    await open('/top/1')
+    requests.length = 0
+    await page.hover('#hover')
+    await page.waitForTimeout(100)
+    expect(requests).toEqual(['/top/2'])
+    await page.click('#hover')
+    await page.waitForSelector('h1:has-text("Top 2")')
+    expect(requests).toEqual(['/top/2'])
   })
 
   test('back brings the previous page back, same document', async () => {

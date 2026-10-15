@@ -1,7 +1,8 @@
 import { inherited } from './attributes'
 import type { Loader } from './loader'
 import { optionsOf } from './options'
-import { twinNames } from './swaps'
+import { parsed } from './origin'
+import { swapperFor } from './swapper'
 import { Watch } from './watch'
 
 /**
@@ -15,6 +16,8 @@ export class Prefetch {
     this.bring(link as HTMLAnchorElement),
   )
   private readonly rules = new SpeculationRules()
+  /** Each link brings its page once: the cache, not the pointer, decides what the click reuses. */
+  private readonly brought = new WeakSet<Element>()
 
   constructor(private readonly loader: Loader) {
     document.addEventListener('pointerdown', (e) => this.on(e, 'tap'), true)
@@ -36,12 +39,13 @@ export class Prefetch {
       this.bring(link)
   }
 
-  /** A bridge link's page, with the segments a click would ask for. */
+  /** A bridge link's page, asked for the way a click would: by segments, or whole. */
   private bring(link: HTMLAnchorElement): void {
-    const { target } = optionsOf(link)
-    if (target.kind !== 'segments') return
-    const segments = [...new Set([...target.names, ...twinNames()])]
-    void this.loader.prefetch(new URL(link.href), segments).catch(() => {})
+    const swapper = swapperFor(optionsOf(link))
+    const url = parsed(link.href, location.href)
+    if (!swapper || !url || this.brought.has(link)) return
+    this.brought.add(link)
+    void this.loader.prefetch(url, swapper.segments()).catch(() => {})
   }
 }
 

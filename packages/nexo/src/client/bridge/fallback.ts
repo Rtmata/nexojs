@@ -25,26 +25,48 @@ export interface Fallback {
 export type Again = (history?: 'push' | 'replace') => Promise<void>
 
 /**
- * For what the visitor asked for (a click, a submit): the page must end
- * up where the server said. No response: only an idempotent request is
- * repeated (RFC 9110 §9.2.2), the way the browser would — a GET (a link,
- * a search form, a landing) by loading its URL, the fields are in it. A
- * POST may have reached the server before the connection broke, so it is
- * never sent again on bridge's own: `bridge:fail` tells the page and the
- * form stays as it is, like the browser's error page lets the visitor
- * decide. A response that couldn't be swapped: the page it points at is
- * brought another way (as the whole page); when there is no other way,
- * the browser loads its URL as a plain GET.
+ * How the browser is sent somewhere when bridge gives up (pattern:
+ * strategy): a visit adds an entry, a return by back/forward rewrites the
+ * one the browser is already on, never adds to the stack it is travelling.
+ */
+export interface Arrival {
+  go(url: URL): void
+  /** How a landing makes its entry; undefined leaves it to the navigation. */
+  history: 'replace' | undefined
+}
+
+export const VISIT: Arrival = {
+  go: (url) => location.assign(url),
+  history: undefined,
+}
+
+export const RETURN: Arrival = {
+  go: (url) => location.replace(url),
+  history: 'replace',
+}
+
+/**
+ * For what the visitor asked for (a click, a submit, a return): the page
+ * must end up where the server said. No response: only an idempotent
+ * request is repeated (RFC 9110 §9.2.2), the way the browser would — a
+ * GET (a link, a search form, a landing) by loading its URL, the fields
+ * are in it. A POST may have reached the server before the connection
+ * broke, so it is never sent again on bridge's own: `bridge:fail` tells
+ * the page and the form stays as it is, like the browser's error page
+ * lets the visitor decide. A response that couldn't be swapped: the page
+ * it points at is brought another way (as the whole page); when there is
+ * no other way, the browser loads its URL as a plain GET.
  */
 export class BrowserFallback implements Fallback {
   constructor(
     private readonly trigger: Element,
     private readonly wanted: Omit<Wanted, 'segments'>,
+    private readonly arrival: Arrival = VISIT,
   ) {}
 
   retry(error: unknown): void {
     if (!failed(this.trigger, this.wanted, { error })) return
-    if (this.wanted.method === 'GET') location.assign(this.wanted.url)
+    if (this.wanted.method === 'GET') this.arrival.go(this.wanted.url)
   }
 
   async land(
@@ -53,45 +75,12 @@ export class BrowserFallback implements Fallback {
     again: Again | null,
   ): Promise<void> {
     if (!failed(this.trigger, this.wanted, { error, ...loaded })) return
-    if (again) await again()
-    else location.assign(loaded.url)
+    if (again) await again(this.arrival.history)
+    else this.arrival.go(loaded.url)
   }
 
   landing(wanted: Omit<Wanted, 'segments'>): Fallback {
-    return new BrowserFallback(this.trigger, wanted)
-  }
-}
-
-/**
- * For a return by back/forward: the browser is already on the entry, so
- * whatever happens it is rewritten, never added to. No response: the
- * browser reloads the entry's URL in place. A response that couldn't be
- * swapped: the page it points at replaces the entry; when there is no
- * other way, the browser loads it in place.
- */
-export class HistoryFallback implements Fallback {
-  constructor(
-    private readonly trigger: Element,
-    private readonly wanted: Omit<Wanted, 'segments'>,
-  ) {}
-
-  retry(error: unknown): void {
-    if (failed(this.trigger, this.wanted, { error }))
-      location.replace(this.wanted.url)
-  }
-
-  async land(
-    loaded: Loaded,
-    error: unknown,
-    again: Again | null,
-  ): Promise<void> {
-    if (!failed(this.trigger, this.wanted, { error, ...loaded })) return
-    if (again) await again('replace')
-    else location.replace(loaded.url)
-  }
-
-  landing(wanted: Omit<Wanted, 'segments'>): Fallback {
-    return new HistoryFallback(this.trigger, wanted)
+    return new BrowserFallback(this.trigger, wanted, this.arrival)
   }
 }
 

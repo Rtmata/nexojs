@@ -137,13 +137,25 @@ export class Navigation {
 
   /** Scrolled, recorded (the entry starts where the page is now) and `bridge:swapped` on each new element: the trigger may have left with the old content. */
   private done(url: URL, elements: Element[], scrollBefore: number): void {
-    this.scroll(elements)
+    const arrived = this.destination(url)
+    this.scroll(elements, arrived.hash)
     const { history: mode } = this.options
-    this.session.history.record(url, mode, this.swapper.targets, scrollBefore)
-    for (const element of elements) swapped(element, url)
+    const { targets } = this.swapper
+    this.session.history.record(arrived, mode, targets, scrollBefore)
+    for (const element of elements) swapped(element, arrived)
   }
 
-  private scroll(elements: Element[]): void {
+  /** The page the response came from, with the `#hash` the link named: fetch never sends it, the browser keeps it. */
+  private destination(url: URL): URL {
+    const arrived = new URL(url)
+    arrived.hash = this.wanted.url.hash
+    return arrived
+  }
+
+  /** The `#hash` wins, as it does for the browser; else the option. */
+  private scroll(elements: Element[], hash: string): void {
+    const anchor = anchorOf(hash)
+    if (anchor) return anchor.scrollIntoView()
     if (this.options.scroll === 'top') scrollTo(0, 0)
     if (this.options.scroll === 'target') elements[0]?.scrollIntoView()
   }
@@ -179,7 +191,7 @@ export class Navigation {
     history: 'push' | 'replace',
   ): Navigation {
     const options: Options = { ...this.options, history, scroll: 'top' }
-    const wanted = { url, method: 'GET' }
+    const wanted = { url: this.destination(url), method: 'GET' }
     const fallback = this.fallback.landing(wanted)
     const { trigger, session } = this
     return new Navigation(trigger, wanted, swapper, options, session, fallback)
@@ -198,6 +210,17 @@ export class Navigation {
     const wanted = { ...this.wanted, stale: false }
     const { trigger, swapper, options, session, fallback } = this
     return new Navigation(trigger, wanted, swapper, options, session, fallback)
+  }
+}
+
+/** The element a `#hash` names, if any; a hash that can't be read names none. */
+function anchorOf(hash: string): Element | null {
+  try {
+    return hash
+      ? document.getElementById(decodeURIComponent(hash.slice(1)))
+      : null
+  } catch {
+    return null
   }
 }
 

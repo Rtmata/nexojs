@@ -19,11 +19,23 @@ export function segmentsOf(url: URL | string): string[] {
  */
 export function withSegments(url: URL, names: readonly string[]): URL {
   const copy = new URL(url)
-  copy.searchParams.delete(SEGMENT_PARAM)
+  copy.search = without(copy.search)
   if (!names.length) return copy
   const joint = copy.search ? '&' : '?'
   copy.search = `${copy.search}${joint}${SEGMENT_PARAM}=${names.join(',')}`
   return copy
+}
+
+/** The query without the segment parameter, the rest as written: `URLSearchParams` would respell it (`?etag` → `?etag=`, `/` → `%2F`). */
+function without(search: string): string {
+  const own = (part: string) =>
+    part === SEGMENT_PARAM || part.startsWith(`${SEGMENT_PARAM}=`)
+  const kept = search
+    .slice(1)
+    .split('&')
+    .filter(Boolean)
+    .filter((p) => !own(p))
+  return kept.length ? `?${kept.join('&')}` : ''
 }
 
 /** A copy of `url` asking for the whole page. */

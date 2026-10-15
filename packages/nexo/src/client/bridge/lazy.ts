@@ -4,6 +4,7 @@ import { QuietFallback } from './fallback'
 import type { Wanted } from './loader'
 import { Navigation, type Session } from './navigation'
 import { optionsOf, type Options } from './options'
+import { parsed } from './origin'
 import { BySegments } from './segments'
 import { candidates, Watch } from './watch'
 
@@ -11,10 +12,13 @@ export const SRC = 'data-bridge-src'
 
 const SELF_LOADING = `a[href], [${SEGMENT_ATTRIBUTE}][${SRC}]`
 
-/** Where a link or a self-loading segment would go. */
-function urlOf(element: Element): URL {
-  if (element instanceof HTMLAnchorElement) return new URL(element.href)
-  return new URL(element.getAttribute(SRC)!, location.href)
+/** Where a link or a self-loading segment would go; what can't be parsed goes nowhere. */
+function urlOf(element: Element): URL | null {
+  const href =
+    element instanceof HTMLAnchorElement
+      ? element.href
+      : element.getAttribute(SRC)
+  return parsed(href ?? '', location.href)
 }
 
 /**
@@ -36,14 +40,17 @@ export class Lazy {
   /** `from`: the URL the content in `root` just came from. */
   scan(root: ParentNode, from?: URL): void {
     if (from)
-      for (const element of candidates(root, SELF_LOADING))
-        if (samePage(urlOf(element), from)) this.watch.skip(element)
+      for (const element of candidates(root, SELF_LOADING)) {
+        const url = urlOf(element)
+        if (url && samePage(url, from)) this.watch.skip(element)
+      }
     this.watch.scan(root)
   }
 
   private load(element: Element): void {
     if (element instanceof HTMLAnchorElement) return this.followLink(element)
     const url = urlOf(element)
+    if (!url) return
     const name = element.getAttribute(SEGMENT_ATTRIBUTE)!
     const options = { ...optionsOf(element), history: null } as const
     this.navigate(element, { url, method: 'GET' }, [name], options)
@@ -51,9 +58,9 @@ export class Lazy {
 
   private followLink(link: HTMLAnchorElement): void {
     const options = optionsOf(link)
-    if (options.target.kind !== 'segments') return
-    const wanted = { url: new URL(link.href), method: 'GET' }
-    this.navigate(link, wanted, options.target.names, options)
+    const url = urlOf(link)
+    if (options.target.kind !== 'segments' || !url) return
+    this.navigate(link, { url, method: 'GET' }, options.target.names, options)
   }
 
   private navigate(

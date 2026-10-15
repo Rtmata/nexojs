@@ -1,4 +1,7 @@
 import type { Loaded } from './loader'
+import type { Options } from './options'
+import { WholePage } from './page'
+import { BySegments } from './segments'
 
 /**
  * How a response goes into the page (pattern: strategy): by segments
@@ -18,6 +21,13 @@ export interface Swapper {
   prepare(loaded: Loaded): Prepared
   /** Where a response that couldn't be swapped lands: another strategy, or null for the browser. */
   landing(): Swapper | null
+}
+
+/** The strategy a link or form's options ask for; null when the browser keeps it (`_none`). */
+export function swapperFor(options: Options): Swapper | null {
+  const { target } = options
+  if (target.kind === 'segments') return new BySegments(target.names, options)
+  return target.kind === 'top' ? new WholePage() : null
 }
 
 export interface Prepared {
