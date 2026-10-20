@@ -4,8 +4,10 @@
  * pointing at one through `data-bridge-target`) is fetched and only that
  * segment is replaced. Everything else stays with the browser. Read
  * `navigation.ts` for the steps and `events.ts` for what the page can hook.
+ * The same from a script: `visit`, `reload` and `prefetch` (see `api.ts`).
  */
 import { TOP } from '../../shared/bridge/vocabulary'
+import { Api } from './api'
 import { ResponseCache } from './cache'
 import { isPlainNavigation, plainClickOn, type Click } from './click'
 import { BrowserFallback, RETURN } from './fallback'
@@ -16,7 +18,7 @@ import { Inflight } from './inflight'
 import { Lazy } from './lazy'
 import { Loader, type Wanted } from './loader'
 import { Navigation, type Session } from './navigation'
-import { optionsOf, type Options } from './options'
+import { optionsOf, type Options, type VisitOptions } from './options'
 import { WholePage } from './page'
 import { BySegments } from './segments'
 import { swapperFor, type Swapper } from './swapper'
@@ -30,6 +32,17 @@ const session: Session = {
   inflight: new Inflight(),
   history: new HistoryKeeper((url, targets) => restore(url, targets)),
 }
+
+const api = new Api(session)
+export const visit = (url: string | URL, options?: VisitOptions) =>
+  api.visit(url, options)
+export const reload = (
+  target: string | readonly string[],
+  options?: VisitOptions,
+) => api.reload(target, options)
+export const prefetch = (url: string | URL, options?: VisitOptions) =>
+  api.prefetch(url, options)
+export type { VisitOptions }
 
 /** What looks at the page as it is and as it changes: lazy content, prefetch, scroll markers. */
 interface Watcher {
@@ -102,7 +115,8 @@ function restore(url: URL, targets: string[]): Promise<void> {
     ? new WholePage()
     : new BySegments(targets, options)
   const fallback = new BrowserFallback(root, wanted, RETURN)
-  return new Navigation(root, wanted, swapper, options, session, fallback).run()
+  const back = new Navigation(root, wanted, swapper, options, session, fallback)
+  return back.run().then(() => {})
 }
 
 /** A return records nothing, keeps the scroll it will put back, and moves no focus. */

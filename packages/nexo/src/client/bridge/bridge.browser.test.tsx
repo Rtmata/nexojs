@@ -25,6 +25,11 @@ class Shelf extends Component<{ n: number; q: URLSearchParams }> {
       <html data-bridge-transition={q.get('transition') ?? undefined}>
         <head>
           <title>Shelf {n}</title>
+          <script type="importmap">
+            {JSON.stringify({
+              imports: { '@nexoamigos/nexo/bridge/client': '/_nexo/bridge.js' },
+            })}
+          </script>
           <script type="module" src="/_nexo/bridge.js" />
           <style>{'body { margin: 0 } .tall { height: 3000px }'}</style>
         </head>
@@ -1550,6 +1555,100 @@ describe.if(chrome)('twins, swap modes and loading state', () => {
     await page.waitForTimeout(350)
     expect(await text('[data-bridge-segment="shelf"] li')).toBe('game 3')
     expect(await page.$('[aria-busy]')).toBeNull()
+  })
+})
+
+describe.if(chrome)('from a script: visit, reload, prefetch', () => {
+  /** The exports of the script the page loads, by the package name the import map gives it. */
+  const api = `import('@nexoamigos/nexo/bridge/client')`
+  const call = (code: string) =>
+    page.evaluate(`${api}.then((bridge) => ${code})`) as Promise<unknown>
+
+  test("visit swaps a segment with the attributes' words, and resolves once it is in", async () => {
+    await open('/shelf/1')
+    await call(
+      `bridge.visit('/shelf/5', { target: 'shelf', history: 'push', scroll: 'target' })`,
+    )
+    expect(await text('[data-bridge-segment="shelf"] li')).toBe('game 5')
+    expect(page.url()).toBe(url('/shelf/5'))
+    expect(await sameDocument()).toBe(true)
+    // bridge:swapped on the shelf and on the counter, its twin
+    expect(await log()).toEqual([
+      'bridge:fetch',
+      'bridge:swap',
+      'bridge:swapped',
+      'bridge:swapped',
+    ])
+  })
+
+  test("without a target, the whole page; from an element, that element's segment", async () => {
+    await open('/shelf/1')
+    await call(
+      `bridge.visit('/shelf/2', { from: document.getElementById('next') })`,
+    )
+    expect(await text('[data-bridge-segment="shelf"] li')).toBe('game 2')
+    expect(await sameDocument()).toBe(true)
+    await call(`bridge.visit('/shelf/3')`)
+    expect(await text('#title')).toBe('Shelf 3')
+    expect(page.url()).toBe(url('/shelf/3'))
+    expect(await sameDocument()).toBe(true)
+  })
+
+  test("reload brings this page's segments again", async () => {
+    await open('/shelf/1')
+    requests.length = 0
+    await call(`bridge.reload('counter')`)
+    expect(requests).toEqual(['/shelf/1?_segment=counter'])
+  })
+
+  test('a visit the page cancelled, or one a later request took over, rejects', async () => {
+    await open('/shelf/1')
+    await page.evaluate(() =>
+      document.addEventListener('bridge:fetch', (e) => e.preventDefault(), {
+        once: true,
+      }),
+    )
+    const cancelled = await call(
+      `bridge.visit('/shelf/2', { target: 'shelf' }).catch((e) => e.message)`,
+    )
+    expect(cancelled).toBe(
+      `bridge: the visit to ${url('/shelf/2')} was cancelled`,
+    )
+    const slow = call(
+      `bridge.visit('/shelf/2?delay=300', { target: 'shelf' }).catch((e) => e.message)`,
+    )
+    await page.waitForTimeout(50)
+    await call(`bridge.visit('/shelf/3', { target: 'shelf' })`)
+    expect(await slow).toBe(
+      `bridge: the visit to ${url('/shelf/2?delay=300')} was cancelled`,
+    )
+    expect(await text('[data-bridge-segment="shelf"] li')).toBe('game 3')
+  })
+
+  test('a visit that lands as the whole page still resolves: the page is there', async () => {
+    await open('/shelf/1')
+    await call(`bridge.visit('/no-shelf', { target: 'shelf' })`)
+    expect(await text('p')).toBe('no segments here')
+    expect(await sameDocument()).toBe(true)
+  })
+
+  test('prefetch brings the page the visit then reuses', async () => {
+    await open('/shelf/1')
+    requests.length = 0
+    await call(`bridge.prefetch('/shelf/2', { target: 'shelf' })`)
+    expect(requests).toEqual(['/shelf/2?_segment=shelf,counter'])
+    await call(`bridge.visit('/shelf/2', { target: 'shelf' })`)
+    expect(requests).toEqual(['/shelf/2?_segment=shelf,counter'])
+  })
+
+  test('_none is no target', async () => {
+    await open('/shelf/1')
+    const message = await call(
+      `bridge.visit('/shelf/2', { target: '_none' }).catch((e) => e.message)`,
+    )
+    expect(message).toBe(
+      "bridge: a visit needs a target: segment names or '_top', not '_none'",
+    )
   })
 })
 

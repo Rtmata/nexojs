@@ -1,5 +1,6 @@
 import { announce } from './events'
 import type { Loaded, Wanted } from './loader'
+import type { Outcome } from './navigation'
 
 /**
  * What a navigation does when it can't finish (pattern: strategy), by
@@ -11,8 +12,8 @@ import type { Loaded, Wanted } from './loader'
  */
 export interface Fallback {
   retry(error: unknown): void
-  /** `again` brings the page another way (as the whole page); null when there is no other way but the browser. */
-  land(loaded: Loaded, error: unknown, again: Again | null): Promise<void>
+  /** `again` brings the page another way (as the whole page); null when there is no other way but the browser. How it ended. */
+  land(loaded: Loaded, error: unknown, again: Again | null): Promise<Outcome>
   /** The fallback of the landing itself: a GET of the page the response pointed at, which can fail in turn. */
   landing(wanted: Omit<Wanted, 'segments'>): Fallback
   /** The page must come the browser's way: a tracked asset changed since this one loaded (a deploy). */
@@ -24,7 +25,7 @@ export interface Fallback {
  * `Navigation.land`). `history` says how its entry is made; omitted, the
  * navigation's own way.
  */
-export type Again = (history?: 'push' | 'replace') => Promise<void>
+export type Again = (history?: 'push' | 'replace') => Promise<Outcome>
 
 /**
  * How the browser is sent somewhere when bridge gives up (pattern:
@@ -75,10 +76,12 @@ export class BrowserFallback implements Fallback {
     loaded: Loaded,
     error: unknown,
     again: Again | null,
-  ): Promise<void> {
-    if (!failed(this.trigger, this.wanted, { error, ...loaded })) return
-    if (again) await again(this.arrival.history)
-    else this.arrival.go(loaded.url)
+  ): Promise<Outcome> {
+    if (!failed(this.trigger, this.wanted, { error, ...loaded }))
+      return 'cancelled'
+    if (again) return again(this.arrival.history)
+    this.arrival.go(loaded.url)
+    return 'left'
   }
 
   landing(wanted: Omit<Wanted, 'segments'>): Fallback {
@@ -109,9 +112,10 @@ export class QuietFallback implements Fallback {
     this.again()
   }
 
-  async land(loaded: Loaded, error: unknown): Promise<void> {
+  async land(loaded: Loaded, error: unknown): Promise<Outcome> {
     failed(this.trigger, this.wanted, { error, ...loaded })
     this.again()
+    return 'left'
   }
 
   /** Lazy content lands nowhere else, so this is never asked. */

@@ -25,46 +25,95 @@ export interface Options {
   busy: string | null
 }
 
+/**
+ * The same choices, written by hand for `visit()`, `reload()` and
+ * `prefetch()`: the attributes' words, without the `data-bridge-`. What
+ * is left out takes the attribute's default. `target` is segment names
+ * (one, or a list) or `_top`; left out, the segment `from` sits in, else
+ * the whole page. `from` is the element the events fire on and the
+ * attributes around it are read from: the body by default.
+ */
+export interface VisitOptions {
+  target?: string | readonly string[]
+  history?: 'push' | 'replace' | null
+  scroll?: 'top' | 'keep' | 'target'
+  swap?: 'replace' | 'append' | 'prepend'
+  /** `auto`, `keep`, `autofocus`, `target`, `none`, or a segment name. */
+  focus?: string
+  transition?: boolean
+  fail?: string | null
+  busy?: string | null
+  from?: Element
+}
+
 /** `target`: the one the options are for; the element's own (read like any attribute) unless the caller has another in mind, as lazy content does. */
 export function optionsOf(
   element: Element,
   target: Target = targetFor(element),
 ): Options {
-  return {
-    target,
-    ...modesOf(element, target.kind),
-    focus: focusOf(inherited(element, 'focus')),
-    transition: inherited(element, 'transition') === 'true',
-    fail: inherited(element, 'fail'),
-    busy: inherited(element, 'busy'),
+  const read = (role: string) => inherited(element, role)
+  return optionsRead(target, read)
+}
+
+/** The options an object gives, the rest read around `from` as a link there would. */
+export function optionsFrom(given: VisitOptions, from: Element): Options {
+  const target = givenTarget(given.target, from)
+  const own: Record<string, unknown> = { ...given }
+  const read = (role: string) => {
+    const value = own[role]
+    if (value === undefined || value === null) return inherited(from, role)
+    return String(value)
   }
+  return optionsRead(target, read)
+}
+
+/** `target` as written for a link (`"shelf, counter"`, `_top`); left out, like a link in `from`, but the whole page outside every segment. */
+function givenTarget(target: VisitOptions['target'], from: Element): Target {
+  if (target === undefined)
+    return enclosingSegment(from) ? targetFor(from) : { kind: 'top' }
+  const written = Array.isArray(target) ? target.join(',') : String(target)
+  return targetOf(written, null)
 }
 
 function targetFor(element: Element): Target {
   return targetOf(inherited(element, 'target'), enclosingSegment(element))
 }
 
-/** The three attributes with a fixed set of values. Their defaults follow the target: a whole page makes an entry and starts at the top, a segment makes none and keeps the scroll. */
-function modesOf(element: Element, kind: Target['kind']) {
-  const top = kind === 'top'
+/** Every option by one reader (an attribute, or a value given by hand), with the defaults that follow the target: a whole page makes an entry and starts at the top, a segment makes none and keeps the scroll. */
+function optionsRead(target: Target, read: Reader): Options {
   return {
-    history: oneOf(element, 'history', HISTORY, top ? 'push' : null),
-    scroll: oneOf(element, 'scroll', SCROLL, top ? 'top' : 'keep'),
-    swap: oneOf(element, 'swap', SWAP, 'replace'),
+    target,
+    ...modesRead(read, target.kind === 'top'),
+    focus: focusOf(read('focus')),
+    transition: read('transition') === 'true',
+    fail: read('fail'),
+    busy: read('busy'),
   }
 }
+
+/** The three with a fixed set of values; `top`: the defaults of a whole page. */
+function modesRead(read: Reader, top: boolean) {
+  return {
+    history: oneOf(read, 'history', HISTORY, top ? 'push' : null),
+    scroll: oneOf(read, 'scroll', SCROLL, top ? 'top' : 'keep'),
+    swap: oneOf(read, 'swap', SWAP, 'replace'),
+  }
+}
+
+/** The value of one role (`history`, `scroll`…), or null when nothing says. */
+type Reader = (role: string) => string | null
 
 const HISTORY = ['push', 'replace'] as const
 const SCROLL = ['top', 'keep', 'target'] as const
 const SWAP = ['replace', 'append', 'prepend'] as const
 
 function oneOf<V extends string, D>(
-  element: Element,
+  read: Reader,
   role: string,
   allowed: readonly V[],
   fallback: D,
 ): V | D {
-  const value = inherited(element, role)
+  const value = read(role)
   if (value === null) return fallback
   if ((allowed as readonly string[]).includes(value.trim()))
     return value.trim() as V
