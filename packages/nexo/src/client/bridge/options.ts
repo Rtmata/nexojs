@@ -1,4 +1,5 @@
 import { enclosingSegment, inherited } from './attributes'
+import { focusOf, type Focus } from './focus'
 import { targetOf, type Target } from './target'
 
 /**
@@ -15,6 +16,8 @@ export interface Options {
   scroll: 'top' | 'keep' | 'target'
   /** `replace` the segment (default), or `append`/`prepend` the new content inside it. */
   swap: 'replace' | 'append' | 'prepend'
+  /** Where the focus goes afterwards: `auto` by default (see `FocusMove`). */
+  focus: Focus
   transition: boolean
   /** The segment that shows error responses instead of the target. */
   fail: string | null
@@ -30,6 +33,7 @@ export function optionsOf(
   return {
     target,
     ...modesOf(element, target.kind),
+    focus: focusOf(inherited(element, 'focus')),
     transition: inherited(element, 'transition') === 'true',
     fail: inherited(element, 'fail'),
     busy: inherited(element, 'busy'),

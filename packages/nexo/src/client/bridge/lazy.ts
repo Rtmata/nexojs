@@ -35,7 +35,8 @@ function urlOf(element: Element): URL | null {
  * site, a download, one that opens elsewhere are the browser's. A segment
  * fills itself as its own target, whatever the page's: its scroll stays.
  * Nobody asked, so it never gets in the way: a target someone is already
- * waiting on is left alone, and the element is asked for again on sight.
+ * waiting on is left alone, the element is asked for again on sight, and
+ * the focus never moves.
  */
 export class Lazy {
   private readonly watch = new Watch(SELF_LOADING, 'load', (element) =>
@@ -60,13 +61,14 @@ export class Lazy {
     if (!url) return
     const name = element.getAttribute(SEGMENT_ATTRIBUTE)!
     const target: Target = { kind: 'segments', names: [name] }
-    const options = { ...optionsOf(element, target), history: null } as const
+    const read = optionsOf(element, target)
+    const options = { ...read, history: null, focus: 'none' } as const
     this.navigate(element, { url, method: 'GET' }, [name], options)
   }
 
   private followLink(link: HTMLAnchorElement): void {
     if (!isPlainNavigation(plainClickOn(link))) return
-    const options = optionsOf(link)
+    const options = { ...optionsOf(link), focus: 'none' } as const
     const url = urlOf(link)
     if (options.target.kind !== 'segments' || !url) return
     this.navigate(link, { url, method: 'GET' }, options.target.names, options)

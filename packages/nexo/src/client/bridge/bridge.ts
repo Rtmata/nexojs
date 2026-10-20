@@ -96,13 +96,18 @@ function navigation(
 /** Back/forward: what changed to reach that entry is swapped again (a stale copy will do), nothing recorded; whatever fails rewrites the entry, never adds one. */
 function restore(url: URL, targets: string[]): Promise<void> {
   const root = document.documentElement
-  const options: Options = { ...optionsOf(root), history: null, scroll: 'keep' }
+  const options = restoreOptions(root)
   const wanted = { url, method: 'GET', stale: true }
   const swapper: Swapper = targets.includes(TOP)
     ? new WholePage()
     : new BySegments(targets, options)
   const fallback = new BrowserFallback(root, wanted, RETURN)
   return new Navigation(root, wanted, swapper, options, session, fallback).run()
+}
+
+/** A return records nothing, keeps the scroll it will put back, and moves no focus. */
+function restoreOptions(root: Element): Options {
+  return { ...optionsOf(root), history: null, scroll: 'keep', focus: 'none' }
 }
 
 /** The link a plain click landed on, if bridge should follow it. */

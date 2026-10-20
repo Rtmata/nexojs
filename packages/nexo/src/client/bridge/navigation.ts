@@ -2,6 +2,7 @@ import { samePage } from '../../shared/bridge/segment-url'
 import { SEGMENT_ATTRIBUTE } from '../../shared/bridge/vocabulary'
 import { announce } from './events'
 import { BrowserFallback, type Fallback } from './fallback'
+import { FocusMove } from './focus'
 import type { HistoryKeeper } from './history'
 import type { Flight, Inflight } from './inflight'
 import type { Loaded, Loader, Wanted } from './loader'
@@ -119,10 +120,11 @@ export class Navigation {
     if (!announce(this.trigger, 'bridge:swap', detail)) return
     if (!(await ready(prepared, flight))) return
     const scrollBefore = scrollY // read before the new content can shorten the page
+    const focused = document.activeElement
     const elements = await this.transition(() =>
       flight.aborted ? null : swap(),
     )
-    if (elements) this.done(loaded.url, elements, scrollBefore)
+    if (elements) this.done(loaded.url, elements, scrollBefore, focused)
   }
 
   /** Waits for the DOM update, not the animation: history, scroll and `bridge:swapped` follow the swap, not the end of the crossfade. */
@@ -137,14 +139,24 @@ export class Navigation {
     return elements
   }
 
-  /** Scrolled, recorded (the entry starts where the page is now) and `bridge:swapped` on each new element: the trigger may have left with the old content. */
-  private done(url: URL, elements: Element[], scrollBefore: number): void {
+  /** Scrolled, focused, recorded (the entry starts where the page is now) and `bridge:swapped` on each new element: the trigger may have left with the old content. */
+  private done(
+    url: URL,
+    elements: Element[],
+    scrollBefore: number,
+    focused: Element | null,
+  ): void {
     const arrived = this.destination(url)
     this.scroll(elements, arrived.hash)
+    new FocusMove(this.options.focus, arrived.hash).after(elements, focused)
+    this.record(arrived, scrollBefore)
+    for (const element of elements) swapped(element, arrived)
+  }
+
+  private record(arrived: URL, scrollBefore: number): void {
     const { history: mode } = this.options
     const { targets } = this.swapper
     this.session.history.record(arrived, mode, targets, scrollBefore)
-    for (const element of elements) swapped(element, arrived)
   }
 
   /** The page the response came from, with the `#hash` the link named: fetch never sends it, the browser keeps it. */

@@ -233,9 +233,22 @@ class Shelf extends Component<{ n: number; q: URLSearchParams }> {
             </a>
             {q.has('etag') ? <i id="version">v{version}</i> : null}
             <form id="search" action="/shelf/7" method="get">
-              <input name="q" value="ryu" />
+              <input id="q" name="q" value="ryu" />
               <button id="search-go">go</button>
             </form>
+            {q.has('autofocus') ? <input id="auto" autofocus /> : null}
+            <a id={`to-autofocus-${n}`} href={`/shelf/${n + 1}?autofocus`}>
+              autofocus
+            </a>
+            <a id={`only-${n}`} href={next}>
+              only on this page
+            </a>
+            <a id="quiet" href={next} data-bridge-focus="none">
+              quiet
+            </a>
+            <a id="to-counter" href={next} data-bridge-focus="counter">
+              focus the counter
+            </a>
             <form id="post" action="/submit" method="post">
               <input name="n" value="9" />
               <button id="post-go">post</button>
@@ -396,6 +409,9 @@ class Top extends Component<{
           <h1 id="title">Top {n}</h1>
           <a id="next" href={`/top/${n + 1}`}>
             next
+          </a>
+          <a id={`only-${n}`} href={`/top/${n + 1}`}>
+            only on this page
           </a>
           <a id="replace" href={`/top/${n + 1}`} data-bridge-history="replace">
             replace
@@ -877,6 +893,82 @@ describe.if(chrome)('when things go wrong', () => {
     await page.waitForSelector('text=Lost room')
     expect(await text('[data-bridge-segment="shelf"] h2')).toBe('Lost room')
     expect(await sameDocument()).toBe(true)
+  })
+})
+
+describe.if(chrome)('focus after a swap', () => {
+  const focused = () =>
+    page.evaluate(() => {
+      const active = document.activeElement
+      return active === document.body
+        ? 'body'
+        : active?.id || active?.getAttribute('data-bridge-segment')
+    })
+
+  test('a link that left with the old content: the new segment takes the focus', async () => {
+    await open('/shelf/1')
+    await page.click('#only-1')
+    await page.waitForSelector('text=game 2')
+    expect(await focused()).toBe('shelf')
+  })
+
+  test('a link the new content has again, by id, keeps the focus: "next" can be pressed in a row', async () => {
+    await open('/shelf/1')
+    await page.click('#next')
+    await page.waitForSelector('text=game 2')
+    expect(await focused()).toBe('next')
+  })
+
+  test('a field whose results refresh keeps the focus, by its id', async () => {
+    await open('/shelf/1')
+    await page.focus('#q')
+    await page.keyboard.press('Enter')
+    await page.waitForSelector('text=game 7')
+    expect(await focused()).toBe('q')
+  })
+
+  test('an autofocus in the new content wins over the segment', async () => {
+    await open('/shelf/1')
+    await page.click('#to-autofocus-1')
+    await page.waitForSelector('text=game 2')
+    expect(await focused()).toBe('auto')
+  })
+
+  test('a trigger that stays keeps the focus', async () => {
+    await open('/shelf/1')
+    await page.click('#counter-link')
+    await page.waitForSelector('text=2 games')
+    expect(await focused()).toBe('counter-link')
+  })
+
+  test('data-bridge-focus: none leaves it, a name sends it to that segment', async () => {
+    await open('/shelf/1')
+    await page.click('#quiet')
+    await page.waitForSelector('text=game 2')
+    expect(await focused()).toBe('body')
+    await page.click('#to-counter')
+    await page.waitForSelector('text=game 3')
+    expect(await focused()).toBe('counter')
+  })
+
+  test('a whole page starts at the top of the document, as after a native navigation', async () => {
+    await open('/top/1')
+    await page.click('#only-1')
+    await page.waitForSelector('h1:has-text("Top 2")')
+    expect(await focused()).toBe('body')
+    expect(
+      await page.evaluate(() => document.body.hasAttribute('tabindex')),
+    ).toBe(true)
+  })
+
+  test('a return moves nothing', async () => {
+    await open('/shelf/1')
+    await page.click('#push')
+    await page.waitForSelector('text=game 2')
+    await page.focus('#outside')
+    await page.goBack()
+    await page.waitForSelector('text=game 1')
+    expect(await focused()).toBe('outside')
   })
 })
 
