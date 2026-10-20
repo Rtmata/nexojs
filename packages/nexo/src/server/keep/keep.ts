@@ -121,6 +121,11 @@ export interface Server {
  * `router` is usually `boat()`, but keep only needs the few members of
  * `KeepRouter`, so it works with any router — or none, with a function.
  * What happens to each request is described in `RequestFlow`.
+ *
+ * keep sends bytes as they are: no gzip, no brotli. In production, put a
+ * reverse proxy in front (Caddy compresses by default; nginx with `gzip
+ * on`) — it also terminates TLS. keep's ETags are weak, so one a proxy
+ * rewrites after compressing still matches (see `shared/http/etag`).
  */
 export function keep(options: KeepOptions): Server {
   return new KeepServer(options)
