@@ -16,6 +16,12 @@ import { inside, isPublicName, isPublicPath } from './safe-file'
  * rebuild finds new folders, the watcher needs a moment to cover them, so
  * the index stays aside and confirms with one more rebuild.
  *
+ * Watching costs the system one inotify watch per FILE in Bun (recursive
+ * or not; Linux allows 65,536 by default), so a folder with tens of
+ * thousands of files that never change while the server runs (pictures
+ * named by their content) should skip it (`watch: false`): indexed once,
+ * its index then only says what IS there — a miss asks the disk.
+ *
  * The watcher follows the folder the root pointed to when listening began:
  * re-pointing a symlinked root (an atomic deploy) needs a restart.
  */
@@ -29,7 +35,10 @@ export class FolderIndex {
   private readonly watcher: FolderWatcher
   private readonly settle = new Debounce(() => this.rebuild(), 50, 500)
 
-  constructor(readonly dir: string) {
+  constructor(
+    readonly dir: string,
+    private readonly watched = true,
+  ) {
     this.walker = new FolderWalker(dir)
     this.watcher = new FolderWatcher(dir, {
       changed: () => this.changed(),
@@ -41,11 +50,13 @@ export class FolderIndex {
   /**
    * The path to read for a request: the file as written on disk, `undefined`
    * when it's known not to exist, `null` when the index can't tell (not
-   * listening, can't watch, or a change is being indexed): ask the disk.
+   * listening, can't watch, not watching at all, or a change is being
+   * indexed): ask the disk.
    */
   find(relative: string): string | undefined | null {
     if (!this.files || this.stale) return null
-    return this.files.get(relative.normalize('NFC'))
+    const found = this.files.get(relative.normalize('NFC'))
+    return found ?? (this.watcher.watching ? undefined : null)
   }
 
   /** The files it knows, as `a/b.png` paths. */
@@ -55,8 +66,8 @@ export class FolderIndex {
 
   async start(): Promise<void> {
     if (!(await isFolder(this.dir))) return // gone since keep checked it
-    this.watcher.start()
-    if (this.watcher.watching) await this.rebuild()
+    if (this.watched) this.watcher.start()
+    if (this.watcher.watching || !this.watched) await this.rebuild()
   }
 
   stop(): void {
@@ -78,12 +89,17 @@ export class FolderIndex {
   private async rebuild(): Promise<void> {
     const generation = ++this.generation
     const found = await this.walker.walk()
-    if (generation !== this.generation || !this.watcher.watching) return
+    if (generation !== this.generation || this.lostWatch()) return
     this.files = found?.files ?? null
     const added = found ? this.addsFolders(found.folders) : false
     if (found) this.folders = found.folders
     if (added) return this.coverNewFolders()
     this.stale = this.settle.pending
+  }
+
+  /** Meant to watch, but can't any more: a walk that lands would claim too much. */
+  private lostWatch(): boolean {
+    return this.watched && !this.watcher.watching
   }
 
   /** Whether a walk found folders the last one didn't (the first walk adds none). */
@@ -178,8 +194,8 @@ interface WatchListener {
 
 /**
  * Watches a folder and everything in it. Changes inside hidden folders
- * (`.git`) are ignored. A folder that can't be watched is reported once and
- * left to the disk.
+ * (`.git`) are ignored. A folder that can't be watched (too many files
+ * for the system: see `FolderIndex`) is reported once and left to the disk.
  */
 export class FolderWatcher {
   private watcher: FSWatcher | null = null

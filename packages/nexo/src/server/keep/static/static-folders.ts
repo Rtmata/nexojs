@@ -9,6 +9,8 @@ export interface StaticMount {
   at: string
   /** Unset: ask every time (a 304 when unchanged). `'immutable'` for content-hashed names. See `CacheOption`. */
   cache?: CacheOption
+  /** `false` for a folder whose files never change while the server runs: indexed once, never watched — a must above tens of thousands of files (see `FolderIndex`). */
+  watch?: boolean
 }
 
 export type StaticOption =
@@ -25,9 +27,10 @@ export class Mount {
     readonly dir: string,
     at: string,
     cache?: CacheOption,
+    watch = true,
   ) {
     this.at = '/' + at.replace(/^\/+|\/+$/g, '')
-    this.index = new FolderIndex(dir)
+    this.index = new FolderIndex(dir, watch)
     this.files = new SafeFile(dir, cache)
   }
 
@@ -112,12 +115,20 @@ function filePathOf(urlPath: string): string | null {
   return '/' + parts.join('/')
 }
 
+/** `watch` is on unless told `false`; anything else is a mistake. */
+function ensureWatch(watch: unknown): boolean {
+  if (watch === undefined || typeof watch === 'boolean') return watch ?? true
+  throw new Error(
+    `keep: static watch takes true or false, not ${JSON.stringify(watch)}`,
+  )
+}
+
 /** One `static` entry as a Mount, or a clear error for anything else. */
 function mountOf(option: string | StaticMount): Mount {
   if (typeof option === 'string') return new Mount(option, '/')
-  const { dir, at, cache } = (option ?? {}) as Partial<StaticMount>
+  const { dir, at, cache, watch } = (option ?? {}) as Partial<StaticMount>
   if (typeof dir === 'string' && typeof at === 'string')
-    return new Mount(dir, at, ensureCacheOption(cache))
+    return new Mount(dir, at, ensureCacheOption(cache), ensureWatch(watch))
   throw new Error(
     `keep: static takes a folder ('./public') or { dir, at } ({ dir: './covers', at: '/covers' }), not ${JSON.stringify(option)}`,
   )

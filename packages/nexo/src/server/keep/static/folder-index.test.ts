@@ -69,6 +69,76 @@ describe('static files: the index while listening', () => {
   })
 })
 
+describe('static files: watching', () => {
+  /** inotify watches this process holds, counted the way the kernel reports them. */
+  const inotifyWatches = async () => {
+    const { readdir, readFile } = await import('node:fs/promises')
+    let count = 0
+    for (const fd of await readdir(`/proc/${process.pid}/fdinfo`)) {
+      const info = await readFile(
+        `/proc/${process.pid}/fdinfo/${fd}`,
+        'utf8',
+      ).catch(() => '')
+      count += (info.match(/^inotify wd:/gm) ?? []).length
+    }
+    return count
+  }
+
+  test.if(process.platform === 'linux')(
+    'watching costs one inotify watch per file in Bun: why watch: false exists',
+    async () => {
+      const log = spyOn(console, 'log').mockImplementation(() => {})
+      const big = await mkdtemp(join(root, 'big-'))
+      for (const d of ['a', 'b', 'c']) {
+        await mkdir(join(big, d))
+        for (let i = 0; i < 40; i++)
+          await writeFile(join(big, d, `${i}.png`), 'x')
+      }
+      const before = await inotifyWatches()
+      const server = keep({ router: boat(), static: big })
+      await server.listen(0)
+      try {
+        expect((await inotifyWatches()) - before).toBe(124) // 120 files, the root and its three folders
+      } finally {
+        await server.stop()
+        log.mockRestore()
+      }
+    },
+  )
+
+  test('watch: false indexes once; what comes later is still served, from disk', async () => {
+    const log = spyOn(console, 'log').mockImplementation(() => {})
+    const still = await mkdtemp(join(root, 'still-'))
+    await writeFile(join(still, 'a.png'), 'a')
+    const before = process.platform === 'linux' ? await inotifyWatches() : 0
+    const server = keep({
+      router: boat(),
+      static: { dir: still, at: '/still', watch: false },
+    })
+    await server.listen(0)
+    try {
+      if (process.platform === 'linux')
+        expect(await inotifyWatches()).toBe(before)
+      expect(await (await get(server, '/still/a.png')).text()).toBe('a')
+      await writeFile(join(still, 'b.png'), 'b')
+      expect(await (await get(server, '/still/b.png')).text()).toBe('b')
+      expect((await get(server, '/still/c.png')).status).toBe(404)
+    } finally {
+      await server.stop()
+      log.mockRestore()
+    }
+  })
+
+  test('watch takes true or false only', () => {
+    expect(() =>
+      keep({
+        router: boat(),
+        static: { dir: folder, at: '/', watch: 'no' as never },
+      }),
+    ).toThrow('keep: static watch takes true or false, not "no"')
+  })
+})
+
 describe('static files: the index stays honest', () => {
   test('a folder that loops back on itself is still served from disk', async () => {
     const looped = join(root, 'looped')
