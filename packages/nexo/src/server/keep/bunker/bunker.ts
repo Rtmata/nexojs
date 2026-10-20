@@ -23,7 +23,11 @@ export interface BunkerOptions {
   xssProtection?: string | false
   /** `Strict-Transport-Security`, sent on HTTPS only; 180 days with subdomains by default. */
   strictTransportSecurity?: string | false
-  /** `Content-Security-Policy`, none by default; see `Directives`. The nonce is `ctx.bunker.nonce`. */
+  /**
+   * `Content-Security-Policy`, none by default; see `Directives`. The nonce
+   * is `ctx.bunker.nonce`. With bridge, `script-src` needs
+   * `'inline-speculation-rules'` for the prefetch rules it writes inline.
+   */
   csp?: Directives
   /** Send the policy as `Content-Security-Policy-Report-Only`: reported, not enforced. */
   reportOnly?: boolean
@@ -39,7 +43,7 @@ export interface BunkerOptions {
  *   keep({ router })                                   // the full set
  *   keep({ router, bunker: false })                    // none
  *   keep({ router, bunker: { frameOptions: false, resourcePolicy: 'cross-origin' } })
- *   keep({ router, bunker: { csp: { 'script-src': ["'self'", 'nonce'] } } })
+ *   keep({ router, bunker: { csp: { 'script-src': ["'self'", 'nonce', "'inline-speculation-rules'"] } } })
  *   <script nonce={ctx.bunker.nonce}>…</script>
  */
 export function bunker(options: BunkerOptions = {}): Middleware {

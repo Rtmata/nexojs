@@ -19,6 +19,14 @@ export { CLIENT_PATH }
  * is called, and `listen()` waits for it through `onStart`, so a broken
  * client stops the server from starting. Then it is kept with an ETag, so
  * browsers revalidate for free.
+ *
+ * Under a Content Security Policy (keep's `bunker`), the script itself is
+ * `'self'`; the Speculation Rules it writes for `data-bridge-prefetch` on
+ * links left to the browser are an inline script, which needs
+ * `'inline-speculation-rules'` in `script-src` — without it the browser
+ * ignores them, and only those: bridge's own prefetch is unaffected.
+ *
+ *   keep({ router, bunker: { csp: { 'script-src': ["'self'", "'inline-speculation-rules'"] } } })
  */
 export function bridge(): BridgeHooks {
   const script = new ClientScript(CLIENT_ENTRY)

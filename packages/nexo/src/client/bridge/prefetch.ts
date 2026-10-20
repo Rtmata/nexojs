@@ -55,7 +55,9 @@ export class Prefetch {
  * per eagerness. Browsers read a rule set once, when its script enters the
  * document, so a changed set is a fresh script in place of the old one.
  * A new body is a new page: the sets start over with it, not with every
- * link the tab has seen.
+ * link the tab has seen. The script is inline: a Content Security Policy
+ * must allow it with `'inline-speculation-rules'` in `script-src`, or
+ * the browser drops the rules (and says so in its console).
  */
 class SpeculationRules {
   private urls = this.empty()
