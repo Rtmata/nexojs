@@ -112,8 +112,7 @@ class StaticStep implements Step {
 
   answer({ ctx, method }: Visit): Promise<Response | null> | null {
     if (method !== 'GET') return null
-    const range = ctx.request.headers.get('range')
-    return this.folders.serve(ctx.url.pathname, range)
+    return this.folders.serve(ctx.url.pathname, ctx.request.headers)
   }
 }
 

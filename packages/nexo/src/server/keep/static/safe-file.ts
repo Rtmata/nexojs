@@ -1,6 +1,7 @@
 import { realpath, stat } from 'node:fs/promises'
 import { dirname, relative, resolve, sep } from 'node:path'
 import { FileResponse } from './file-response'
+import { cacheControlOf, type CacheOption } from './freshness'
 
 /**
  * One folder's files, served only when it's safe. Never served:
@@ -10,22 +11,25 @@ import { FileResponse } from './file-response'
  */
 export class SafeFile {
   private readonly root: string
+  private readonly cacheControl: string | null
 
-  constructor(folder: string) {
+  /** `cache`: how long browsers may keep these files (see `CacheOption`); unset, they ask every time. */
+  constructor(folder: string, cache?: CacheOption) {
     this.root = resolve(folder)
+    this.cacheControl = cacheControlOf(cache)
   }
 
   /**
    * The response for `path` inside the folder, or `null`. The file is
    * checked on disk every time, however it was found, and streamed;
-   * `range` is the request's `Range` header, for seeking.
+   * `headers` are the request's, read for `Range` and the conditionals.
    *
-   *   await new SafeFile('./public').serve('logo.svg')
+   *   await new SafeFile('./public').serve('logo.svg', request.headers)
    */
-  async serve(path: string, range: string | null = null) {
+  async serve(path: string, headers: Headers = new Headers()) {
     const target = await this.existing(path)
     if (!target || !(await this.staysInside(target))) return null
-    return new FileResponse(target).for(range)
+    return new FileResponse(target, this.cacheControl).answer(headers)
   }
 
   /**

@@ -76,7 +76,10 @@ describe('serveFile on disk', () => {
 
 describe('byte ranges', () => {
   const ranged = (range: string | null) =>
-    new SafeFile(join(folder, 'public')).serve('/style.css', range)
+    new SafeFile(join(folder, 'public')).serve(
+      '/style.css',
+      new Headers(range === null ? {} : { range }),
+    )
 
   test('one range is a 206 with only those bytes', async () => {
     const response = await ranged('bytes=0-3')

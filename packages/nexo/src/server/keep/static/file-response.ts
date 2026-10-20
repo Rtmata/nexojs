@@ -1,5 +1,6 @@
-import { fileBlob } from '../../dock/bun'
+import { fileBlob, type DiskFile } from '../../dock/bun'
 import { contentType } from '../mime'
+import { Validators } from './validators'
 
 /** The bytes a `Range` header asks for, both ends included. */
 interface ByteRange {
@@ -9,25 +10,47 @@ interface ByteRange {
 
 /**
  * The response for one file on disk, streamed from it (never held in
- * memory), with byte ranges so audio and video can seek:
+ * memory), with the validators a browser needs to ask "still the same?"
+ * (ETag, `Last-Modified`: a 304 answers), the `Cache-Control` the folder
+ * chose, and byte ranges so audio and video can seek:
  *
- *   new FileResponse('./intro.mp4').for('bytes=0-1023')   // 206, 1 KB
+ *   new FileResponse('./intro.mp4', 'no-cache').answer(request.headers)
  *
  * One range per request; a header asking for several, or written wrong,
  * gets the whole file (200), as HTTP allows. A range past the end is 416.
  */
 export class FileResponse {
-  private readonly file: Blob
+  private readonly file: DiskFile
+  private readonly validators: Validators
 
-  constructor(private readonly path: string) {
+  constructor(
+    private readonly path: string,
+    private readonly cacheControl: string | null,
+  ) {
     this.file = fileBlob(path)
+    this.validators = new Validators(this.file)
   }
 
-  for(range: string | null): Response {
+  answer(headers: Headers): Response {
+    if (this.validators.unchanged(headers)) return this.notModified()
+    const range = this.validators.rangeApplies(headers)
+      ? headers.get('range')
+      : null
+    return this.for(range)
+  }
+
+  private for(range: string | null): Response {
     const size = this.file.size
     const wanted = range === null ? null : rangeIn(range, size)
     if (wanted === 'past the end') return this.unsatisfiable(size)
     return wanted ? this.part(wanted, size) : this.whole()
+  }
+
+  /** The validators travel again, so the browser's copy stays known (§15.4.5). */
+  private notModified(): Response {
+    const headers = this.headers(null)
+    headers.delete('content-type')
+    return new Response(null, { status: 304, headers })
   }
 
   private whole(): Response {
@@ -46,13 +69,17 @@ export class FileResponse {
     return new Response(null, { status: 416, headers })
   }
 
-  /** Said up front, so HEAD gets them without reading the file. */
-  private headers(body: Blob): Headers {
-    return new Headers({
+  /** Said up front, so HEAD gets them without reading the file; `body` null for a 304, which sends none. */
+  private headers(body: Blob | null): Headers {
+    const headers = new Headers({
       'content-type': contentType(this.path),
-      'content-length': String(body.size),
       'accept-ranges': 'bytes',
+      etag: this.validators.etag,
+      'last-modified': this.validators.lastModified,
     })
+    if (body) headers.set('content-length', String(body.size))
+    if (this.cacheControl) headers.set('cache-control', this.cacheControl)
+    return headers
   }
 }
 

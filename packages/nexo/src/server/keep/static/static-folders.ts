@@ -1,11 +1,14 @@
 import { decodedSegments } from '../../../shared/url/decode'
 import { FolderIndex, isFolder } from './folder-index'
+import { ensureCacheOption, type CacheOption } from './freshness'
 import { SafeFile } from './safe-file'
 
-/** A folder and the URL path it's served under. */
+/** A folder, the URL path it's served under, and how long browsers may keep its files. */
 export interface StaticMount {
   dir: string
   at: string
+  /** Unset: ask every time (a 304 when unchanged). `'immutable'` for content-hashed names. See `CacheOption`. */
+  cache?: CacheOption
 }
 
 export type StaticOption =
@@ -21,10 +24,11 @@ export class Mount {
   constructor(
     readonly dir: string,
     at: string,
+    cache?: CacheOption,
   ) {
     this.at = '/' + at.replace(/^\/+|\/+$/g, '')
     this.index = new FolderIndex(dir)
-    this.files = new SafeFile(dir)
+    this.files = new SafeFile(dir, cache)
   }
 
   /** Whether this mount's path holds the pathname. */
@@ -45,11 +49,11 @@ export class Mount {
    * The file for a (decoded) pathname, or `null`. A file the index knows is
    * missing skips the disk; any other is checked on disk before it's served.
    */
-  async serve(pathname: string, range: string | null) {
+  async serve(pathname: string, headers: Headers) {
     const relative = this.relativeOf(pathname)
     const onDisk = this.index.find(relative)
     if (onDisk === undefined) return null
-    return this.files.serve(onDisk ?? relative, range)
+    return this.files.serve(onDisk ?? relative, headers)
   }
 }
 
@@ -66,12 +70,12 @@ export class StaticFolders {
     this.mounts = list.map(mountOf).sort((a, b) => b.at.length - a.at.length)
   }
 
-  /** The first file any folder has for this URL path, or `null`. */
-  async serve(urlPath: string, range: string | null) {
+  /** The first file any folder has for this URL path, or `null`; `headers` are the request's. */
+  async serve(urlPath: string, headers: Headers) {
     const pathname = filePathOf(urlPath)
     if (pathname === null) return null
     for (const mount of this.mounts.filter((m) => m.covers(pathname))) {
-      const file = await mount.serve(pathname, range)
+      const file = await mount.serve(pathname, headers)
       if (file) return file
     }
     return null
@@ -111,9 +115,9 @@ function filePathOf(urlPath: string): string | null {
 /** One `static` entry as a Mount, or a clear error for anything else. */
 function mountOf(option: string | StaticMount): Mount {
   if (typeof option === 'string') return new Mount(option, '/')
-  const { dir, at } = (option ?? {}) as Partial<StaticMount>
+  const { dir, at, cache } = (option ?? {}) as Partial<StaticMount>
   if (typeof dir === 'string' && typeof at === 'string')
-    return new Mount(dir, at)
+    return new Mount(dir, at, ensureCacheOption(cache))
   throw new Error(
     `keep: static takes a folder ('./public') or { dir, at } ({ dir: './covers', at: '/covers' }), not ${JSON.stringify(option)}`,
   )

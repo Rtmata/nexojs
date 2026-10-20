@@ -32,8 +32,13 @@ async function stopBun(server: Bun.Server<unknown>, force: boolean) {
 }
 
 /** A file on disk as a standard `Blob`: read lazily, streamed when sent. */
-export function fileBlob(path: string): Blob {
+export function fileBlob(path: string): DiskFile {
   return Bun.file(path)
+}
+
+/** A file on disk as a Blob that also knows when it last changed (ms since the epoch). */
+export interface DiskFile extends Blob {
+  readonly lastModified: number
 }
 
 /**
