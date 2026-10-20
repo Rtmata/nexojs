@@ -6,7 +6,8 @@ import { sameOrigin } from './origin'
  * properties: a control named `action`, `method` or `target` shadows
  * those properties with itself, and the properties answer the page URL
  * when absent anyway. The submitter button may override the form's
- * method, action and encoding (`formmethod`, `formaction`, `formenctype`).
+ * method, action, encoding and target (`formmethod`, `formaction`,
+ * `formenctype`, `formtarget`).
  */
 export interface Submission {
   /** Upper case, as `Request` wants it. */
@@ -29,7 +30,7 @@ export function submissionOf(event: SubmitEvent): Submission {
     ...requestOf(form, submitter),
     fields,
     pageOrigin: location.origin,
-    opensElsewhere: opensElsewhere(form),
+    opensElsewhere: opensElsewhere(form, submitter),
     defaultPrevented,
   }
 }
@@ -43,8 +44,12 @@ function requestOf(form: HTMLFormElement, submitter: HTMLElement | null) {
   }
 }
 
-function opensElsewhere(form: HTMLFormElement): boolean {
-  const target = form.getAttribute('target') ?? ''
+function opensElsewhere(
+  form: HTMLFormElement,
+  submitter: HTMLElement | null,
+): boolean {
+  const target =
+    submitter?.getAttribute('formtarget') ?? form.getAttribute('target') ?? ''
   return target !== '' && target !== '_self'
 }
 

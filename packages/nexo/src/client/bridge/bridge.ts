@@ -7,7 +7,7 @@
  */
 import { TOP } from '../../shared/bridge/vocabulary'
 import { ResponseCache } from './cache'
-import { isPlainNavigation, type Click } from './click'
+import { isPlainNavigation, plainClickOn, type Click } from './click'
 import { BrowserFallback, RETURN } from './fallback'
 import { isPlainSubmission, submissionOf, wantedFrom } from './forms'
 import { HexTrail } from './hex'
@@ -111,12 +111,9 @@ function linkOf(event: MouseEvent): HTMLAnchorElement | null {
 
 function clickOn(link: HTMLAnchorElement, event: MouseEvent): Click {
   return {
+    ...plainClickOn(link),
     button: event.button,
     modified: event.altKey || event.ctrlKey || event.metaKey || event.shiftKey,
     defaultPrevented: event.defaultPrevented,
-    href: link.href,
-    pageHref: location.href,
-    download: link.hasAttribute('download'),
-    opensElsewhere: link.target !== '' && link.target !== '_self',
   }
 }

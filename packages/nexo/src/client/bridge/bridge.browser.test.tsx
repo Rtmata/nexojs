@@ -150,6 +150,28 @@ class Shelf extends Component<{ n: number; q: URLSearchParams }> {
             <a id="anchor" href="#far-down">
               down
             </a>
+            <a
+              id="hover-away"
+              href="https://example.invalid/x"
+              data-bridge-prefetch="hover"
+            >
+              hover away
+            </a>
+            <a
+              id="hover-download"
+              href={`/shelf/${n + 1}`}
+              download
+              data-bridge-prefetch="hover"
+            >
+              hover download
+            </a>
+            <a
+              id="etag-break"
+              href={`/shelf/${n + 1}?etag&break`}
+              data-bridge-history="push"
+            >
+              etag that breaks
+            </a>
             <a id="to-target" href={next} data-bridge-scroll="target">
               scroll to target
             </a>
@@ -219,6 +241,14 @@ class Shelf extends Component<{ n: number; q: URLSearchParams }> {
             >
               <input name="q" value="ryu" />
               <button id="multipart-go">echo</button>
+            </form>
+            <form id="blank" action="/thanks" method="get">
+              <button id="blank-go" formtarget="_blank">
+                open elsewhere
+              </button>
+            </form>
+            <form id="slow-post" action="/echo?delay=300" method="post">
+              <button id="slow-post-go">slow post</button>
             </form>
             <dialog id="dialog">
               <form method="dialog">
@@ -334,6 +364,8 @@ let notifies = 0
 const intents: string[] = []
 /** The shelf's version, told by an ETag when `?etag` asks for one. */
 let version = 1
+/** The theme `/top` pages come with unless asked otherwise: a deploy changes it. */
+let topTheme = 'light'
 const router = boat()
   .get('/shelf/:n', async (ctx) => {
     // Chrome's own prefetches (Speculation Rules) are not what these tests count.
@@ -343,6 +375,8 @@ const router = boat()
     if (delay) await Bun.sleep(delay)
     const q = ctx.url.searchParams
     const tag = `"v${version}"`
+    if (q.has('break') && ctx.request.headers.get('if-none-match'))
+      return new Response('<p>broken</p>', { status: 500 })
     if (q.has('etag') && ctx.request.headers.get('if-none-match') === tag)
       return new Response(null, { status: 304, headers: { etag: tag } })
     const headers: Record<string, string> = q.has('etag')
@@ -379,14 +413,16 @@ const router = boat()
     intents.push(`${ctx.url.pathname} ${data.get('intent')}`)
     return redirect('/shelf/1', 303)
   })
-  .post('/echo', (ctx) =>
-    render(
+  .post('/echo', async (ctx) => {
+    const delay = Number(ctx.url.searchParams.get('delay') ?? 0)
+    if (delay) await Bun.sleep(delay)
+    return render(
       <Segment name="shelf">
         sent as {ctx.request.headers.get('content-type')?.split(';')[0]}
       </Segment>,
       { only: only(ctx.url) },
-    ),
-  )
+    )
+  })
   .get('/account', (ctx) =>
     render(
       <main>
@@ -417,16 +453,22 @@ const router = boat()
   .get('/top/:n', (ctx) => {
     if (!ctx.request.headers.get('sec-purpose'))
       requests.push(ctx.url.pathname + ctx.url.search)
-    const theme = ctx.url.searchParams.get('theme') ?? 'light'
+    const theme = ctx.url.searchParams.get('theme') ?? topTheme
     return render(<Top n={Number(ctx.params.n)} theme={theme} />)
   })
   .get('/themes/:name', () => css('body{}'))
   .get('/pages/:n', (ctx) => css(`#title{color:rgb(${ctx.params.n},0,0)}`))
   .get('/side', (ctx) => {
     requests.push(ctx.url.pathname + ctx.url.search)
-    return render(<Segment name="side">side loaded</Segment>, {
-      only: only(ctx.url),
-    })
+    return render(
+      <Segment name="side">
+        side loaded{' '}
+        <a id="side-link" href="/shelf/50">
+          in side
+        </a>
+      </Segment>,
+      { only: only(ctx.url) },
+    )
   })
   .get('/flaky', (ctx) =>
     render(<Segment name="flaky">flaky loaded</Segment>, {
@@ -797,6 +839,21 @@ describe.if(chrome)('history and scroll', () => {
     expect(await sameDocument()).toBe(true)
   })
 
+  test('a revalidation answered with an error changes nothing: the stale page stays', async () => {
+    await open('/shelf/1')
+    version = 1
+    await page.click('#etag-break')
+    await page.waitForSelector('text=v1')
+    await page.goBack()
+    await page.waitForSelector('text=game 1')
+    requests.length = 0
+    await page.goForward()
+    await page.waitForSelector('text=v1')
+    await page.waitForTimeout(300)
+    expect(requests).toEqual(['/shelf/2?etag&break&_segment=shelf,counter'])
+    expect(await text('#version')).toBe('v1')
+  })
+
   test('a newer page arriving while the visitor asked for something else yields to it', async () => {
     await open('/shelf/1')
     version = 1
@@ -922,6 +979,53 @@ describe.if(chrome)('history and scroll', () => {
     expect(await sameDocument()).toBe(true)
   })
 
+  test('back from a #hash jump the browser made brings nothing: same content', async () => {
+    await open('/shelf/1')
+    await page.click('#push')
+    await page.waitForSelector('text=game 2')
+    await page.click('#anchor')
+    await page.waitForTimeout(200)
+    expect(page.url()).toBe(url('/shelf/2#far-down'))
+    requests.length = 0
+    const fetches = (await log()).filter((e) => e === 'bridge:fetch').length
+    await page.goBack()
+    await page.waitForFunction((u) => location.href === u, url('/shelf/2'))
+    await page.waitForTimeout(200)
+    expect(requests).toEqual([])
+    const after = (await log()).filter((e) => e === 'bridge:fetch').length
+    expect(after).toBe(fetches)
+    expect(await text('[data-bridge-segment="shelf"] li')).toBe('game 2')
+  })
+
+  test('a scroll just before a return is not written into the entry returned to', async () => {
+    await open('/shelf/1?delay=200')
+    await page.evaluate(() => scrollTo(0, 500))
+    await page.waitForTimeout(300)
+    await page.evaluate(() => document.getElementById('push')!.click())
+    await page.waitForSelector('text=game 2')
+    await page.evaluate(() => {
+      scrollTo(0, 900)
+      history.back() // before the scroll settles into the entry
+    })
+    await page.waitForSelector('text=game 1')
+    await page.waitForFunction(() => scrollY === 500)
+    const kept = await page.evaluate(() => history.state.bridge.scrollY)
+    expect(kept).toBe(500)
+  })
+
+  test('a new entry starts clean: what the page kept in the old one stays there', async () => {
+    await open('/shelf/1')
+    await page.evaluate(() =>
+      history.replaceState({ ...history.state, draft: 'ryu' }, ''),
+    )
+    await page.click('#push')
+    await page.waitForSelector('text=game 2')
+    expect(await page.evaluate(() => history.state.draft)).toBeUndefined()
+    await page.goBack()
+    await page.waitForSelector('text=game 1')
+    expect(await page.evaluate(() => history.state.draft)).toBe('ryu')
+  })
+
   test('a jump to a #hash keeps its hash once the scroll settles', async () => {
     await open('/shelf/1')
     await page.click('#anchor')
@@ -1025,6 +1129,17 @@ describe.if(chrome)('forms', () => {
     expect(requests.filter((r) => r.startsWith('/shelf/2'))).toHaveLength(2)
   })
 
+  test('a POST cut short still drops the cache: the server may have taken it', async () => {
+    await open('/shelf/1')
+    await page.hover('#hover')
+    await page.waitForTimeout(100)
+    requests.length = 0
+    await page.click('#slow-post-go')
+    await page.click('#next') // the same target: the POST is cancelled
+    await page.waitForSelector('text=game 2')
+    expect(requests).toEqual(['/shelf/2?_segment=shelf,counter'])
+  })
+
   test('a POST drops the cache: what was prefetched before is fetched again', async () => {
     await open('/shelf/1')
     requests.length = 0
@@ -1052,6 +1167,15 @@ describe.if(chrome)('forms', () => {
     await page.waitForSelector('text=game 9')
     expect(page.url()).toBe(url('/shelf/9'))
     expect(await sameDocument()).toBe(true)
+  })
+
+  test('a submit button with formtarget="_blank" is left to the browser', async () => {
+    await open('/shelf/1')
+    const popup = page.waitForEvent('popup')
+    await page.click('#blank-go')
+    await (await popup).close()
+    expect(await sameDocument()).toBe(true)
+    expect(await text('[data-bridge-segment="shelf"] li')).toBe('game 1')
   })
 
   test('a dialog form is left to the browser: it closes the dialog, nothing is sent', async () => {
@@ -1193,6 +1317,15 @@ describe.if(chrome)('lazy content, markers and prefetch', () => {
     ])
   })
 
+  test('links inside a self-loading segment are not followed by its load="eager"', async () => {
+    requests.length = 0
+    await open('/shelf/1?lazy')
+    await page.waitForSelector('text=side loaded')
+    await page.waitForTimeout(300)
+    expect(requests.filter((r) => r.startsWith('/shelf/50'))).toEqual([])
+    expect(await text('[data-bridge-segment="side"]')).toContain('side loaded')
+  })
+
   test('lazy content that fails stays put, and is asked for again on sight', async () => {
     await open('/shelf/1?lazy')
     await page.route(
@@ -1260,6 +1393,22 @@ describe.if(chrome)('lazy content, markers and prefetch', () => {
     await page.waitForSelector('text=game 2')
     const slow = requests.filter((r) => r.startsWith('/shelf/2?delay=150'))
     expect(slow).toEqual(['/shelf/2?delay=150&_segment=shelf,counter'])
+  })
+
+  test('a link a click would leave to the browser is not prefetched', async () => {
+    await open('/shelf/1')
+    let away = 0
+    await page.route('**/example.invalid/**', (route) => {
+      away++
+      return route.abort()
+    })
+    requests.length = 0
+    await page.hover('#hover-away')
+    await page.hover('#hover-download')
+    await page.waitForTimeout(100)
+    await page.unrouteAll()
+    expect(away).toBe(0)
+    expect(requests).toEqual([])
   })
 
   test('a link left to the browser gets Speculation Rules instead', async () => {
@@ -1385,6 +1534,19 @@ describe.if(chrome)('the whole page (_top)', () => {
     await page.click('#other-theme')
     await page.waitForSelector('text=Top 2')
     expect(await sameDocument()).toBe(false)
+  })
+
+  test('a return to a page whose tracked asset changed rewrites the entry; forward stays', async () => {
+    await open('/top/1')
+    await page.click('#next')
+    await page.waitForSelector('text=Top 2')
+    topTheme = 'dark' // a deploy while the visitor was away
+    await page.goBack()
+    await page.waitForSelector('text=Top 1')
+    topTheme = 'light'
+    expect(await sameDocument()).toBe(false)
+    await page.goForward()
+    await page.waitForSelector('text=Top 2')
   })
 
   test('_none inside a _top page still leaves the link to the browser', async () => {

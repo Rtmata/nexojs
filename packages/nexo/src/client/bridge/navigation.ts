@@ -98,7 +98,8 @@ export class Navigation {
     prepared: Prepared,
     flight: Flight,
   ): Promise<void> {
-    if (prepared.outdated) return location.assign(loaded.url)
+    if (prepared.outdated)
+      return this.fallback.outdated(this.destination(loaded.url))
     const detail = { ...loaded, targets: this.swapper.targets }
     if (loaded.status >= 400 && !announce(this.trigger, 'bridge:fail', detail))
       return

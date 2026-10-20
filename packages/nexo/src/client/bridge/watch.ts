@@ -1,4 +1,4 @@
-import { inherited } from './attributes'
+import { ATTRIBUTE_PREFIX } from '../../shared/bridge/vocabulary'
 
 /** How far ahead of the viewport "visible" starts: half a screen, so content is there before the user is. */
 const MARGIN = '0px 0px 50% 0px'
@@ -8,7 +8,10 @@ const MARGIN = '0px 0px 50% 0px'
  * `data-bridge-prefetch="viewport"`), or at once (`"eager"`). Each element
  * is taken once; new content is scanned as it arrives. A released element
  * counts again, but only after it has left the view: a failure never
- * retries in a loop while the element just sits there.
+ * retries in a loop while the element just sits there. The attribute is
+ * inherited like any other, except from a candidate: what one carries is
+ * its own, never its content's — a self-loading segment's `eager` fills
+ * the segment, not every link that arrives inside it.
  */
 export class Watch {
   private readonly taken = new WeakSet<Element>()
@@ -28,10 +31,19 @@ export class Watch {
   scan(root: ParentNode): void {
     for (const element of candidates(root, this.selector)) {
       if (this.taken.has(element)) continue
-      const when = inherited(element, this.role)
+      const when = this.whenOf(element)
       if (when === 'eager') this.take(element)
       else if (when === 'viewport') this.observer.observe(element)
     }
+  }
+
+  /** The element's own value, else the closest ancestor's — unless that ancestor is a candidate itself: its value is spent on it. */
+  private whenOf(element: Element): string | null {
+    const name = `${ATTRIBUTE_PREFIX}${this.role}`
+    const carrier = element.closest(`[${name}]`)
+    if (!carrier) return null
+    if (carrier !== element && carrier.matches(this.selector)) return null
+    return carrier.getAttribute(name)
   }
 
   /** Counted as taken already: it will not act. */

@@ -26,6 +26,19 @@ export function isPlainNavigation(click: Click): boolean {
   return sameOrigin(click.href, new URL(click.pageHref).origin)
 }
 
+/** A plain left click on `link`, as if it had happened: what the link itself decides. A prefetch asks this first — a page a click would never use is not worth bringing. */
+export function plainClickOn(link: HTMLAnchorElement): Click {
+  return {
+    button: 0,
+    modified: false,
+    defaultPrevented: false,
+    href: link.href,
+    pageHref: location.href,
+    download: link.hasAttribute('download'),
+    opensElsewhere: link.target !== '' && link.target !== '_self',
+  }
+}
+
 /** A link to a place in this same page (`#section`): the browser jumps there, nothing to fetch. */
 function withinPage(href: string, pageHref: string): boolean {
   const [page, hash] = href.split('#')

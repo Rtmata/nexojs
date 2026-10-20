@@ -28,8 +28,10 @@ export interface Wanted {
  * `fetch` itself; the final URL is what history gets (PRG works: a POST
  * answered with 303 lands on the GET page). A prefetch on its way is
  * remembered, so asking again (another hover, the click itself) joins it
- * instead of fetching twice. Any other method is a change: afterwards the
- * whole cache is dropped, so nothing shown is older than the change.
+ * instead of fetching twice. Any other method is a change: the whole
+ * cache is dropped as it is sent and again once it is over — answered or
+ * not, since the server may have taken it anyway — so nothing shown is
+ * older than the change, nor anything asked for while it ran.
  */
 export class Loader {
   private readonly ahead = new Map<string, Promise<Cached>>()
@@ -69,7 +71,7 @@ export class Loader {
     return { ...parse(stale), revalidated: this.revalidate(key, stale, wanted) }
   }
 
-  /** The stale entry asked again with its ETag: a 304 renews it, a page replaces it. Without an ETag there is nothing cheap to ask. */
+  /** The stale entry asked again with its ETag: a 304 renews it, a page replaces it; an answer that can't be kept (an error) changes nothing. Without an ETag there is nothing cheap to ask. */
   private async revalidate(
     key: string,
     stale: Cached,
@@ -79,9 +81,18 @@ export class Loader {
     const { era } = this.cache
     const answer = await this.ask(key, wanted, stale.etag)
     if (!answer) return false
+    return this.renew(key, stale, answer, era)
+  }
+
+  /** A 304 keeps the stale page, renewed; anything else is the newer page — if it could be kept at all. */
+  private renew(key: string, stale: Cached, answer: Cached, era: number) {
     const unchanged = answer.status === 304
-    this.store(key, unchanged ? renewed(stale, answer) : answer, era)
-    return !unchanged
+    const kept = this.store(
+      key,
+      unchanged ? renewed(stale, answer) : answer,
+      era,
+    )
+    return kept && !unchanged
   }
 
   /** A conditional GET; null when it couldn't be made. */
@@ -94,16 +105,23 @@ export class Loader {
     return this.fetch(key, wanted, NO_ABORT, headers).catch(() => null)
   }
 
-  /** Any non-GET: after it, nothing kept can be trusted, nor a prefetch still on its way. */
+  /** Any non-GET: from the moment it is sent, nothing kept can be trusted, nor a prefetch still on its way; the same once it is over, however it ended. */
   private async change(
     key: string,
     wanted: Wanted,
     signal: AbortSignal,
   ): Promise<Cached> {
-    const cached = await this.fetch(key, wanted, signal)
+    this.forget()
+    try {
+      return await this.fetch(key, wanted, signal)
+    } finally {
+      this.forget()
+    }
+  }
+
+  private forget(): void {
     this.cache.clear()
     this.ahead.clear()
-    return cached
   }
 
   /** Fetches and keeps the answer, for as long as it may be kept. */
@@ -118,11 +136,13 @@ export class Loader {
     return cached
   }
 
-  /** Kept for as long as its headers allow; errors and `no-store` not at all. */
-  private store(key: string, cached: Cached, era: number): void {
+  /** Kept for as long as its headers allow; errors and `no-store` not at all. Whether it was kept. */
+  private store(key: string, cached: Cached, era: number): boolean {
     const { status, cacheControl } = cached
     const freshFor = freshnessOf(status, cacheControl, this.cache.ttl)
-    if (freshFor !== null) this.cache.set(key, cached, freshFor, era)
+    if (freshFor === null) return false
+    this.cache.set(key, cached, freshFor, era)
+    return true
   }
 
   private async fetch(

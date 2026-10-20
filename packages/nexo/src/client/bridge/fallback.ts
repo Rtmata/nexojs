@@ -15,6 +15,8 @@ export interface Fallback {
   land(loaded: Loaded, error: unknown, again: Again | null): Promise<void>
   /** The fallback of the landing itself: a GET of the page the response pointed at, which can fail in turn. */
   landing(wanted: Omit<Wanted, 'segments'>): Fallback
+  /** The page must come the browser's way: a tracked asset changed since this one loaded (a deploy). */
+  outdated(url: URL): void
 }
 
 /**
@@ -82,6 +84,11 @@ export class BrowserFallback implements Fallback {
   landing(wanted: Omit<Wanted, 'segments'>): Fallback {
     return new BrowserFallback(this.trigger, wanted, this.arrival)
   }
+
+  /** The browser loads it the way the visitor arrived: a visit adds an entry, a return rewrites the one it is on. */
+  outdated(url: URL): void {
+    this.arrival.go(url)
+  }
 }
 
 /**
@@ -111,6 +118,9 @@ export class QuietFallback implements Fallback {
   landing(): Fallback {
     return this
   }
+
+  /** Lazy content is a fragment, which brings no head to be outdated by: never asked either. */
+  outdated(): void {}
 }
 
 /** `bridge:fail` on the trigger; false when a listener cancelled it. */

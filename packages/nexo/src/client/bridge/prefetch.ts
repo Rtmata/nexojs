@@ -1,4 +1,5 @@
 import { inherited } from './attributes'
+import { isPlainNavigation, plainClickOn } from './click'
 import type { Loader } from './loader'
 import { optionsOf } from './options'
 import { parsed } from './origin'
@@ -10,6 +11,8 @@ import { Watch } from './watch'
  * pointer down), `hover` (pointer over or focus), `viewport`, `eager`.
  * bridge links go into the response cache; links left to the browser get
  * Speculation Rules with the matching eagerness, where the browser has them.
+ * Only a page a click would use is brought: another site, a download or
+ * a link that opens elsewhere are the browser's, prefetched or not.
  */
 export class Prefetch {
   private readonly watch = new Watch('a[href]', 'prefetch', (link) =>
@@ -41,6 +44,7 @@ export class Prefetch {
 
   /** A bridge link's page, asked for the way a click would: by segments, or whole. */
   private bring(link: HTMLAnchorElement): void {
+    if (!isPlainNavigation(plainClickOn(link))) return
     const swapper = swapperFor(optionsOf(link))
     const url = parsed(link.href, location.href)
     if (!swapper || !url || this.brought.has(link)) return
