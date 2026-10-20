@@ -7,11 +7,13 @@
 export interface Entry {
   url: string
   /**
-   * Every segment swapped since the page first loaded, not just the last
-   * ones: the union of any two entries then covers whatever changed
-   * between them, however far apart. Null for the page as it first loaded.
+   * Every target swapped since the page first loaded, in order, repeats
+   * and `_top` included: one entry's list is a prefix of any later one's
+   * (one line of history), so what lies past the shorter is exactly what
+   * changed between two entries, however far apart. Empty for the page as
+   * it first loaded.
    */
-  targets: string[] | null
+  targets: string[]
   scrollY: number
   /**
    * What the page showed: a new id with every swap recorded, the same one
@@ -27,14 +29,22 @@ export type Restore = (url: URL, targets: string[]) => Promise<void>
 const SETTLE = 150
 
 export class HistoryKeeper {
+  /** The entry the browser is on. */
   private current: Entry
+  /**
+   * The entry whose content the page shows: the current one, except while
+   * a travel's restore is still on its way — the next travel then starts
+   * from what is really there, not from an entry that never arrived. Read
+   * for its `content` and `targets` only.
+   */
+  private shown: Entry
   private settling: ReturnType<typeof setTimeout> | undefined
   /** The travel under way, if any: the scroll goes back only for the one that is still it. */
   private trip: object | null = null
 
   constructor(private readonly restore: Restore) {
     history.scrollRestoration = 'manual'
-    this.current = this.kept() ?? this.fresh()
+    this.current = this.shown = this.kept() ?? this.fresh()
     this.write('replaceState', this.current)
     addEventListener('popstate', (event: PopStateEvent) =>
       this.travel(event.state?.bridge),
@@ -51,9 +61,10 @@ export class HistoryKeeper {
   ): void {
     if (!mode) return
     this.rememberScroll(scrollBefore)
-    const swapped = [...new Set([...(this.current.targets ?? []), ...targets])]
+    const swapped = [...this.current.targets, ...targets]
     const content = stamp()
     this.current = { url: url.href, targets: swapped, scrollY, content }
+    this.shown = this.current
     this.write(mode === 'push' ? 'pushState' : 'replaceState', this.current)
   }
 
@@ -74,7 +85,7 @@ export class HistoryKeeper {
   /** A first visit starts where the browser put the page: the top, or its `#hash`. */
   private fresh(): Entry {
     const content = stamp()
-    return { url: location.href, targets: null, scrollY, content }
+    return { url: location.href, targets: [], scrollY, content }
   }
 
   /** One write once the page settles (writing on every pixel or marker would hit the browser's rate limit): the scroll as it is then, so a reload or a return finds it — the browser's own restoration is off. While a travel is under way, the scroll is the page's on its way out, not this entry's: not written. */
@@ -109,11 +120,12 @@ export class HistoryKeeper {
   private async travel(arriving: Entry | undefined): Promise<void> {
     if (!arriving) return this.adopt()
     const trip = this.depart()
-    const targets = changedBetween(this.current, arriving)
+    const targets = changedBetween(this.shown, arriving)
     this.current = arriving
     if (targets.length) await this.restore(new URL(arriving.url), targets)
     if (this.trip !== trip) return
     this.trip = null
+    this.shown = arriving
     scrollTo(0, arriving.scrollY)
   }
 
@@ -130,12 +142,20 @@ export class HistoryKeeper {
   }
 }
 
-/** The segments to swap again between two entries: none when they showed the same content. */
-function changedBetween(departing: Entry, arriving: Entry): string[] {
-  if (departing.content === arriving.content) return []
-  return [
-    ...new Set([...(departing.targets ?? []), ...(arriving.targets ?? [])]),
-  ]
+/**
+ * The targets to swap again between two entries: none when they showed
+ * the same content; else what the longer list has past the shorter, its
+ * prefix. Lists that don't match that way (an entry from another life of
+ * the page) are taken whole, both.
+ */
+function changedBetween(a: Entry, b: Entry): string[] {
+  if (a.content === b.content) return []
+  const [short, long] = a.targets.length <= b.targets.length ? [a, b] : [b, a]
+  const prefix = short.targets.every((name, i) => long.targets[i] === name)
+  const changed = prefix
+    ? long.targets.slice(short.targets.length)
+    : [...short.targets, ...long.targets]
+  return [...new Set(changed)]
 }
 
 /** An id for what the page shows: unlike any other in this tab's history, which is all it has to be. */

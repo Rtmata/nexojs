@@ -35,6 +35,8 @@ export interface Wanted {
  */
 export class Loader {
   private readonly ahead = new Map<string, Promise<Cached>>()
+  /** What a prefetch brought and could not keep (an error, `no-store`), or could not bring: not asked ahead again until then. */
+  private readonly declined = new Map<string, number>()
 
   constructor(private readonly cache: ResponseCache) {}
 
@@ -46,16 +48,27 @@ export class Loader {
     return reused ?? parse(await this.keep(key, wanted, signal))
   }
 
-  /** Brings a GET into the cache ahead of time; nothing happens if it's there or on its way. */
+  /** Brings a GET into the cache ahead of time; nothing happens if it's there, on its way, or was declined lately. */
   prefetch(url: URL, segments: string[]): Promise<void> {
     const key = keyOf({ url, segments })
-    if (this.cache.has(key) || this.ahead.has(key)) return Promise.resolve()
+    if (this.cache.has(key) || this.ahead.has(key) || this.isDeclined(key))
+      return Promise.resolve()
     const wanted = { url, method: 'GET', segments }
     const request = this.keep(key, wanted, NO_ABORT)
     const stored = request.finally(() => this.ahead.delete(key))
-    stored.catch(() => {}) // a failed prefetch is the joiner's to handle, if any
+    stored.catch(() => this.decline(key)) // a failed prefetch is the joiner's to handle, if any
     this.ahead.set(key, stored)
     return request.then(() => {})
+  }
+
+  /** Not worth asking ahead again for a while: the cache's own term. A change clears it with the rest. */
+  private decline(key: string): void {
+    this.declined.set(key, Date.now() + this.cache.ttl)
+  }
+
+  private isDeclined(key: string): boolean {
+    const until = this.declined.get(key)
+    return until !== undefined && until > Date.now()
   }
 
   /** A fresh entry, one on its way, or — when stale will do — a stale one asked again behind. */
@@ -122,6 +135,7 @@ export class Loader {
   private forget(): void {
     this.cache.clear()
     this.ahead.clear()
+    this.declined.clear()
   }
 
   /** Fetches and keeps the answer, for as long as it may be kept. */
@@ -132,7 +146,7 @@ export class Loader {
   ): Promise<Cached> {
     const { era } = this.cache
     const cached = await this.fetch(key, wanted, signal)
-    this.store(key, cached, era)
+    if (!this.store(key, cached, era)) this.decline(key)
     return cached
   }
 

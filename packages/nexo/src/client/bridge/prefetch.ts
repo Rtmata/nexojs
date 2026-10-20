@@ -19,8 +19,6 @@ export class Prefetch {
     this.bring(link as HTMLAnchorElement),
   )
   private readonly rules = new SpeculationRules()
-  /** Each link brings its page once: the cache, not the pointer, decides what the click reuses. */
-  private readonly brought = new WeakSet<Element>()
 
   constructor(private readonly loader: Loader) {
     document.addEventListener('pointerdown', (e) => this.on(e, 'tap'), true)
@@ -42,13 +40,12 @@ export class Prefetch {
       this.bring(link)
   }
 
-  /** A bridge link's page, asked for the way a click would: by segments, or whole. */
+  /** A bridge link's page, asked for the way a click would: by segments, or whole. The loader decides whether it is worth bringing: not what it has, nor what is on its way, nor what it could not keep lately. */
   private bring(link: HTMLAnchorElement): void {
     if (!isPlainNavigation(plainClickOn(link))) return
     const swapper = swapperFor(optionsOf(link))
     const url = parsed(link.href, location.href)
-    if (!swapper || !url || this.brought.has(link)) return
-    this.brought.add(link)
+    if (!swapper || !url) return
     void this.loader.prefetch(url, swapper.segments()).catch(() => {})
   }
 }

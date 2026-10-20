@@ -25,7 +25,7 @@ export class WholePage implements Swapper {
     const head = new HeadMerge(loaded.page)
     return {
       outdated: head.trackedChanged(),
-      ready: () => head.loadStyles(),
+      ready: (signal) => head.loadStyles(signal),
       apply: () => [replace(loaded.page, head)],
     }
   }

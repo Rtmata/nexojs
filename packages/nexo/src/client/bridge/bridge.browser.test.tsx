@@ -36,6 +36,9 @@ class Shelf extends Component<{ n: number; q: URLSearchParams }> {
           <Segment name="errors" tag="p">
             no errors
           </Segment>
+          <Segment name="tally" tag="i">
+            tally {n}
+          </Segment>
           <Segment name="shelf">
             {q.has('nested') ? (
               <Segment name="inner" tag="span" data-bridge-twin>
@@ -115,6 +118,28 @@ class Shelf extends Component<{ n: number; q: URLSearchParams }> {
             </a>
             <a id="main-error" href="/main-error">
               main error
+            </a>
+            <a
+              id="main-error-two"
+              href="/main-error"
+              data-bridge-target="shelf, errors"
+            >
+              main error, twice
+            </a>
+            <a
+              id="tally-push"
+              href={next}
+              data-bridge-target="tally"
+              data-bridge-history="push"
+            >
+              tally
+            </a>
+            <a
+              id="nostore-slow"
+              href={`/shelf/${n + 1}?nostore&delay=200`}
+              data-bridge-history="push"
+            >
+              no store, slowly
             </a>
             <a id="slow" href={`${next}?delay=300`} data-bridge-busy="counter">
               slow
@@ -242,6 +267,14 @@ class Shelf extends Component<{ n: number; q: URLSearchParams }> {
               <input name="q" value="ryu" />
               <button id="multipart-go">echo</button>
             </form>
+            <form
+              id="ping"
+              action="/ping"
+              method="post"
+              data-bridge-target="errors"
+            >
+              <button id="ping-go">ping</button>
+            </form>
             <form id="blank" action="/thanks" method="get">
               <button id="blank-go" formtarget="_blank">
                 open elsewhere
@@ -296,6 +329,14 @@ class LazyBits extends Component<{ n: number }> {
         >
           more
         </a>
+        <a
+          id="more-away"
+          href="https://example.invalid/more"
+          data-bridge-target="shelf"
+          data-bridge-load="eager"
+        >
+          more, elsewhere
+        </a>
         <div class="tall" />
         <Segment
           name="flaky"
@@ -321,9 +362,9 @@ class SelfLoading extends Component<{ n: number }> {
 }
 
 /** A whole-page site: every link swaps the full page; a body script counts how often it ran. */
-class Top extends Component<{ n: number; theme: string }> {
+class Top extends Component<{ n: number; theme: string; lazy: boolean }> {
   template() {
-    const { n, theme } = this.props
+    const { n, theme, lazy } = this.props
     return (
       <html data-bridge-target="_top" lang={`l${n}`}>
         <head>
@@ -332,7 +373,9 @@ class Top extends Component<{ n: number; theme: string }> {
           <script type="module" src="/_nexo/bridge.js" data-bridge-track />
           <link rel="stylesheet" href={`/themes/${theme}`} data-bridge-track />
           <link rel="stylesheet" href={`/pages/${n}`} />
-          <style id={`style-${n}`}>{`body { margin: 0 }`}</style>
+          <style id={`style-${n}`}>
+            {`body { margin: 0 } .tall { height: 3000px }`}
+          </style>
         </head>
         <body>
           <h1 id="title">Top {n}</h1>
@@ -351,6 +394,22 @@ class Top extends Component<{ n: number; theme: string }> {
           <a id="hover" href={`/top/${n + 1}`} data-bridge-prefetch="hover">
             hover
           </a>
+          <Segment name="note" tag="p">
+            <a id="note-link" href={`/top/${n + 1}`} data-bridge-target="note">
+              note
+            </a>{' '}
+            note {n}
+          </Segment>
+          {lazy ? <div class="tall" /> : null}
+          {lazy ? (
+            <Segment
+              name="footer"
+              data-bridge-src="/footer"
+              data-bridge-load="viewport"
+            >
+              loading footer
+            </Segment>
+          ) : null}
           <script>{'window.ran = (window.ran || 0) + 1'}</script>
         </body>
       </html>
@@ -454,7 +513,8 @@ const router = boat()
     if (!ctx.request.headers.get('sec-purpose'))
       requests.push(ctx.url.pathname + ctx.url.search)
     const theme = ctx.url.searchParams.get('theme') ?? topTheme
-    return render(<Top n={Number(ctx.params.n)} theme={theme} />)
+    const lazy = ctx.url.searchParams.has('lazy')
+    return render(<Top n={Number(ctx.params.n)} theme={theme} lazy={lazy} />)
   })
   .get('/themes/:name', () => css('body{}'))
   .get('/pages/:n', (ctx) => css(`#title{color:rgb(${ctx.params.n},0,0)}`))
@@ -470,6 +530,14 @@ const router = boat()
       { only: only(ctx.url) },
     )
   })
+  .get('/footer', (ctx) =>
+    render(<Segment name="footer">footer loaded</Segment>, {
+      only: only(ctx.url),
+    }),
+  )
+  .post('/ping', (ctx) =>
+    render(<Segment name="errors">pinged</Segment>, { only: only(ctx.url) }),
+  )
   .get('/flaky', (ctx) =>
     render(<Segment name="flaky">flaky loaded</Segment>, {
       only: only(ctx.url),
@@ -777,6 +845,15 @@ describe.if(chrome)('when things go wrong', () => {
 })
 
 describe.if(chrome)('history and scroll', () => {
+  test('an error page without the segments goes into every target, whole', async () => {
+    await open('/shelf/1')
+    await page.click('#main-error-two')
+    await page.waitForSelector(
+      '[data-bridge-segment="errors"]:has-text("Lost room")',
+    )
+    expect(await text('[data-bridge-segment="shelf"]')).toContain('Lost room')
+  })
+
   test('the fresh element an error page goes into carries no loading state', async () => {
     await open('/shelf/1')
     await page.click('#main-error')
@@ -852,6 +929,54 @@ describe.if(chrome)('history and scroll', () => {
     await page.waitForTimeout(300)
     expect(requests).toEqual(['/shelf/2?etag&break&_segment=shelf,counter'])
     expect(await text('#version')).toBe('v1')
+  })
+
+  test('a newer page arriving after a click on the restored content leaves the click alone', async () => {
+    await open('/shelf/1')
+    version = 1
+    await page.click('#etag-slow')
+    await page.waitForSelector('text=v1')
+    await page.goBack()
+    await page.waitForSelector('text=game 1')
+    version = 2
+    await page.goForward() // stale v1 at once; the revalidation takes 200 ms
+    await page.waitForSelector('text=v1')
+    await page.click('#next') // no entry: the URL stays
+    await page.waitForSelector('text=game 3')
+    await page.waitForTimeout(400)
+    expect(await text('[data-bridge-segment="shelf"] li')).toBe('game 3')
+  })
+
+  test('two returns in a row, the first cut short: everything between is still brought', async () => {
+    await open('/shelf/1')
+    await page.click('#nostore-slow')
+    await page.waitForSelector('text=game 2')
+    await page.click('#tally-push')
+    await page.waitForSelector('text=tally 3')
+    await page.evaluate(() => {
+      history.back()
+      setTimeout(() => history.back(), 20)
+    })
+    await page.waitForSelector('text=game 1')
+    await page.waitForFunction(
+      () =>
+        document.querySelector('[data-bridge-segment="tally"]')!.textContent ===
+        'tally 1',
+    )
+    expect(page.url()).toBe(url('/shelf/1'))
+  })
+
+  test('a return brings what changed between the entries, not the whole page again', async () => {
+    await open('/shelf/1')
+    await page.click('#top-slow') // the whole page
+    await page.waitForSelector('text=game 2')
+    await page.click('#push') // the shelf only
+    await page.waitForSelector('text=game 3')
+    requests.length = 0
+    await page.goBack()
+    await page.waitForSelector('text=game 2')
+    expect(requests).toEqual(['/shelf/2?delay=300&_segment=shelf,counter'])
+    expect(await sameDocument()).toBe(true)
   })
 
   test('a newer page arriving while the visitor asked for something else yields to it', async () => {
@@ -1326,6 +1451,19 @@ describe.if(chrome)('lazy content, markers and prefetch', () => {
     expect(await text('[data-bridge-segment="side"]')).toContain('side loaded')
   })
 
+  test('a lazy link a click would leave to the browser is not followed', async () => {
+    let away = 0
+    await page.route('**/example.invalid/**', (route) => {
+      away++
+      return route.abort()
+    })
+    await open('/shelf/1?lazy')
+    await page.waitForSelector('text=side loaded')
+    await page.waitForTimeout(200)
+    await page.unrouteAll()
+    expect(away).toBe(0)
+  })
+
   test('lazy content that fails stays put, and is asked for again on sight', async () => {
     await open('/shelf/1?lazy')
     await page.route(
@@ -1409,6 +1547,19 @@ describe.if(chrome)('lazy content, markers and prefetch', () => {
     await page.unrouteAll()
     expect(away).toBe(0)
     expect(requests).toEqual([])
+  })
+
+  test('after a change dropped the cache, hovering brings the page again', async () => {
+    await open('/shelf/1')
+    await page.hover('#hover')
+    await page.waitForTimeout(100)
+    await page.click('#ping-go')
+    await page.waitForSelector('text=pinged')
+    requests.length = 0
+    await page.hover('#title')
+    await page.hover('#hover')
+    await page.waitForTimeout(100)
+    expect(requests).toEqual(['/shelf/2?_segment=shelf,counter'])
   })
 
   test('a link left to the browser gets Speculation Rules instead', async () => {
@@ -1498,6 +1649,35 @@ describe.if(chrome)('the whole page (_top)', () => {
       'bridge:swap',
       'bridge:swapped',
     ])
+  })
+
+  test('a page cancelled while its stylesheet loads leaves no stylesheet behind', async () => {
+    await open('/top/1')
+    let held = true
+    await page.route(
+      (u) => u.pathname === '/pages/2',
+      async (route) => {
+        if (held) await new Promise((done) => setTimeout(done, 400))
+        held = false
+        await route.continue()
+      },
+    )
+    await page.click('#next') // waits for /pages/2
+    await page.waitForTimeout(50)
+    await page.click('#note-link') // a segment: the whole page is cancelled
+    await page.waitForSelector('text=note 2')
+    await page.waitForTimeout(600)
+    await page.unrouteAll()
+    expect(await page.$('link[href$="/pages/2"]')).toBeNull()
+    expect(await text('#title')).toBe('Top 1')
+  })
+
+  test('a segment filling itself under a _top page keeps the scroll', async () => {
+    await open('/top/1?lazy')
+    await page.evaluate(() => scrollTo(0, document.body.scrollHeight))
+    await page.waitForSelector('text=footer loaded')
+    await page.waitForTimeout(100)
+    expect(await page.evaluate(() => scrollY)).toBeGreaterThan(0)
   })
 
   test('prefetch="hover" on a whole-page link brings it into the cache', async () => {

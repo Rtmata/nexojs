@@ -9,7 +9,7 @@ import { targetOf, type Target } from './target'
  */
 export interface Options {
   target: Target
-  /** `push` or `replace` the URL; nothing by default for segments. */
+  /** `push` or `replace` the URL; a whole page pushes by default, segments record nothing. */
   history: 'push' | 'replace' | null
   /** `keep` the scroll (default for segments), go to the `top`, or to the `target`. */
   scroll: 'top' | 'keep' | 'target'
@@ -22,11 +22,14 @@ export interface Options {
   busy: string | null
 }
 
-export function optionsOf(element: Element): Options {
-  const target = targetFor(element)
+/** `target`: the one the options are for; the element's own (read like any attribute) unless the caller has another in mind, as lazy content does. */
+export function optionsOf(
+  element: Element,
+  target: Target = targetFor(element),
+): Options {
   return {
     target,
-    ...modesOf(element, target.kind === 'top' ? 'top' : 'keep'),
+    ...modesOf(element, target.kind),
     transition: inherited(element, 'transition') === 'true',
     fail: inherited(element, 'fail'),
     busy: inherited(element, 'busy'),
@@ -37,11 +40,12 @@ function targetFor(element: Element): Target {
   return targetOf(inherited(element, 'target'), enclosingSegment(element))
 }
 
-/** The three attributes with a fixed set of values; the page scrolls to the top by default, a segment keeps it. */
-function modesOf(element: Element, scroll: 'top' | 'keep') {
+/** The three attributes with a fixed set of values. Their defaults follow the target: a whole page makes an entry and starts at the top, a segment makes none and keeps the scroll. */
+function modesOf(element: Element, kind: Target['kind']) {
+  const top = kind === 'top'
   return {
-    history: oneOf(element, 'history', HISTORY, null),
-    scroll: oneOf(element, 'scroll', SCROLL, scroll),
+    history: oneOf(element, 'history', HISTORY, top ? 'push' : null),
+    scroll: oneOf(element, 'scroll', SCROLL, top ? 'top' : 'keep'),
     swap: oneOf(element, 'swap', SWAP, 'replace'),
   }
 }

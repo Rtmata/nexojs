@@ -1,9 +1,11 @@
 import { samePage } from '../../shared/bridge/segment-url'
 import { SEGMENT_ATTRIBUTE } from '../../shared/bridge/vocabulary'
+import { isPlainNavigation, plainClickOn } from './click'
 import { QuietFallback } from './fallback'
 import type { Wanted } from './loader'
 import { Navigation, type Session } from './navigation'
 import { optionsOf, type Options } from './options'
+import type { Target } from './target'
 import { parsed } from './origin'
 import { BySegments } from './segments'
 import { candidates, Watch } from './watch'
@@ -29,6 +31,9 @@ function urlOf(element: Element): URL | null {
  * nothing: the element is released to be asked for again on sight. What
  * just arrived from a URL never asks for that same URL again, so a
  * segment that renders itself with its own `src` loads once, not forever.
+ * A link is followed only when a click on it would be bridge's: another
+ * site, a download, one that opens elsewhere are the browser's. A segment
+ * fills itself as its own target, whatever the page's: its scroll stays.
  */
 export class Lazy {
   private readonly watch = new Watch(SELF_LOADING, 'load', (element) =>
@@ -52,11 +57,13 @@ export class Lazy {
     const url = urlOf(element)
     if (!url) return
     const name = element.getAttribute(SEGMENT_ATTRIBUTE)!
-    const options = { ...optionsOf(element), history: null } as const
+    const target: Target = { kind: 'segments', names: [name] }
+    const options = { ...optionsOf(element, target), history: null } as const
     this.navigate(element, { url, method: 'GET' }, [name], options)
   }
 
   private followLink(link: HTMLAnchorElement): void {
+    if (!isPlainNavigation(plainClickOn(link))) return
     const options = optionsOf(link)
     const url = urlOf(link)
     if (options.target.kind !== 'segments' || !url) return

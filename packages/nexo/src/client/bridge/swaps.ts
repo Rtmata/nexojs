@@ -120,10 +120,10 @@ function mainOf(page: Document): Element {
   return page.querySelector('main') ?? page.body
 }
 
-/** The segment's identity (its attributes), not its loading state: the flight clears that on the element it marked. */
+/** The segment's identity (its attributes), not its loading state: the flight clears that on the element it marked. The content is copied, the response keeps its own: several targets may take it, and a landing may still need the page whole. */
 function wrapped(current: Element, content: Element): Element {
   const copy = current.cloneNode(false) as Element
   copy.removeAttribute('aria-busy')
-  copy.append(...content.childNodes)
+  copy.append(...content.cloneNode(true).childNodes)
   return copy
 }

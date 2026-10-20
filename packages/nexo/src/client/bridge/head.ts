@@ -36,10 +36,13 @@ export class HeadMerge {
   /**
    * The new stylesheets, placed and waited for before the body changes.
    * A sheet that takes too long is not worth a frozen page: the wait gives
-   * up after a while.
+   * up after a while. A page cancelled meanwhile (`signal`) takes its
+   * sheets out again: they were never this page's.
    */
-  async loadStyles(): Promise<void> {
+  async loadStyles(signal: AbortSignal): Promise<void> {
     const sheets = this.fresh.filter(isStylesheet)
+    const undo = () => sheets.forEach((sheet) => sheet.remove())
+    signal.addEventListener('abort', undo, { once: true })
     await Promise.all(sheets.map((sheet) => this.load(sheet)))
   }
 

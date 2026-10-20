@@ -33,8 +33,8 @@ export function swapperFor(options: Options): Swapper | null {
 export interface Prepared {
   /** The page must come the browser's way instead: a tracked asset changed since this page loaded. */
   outdated: boolean
-  /** Waited for before the swap: the stylesheets a new page brings. */
-  ready(): Promise<void>
+  /** Waited for before the swap: the stylesheets a new page brings. Aborted, whatever it placed goes out again. */
+  ready(signal: AbortSignal): Promise<void>
   /** The swap itself; the elements that are new afterwards. */
   apply(): Element[]
 }

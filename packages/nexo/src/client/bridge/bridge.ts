@@ -79,15 +79,18 @@ function follow(
   const swapper = swapperFor(options)
   if (!swapper) return
   event.preventDefault()
-  const fallback = new BrowserFallback(trigger, wanted)
-  const chosen = withEntry(options, swapper)
-  void new Navigation(trigger, wanted, swapper, chosen, session, fallback).run()
+  void navigation(trigger, wanted, swapper, options).run()
 }
 
-/** A whole page always makes an entry unless told to replace; segments only when asked. */
-function withEntry(options: Options, swapper: Swapper): Options {
-  if (!swapper.targets.includes(TOP)) return options
-  return { ...options, history: options.history ?? 'push' }
+/** A navigation the visitor asked for: the browser is its fallback. */
+function navigation(
+  trigger: Element,
+  wanted: Omit<Wanted, 'segments'>,
+  swapper: Swapper,
+  options: Options,
+): Navigation {
+  const fallback = new BrowserFallback(trigger, wanted)
+  return new Navigation(trigger, wanted, swapper, options, session, fallback)
 }
 
 /** Back/forward: what changed to reach that entry is swapped again (a stale copy will do), nothing recorded; whatever fails rewrites the entry, never adds one. */

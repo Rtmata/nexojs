@@ -23,6 +23,9 @@ export interface Session {
  * response goes to the `Fallback`.
  */
 export class Navigation {
+  /** The requests counted on the targets when this one started: the same later means nothing came after it. */
+  private turn = 0
+
   constructor(
     private readonly trigger: Element,
     private readonly wanted: Omit<Wanted, 'segments'>,
@@ -51,11 +54,10 @@ export class Navigation {
 
   private start(): Flight {
     const { targets } = this.swapper
-    return this.session.inflight.start(
-      targets,
-      this.trigger,
-      this.swapper.busy(),
-    )
+    const { inflight } = this.session
+    const flight = inflight.start(targets, this.trigger, this.swapper.busy())
+    this.turn = inflight.count(targets)
+    return flight
   }
 
   /** The request itself; an aborted one ends quietly, its successor took over — even when its response still arrives. */
@@ -115,8 +117,7 @@ export class Navigation {
     const swap = () => prepared.apply()
     const detail = { ...loaded, targets: this.swapper.targets, swap }
     if (!announce(this.trigger, 'bridge:swap', detail)) return
-    await prepared.ready()
-    if (flight.aborted) return
+    if (!(await ready(prepared, flight))) return
     const scrollBefore = scrollY // read before the new content can shorten the page
     const elements = await this.transition(() =>
       flight.aborted ? null : swap(),
@@ -198,12 +199,13 @@ export class Navigation {
     return new Navigation(trigger, wanted, swapper, options, session, fallback)
   }
 
-  /** A stale page shown going back: when a newer one arrives, the visitor is still there and asked for nothing else meanwhile, it is shown as a navigation of its own. */
+  /** A stale page shown going back: when a newer one arrives, the visitor is still there and nothing else was asked for these targets meanwhile (a click on the restored content stands), it is shown as a navigation of its own. */
   private followUp(loaded: Loaded): void {
     void loaded.revalidated?.then((changed) => {
       const here = samePage(new URL(location.href), loaded.url)
-      const idle = this.session.inflight.idle(this.swapper.targets)
-      if (changed && here && idle) void this.again().run()
+      const untouched =
+        this.session.inflight.count(this.swapper.targets) === this.turn
+      if (changed && here && untouched) void this.again().run()
     })
   }
 
@@ -212,6 +214,13 @@ export class Navigation {
     const { trigger, swapper, options, session, fallback } = this
     return new Navigation(trigger, wanted, swapper, options, session, fallback)
   }
+}
+
+/** Whether the swap may go on once what it waits for is in: not for a flight cancelled before or meanwhile. */
+async function ready(prepared: Prepared, flight: Flight): Promise<boolean> {
+  if (flight.aborted) return false
+  await prepared.ready(flight.signal)
+  return !flight.aborted
 }
 
 /** The element a `#hash` names, if any; a hash that can't be read names none. */
