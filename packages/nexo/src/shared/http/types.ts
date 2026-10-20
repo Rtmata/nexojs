@@ -24,6 +24,12 @@ export interface Context<P extends Params = Params, L extends string = string> {
   lang?: L
   /** Build a link to a named route, in this request's language by default. */
   link: Link<L>
+  /**
+   * What keep's `hedge` gives every request: the token a form puts in its
+   * `_hedge` field so the server knows the submission came from here.
+   * Absent only when hedge is off (`keep({ hedge: false })`).
+   */
+  hedge?: { token: string }
 }
 
 /** The context of a route declared per language: `lang` is always there. */

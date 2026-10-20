@@ -7,6 +7,7 @@ import type {
 import { listenWithBun, type Listening } from '../dock/bun'
 import { Contexts } from './contexts'
 import { FunctionRouter } from './function-router'
+import { hedge, type HedgeOptions } from './hedge'
 import { compose, hooks, type Hooks, type Middleware } from './middleware'
 
 type Startup = NonNullable<Hooks['onStart']>
@@ -71,6 +72,11 @@ export interface KeepOptions {
    * heartbeat more often than this stays open.
    */
   idleTimeout?: number
+  /**
+   * Whether requests that change something must come from this site (see
+   * `hedge`): on by default, `false` turns it off, an object tunes it.
+   */
+  hedge?: false | HedgeOptions
 }
 
 export interface StopOptions {
@@ -114,8 +120,8 @@ export function keep(options: KeepOptions): Server {
 }
 
 /**
- * The server (pattern: facade): middlewares around the request flow, the
- * static folders, and listening.
+ * The server (pattern: facade): middlewares around the request flow (hedge
+ * first, outermost, unless turned off), the static folders, and listening.
  */
 class KeepServer implements Server {
   private readonly router: KeepRouter
@@ -140,6 +146,7 @@ class KeepServer implements Server {
     this.contexts = new Contexts(this.router)
     this.flow = new RequestFlow(this.router, this.folders, this.contexts)
     this.idleTimeout = options.idleTimeout ?? 120
+    if (options.hedge !== false) this.middlewares.push(hedge(options.hedge))
   }
 
   get url(): URL | null {
