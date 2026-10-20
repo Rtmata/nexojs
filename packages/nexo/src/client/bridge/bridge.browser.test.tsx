@@ -154,6 +154,7 @@ class Shelf extends Component<{ n: number; q: URLSearchParams }> {
               id="hover-slow"
               href={`/shelf/${n + 1}?delay=150`}
               data-bridge-prefetch="hover"
+              data-bridge-prefetch-delay="0"
             >
               hover slow
             </a>
@@ -161,6 +162,15 @@ class Shelf extends Component<{ n: number; q: URLSearchParams }> {
               id="hover-flaky"
               href={`/shelf/${n + 1}?flaky`}
               data-bridge-prefetch="hover"
+              data-bridge-prefetch-delay="0"
+            >
+              hover flaky
+            </a>
+            <a
+              id="hover-later"
+              href={`/shelf/${n + 30}`}
+              data-bridge-prefetch="hover"
+              data-bridge-prefetch-delay="300"
             >
               hover flaky
             </a>
@@ -1580,6 +1590,45 @@ describe.if(chrome)('lazy content, markers and prefetch', () => {
     await page.waitForSelector('text=game 2')
     const slow = requests.filter((r) => r.startsWith('/shelf/2?delay=150'))
     expect(slow).toEqual(['/shelf/2?delay=150&_segment=shelf,counter'])
+  })
+
+  test('a hover waits a moment: a cursor passing through brings nothing', async () => {
+    await open('/shelf/1')
+    requests.length = 0
+    await page.hover('#hover')
+    await page.hover('#title') // gone before 80 ms
+    await page.waitForTimeout(200)
+    expect(requests).toEqual([])
+    await page.hover('#hover')
+    await page.waitForTimeout(200)
+    expect(requests).toEqual(['/shelf/2?_segment=shelf,counter'])
+  })
+
+  test('data-bridge-prefetch-delay sets the wait', async () => {
+    await open('/shelf/1')
+    requests.length = 0
+    await page.hover('#hover-later')
+    await page.waitForTimeout(150)
+    expect(requests).toEqual([])
+    await page.waitForTimeout(300)
+    expect(requests).toEqual(['/shelf/31?_segment=shelf,counter'])
+  })
+
+  test('a visitor saving data gets nothing ahead of a click', async () => {
+    await open('/shelf/1')
+    await page.evaluate(() =>
+      Object.defineProperty(navigator, 'connection', {
+        value: { saveData: true },
+        configurable: true,
+      }),
+    )
+    requests.length = 0
+    await page.hover('#hover')
+    await page.waitForTimeout(200)
+    expect(requests).toEqual([])
+    await page.click('#hover')
+    await page.waitForSelector('text=game 2')
+    expect(requests).toEqual(['/shelf/2?_segment=shelf,counter'])
   })
 
   test('a link a click would leave to the browser is not prefetched', async () => {
