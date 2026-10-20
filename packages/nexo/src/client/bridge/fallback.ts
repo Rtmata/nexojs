@@ -11,7 +11,8 @@ import type { Outcome } from './navigation'
  * cancelling it leaves the page as it is.
  */
 export interface Fallback {
-  retry(error: unknown): void
+  /** No response came: `again` sends the same request once more (a keyed one, allowed to); null when it may not be. How it ended. */
+  retry(error: unknown, again: Again | null): Promise<Outcome>
   /** `again` brings the page another way (as the whole page); null when there is no other way but the browser. How it ended. */
   land(loaded: Loaded, error: unknown, again: Again | null): Promise<Outcome>
   /** The fallback of the landing itself: a GET of the page the response pointed at, which can fail in turn. */
@@ -54,9 +55,10 @@ export const RETURN: Arrival = {
  * request is repeated (RFC 9110 §9.2.2), the way the browser would — a
  * GET (a link, a search form, a landing) by loading its URL, the fields
  * are in it. A POST may have reached the server before the connection
- * broke, so it is never sent again on bridge's own: `bridge:fail` tells
- * the page and the form stays as it is, like the browser's error page
- * lets the visitor decide. A response that couldn't be swapped: the page
+ * broke, so it is sent again only under its `Idempotency-Key`, which keep
+ * answers once (`echo`) — once, and quietly; after that `bridge:fail`
+ * tells the page and the form stays as it is, like the browser's error
+ * page lets the visitor decide. A response that couldn't be swapped: the page
  * it points at is brought another way (as the whole page); when there is
  * no other way, the browser loads its URL as a plain GET.
  */
@@ -67,9 +69,13 @@ export class BrowserFallback implements Fallback {
     private readonly arrival: Arrival = VISIT,
   ) {}
 
-  retry(error: unknown): void {
-    if (!failed(this.trigger, this.wanted, { error })) return
-    if (this.wanted.method === 'GET') this.arrival.go(this.wanted.url)
+  /** A keyed request goes once more, quietly; otherwise the page hears of it, and a GET is loaded by the browser. */
+  async retry(error: unknown, again: Again | null): Promise<Outcome> {
+    if (again) return again()
+    if (!failed(this.trigger, this.wanted, { error })) return 'cancelled'
+    if (this.wanted.method !== 'GET') return 'left'
+    this.arrival.go(this.wanted.url)
+    return 'left'
   }
 
   async land(
@@ -107,9 +113,11 @@ export class QuietFallback implements Fallback {
     private readonly again: () => void,
   ) {}
 
-  retry(error: unknown): void {
+  /** Lazy content is a GET: nothing to send again on its own; asked for again on sight instead. */
+  async retry(error: unknown): Promise<Outcome> {
     failed(this.trigger, this.wanted, { error })
     this.again()
+    return 'left'
   }
 
   async land(loaded: Loaded, error: unknown): Promise<Outcome> {

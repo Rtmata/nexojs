@@ -7,6 +7,7 @@ import type {
 import { listenWithBun, type Listening } from '../dock/bun'
 import { Contexts } from './contexts'
 import { bunker, type BunkerOptions } from './bunker'
+import { echo, type EchoOptions } from './echo'
 import { FunctionRouter } from './function-router'
 import { hedge, type HedgeOptions } from './hedge'
 import { compose, hooks, type Hooks, type Middleware } from './middleware'
@@ -84,6 +85,11 @@ export interface KeepOptions {
    * object tunes them or adds a Content Security Policy.
    */
   bunker?: false | BunkerOptions
+  /**
+   * A request sent twice with the same `Idempotency-Key` is answered once
+   * (see `echo`): always on, this tunes how long and where answers are kept.
+   */
+  echo?: EchoOptions
 }
 
 export interface StopOptions {
@@ -134,7 +140,7 @@ export function keep(options: KeepOptions): Server {
 /**
  * The server (pattern: facade): middlewares around the request flow
  * (bunker outermost so every answer gets its headers, then hedge, unless
- * turned off), the static folders, and listening.
+ * turned off; then echo, always), the static folders, and listening.
  */
 class KeepServer implements Server {
   private readonly router: KeepRouter
@@ -161,6 +167,7 @@ class KeepServer implements Server {
     this.idleTimeout = options.idleTimeout ?? 120
     if (options.bunker !== false) this.middlewares.push(bunker(options.bunker))
     if (options.hedge !== false) this.middlewares.push(hedge(options.hedge))
+    this.middlewares.push(echo(options.echo))
   }
 
   get url(): URL | null {

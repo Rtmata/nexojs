@@ -71,13 +71,20 @@ export function isPlainSubmission(submission: Submission): boolean {
   return sameOrigin(submission.action, submission.pageOrigin)
 }
 
-/** The request: GET puts the fields in the URL, like the browser; anything else sends them as the body, encoded as the form says. */
+/** The request: GET puts the fields in the URL, like the browser; anything else sends them as the body, encoded as the form says, with a key of its own so a retry is answered once. */
 export function wantedFrom(submission: Submission): Omit<Wanted, 'segments'> {
   const { method, fields, enctype } = submission
   const url = new URL(submission.action)
-  if (method !== 'GET') return { url, method, body: bodyOf(fields, enctype) }
+  if (method !== 'GET')
+    return { url, method, body: bodyOf(fields, enctype), key: freshKey() }
   url.search = new URLSearchParams(fields as unknown as string[][]).toString()
   return { url, method }
+}
+
+/** 128 random bits as hex: `getRandomValues` works on plain HTTP too, unlike `randomUUID`. */
+function freshKey(): string {
+  const bytes = crypto.getRandomValues(new Uint8Array(16))
+  return [...bytes].map((b) => b.toString(16).padStart(2, '0')).join('')
 }
 
 export const MULTIPART = 'multipart/form-data'

@@ -74,8 +74,8 @@ export class Navigation {
       if (!flight.aborted) await this.show(loaded, flight)
     } catch (error) {
       if (flight.aborted) return
-      this.fallback.retry(error)
-      this.outcome = 'left'
+      flight.end() // before a retry starts its own, so none is cancelled
+      this.outcome = await this.fallback.retry(error, this.onceMore())
     } finally {
       flight.end()
     }
@@ -237,6 +237,22 @@ export class Navigation {
     const wanted = { ...this.wanted, stale: false }
     const { trigger, swapper, options, session, fallback } = this
     return new Navigation(trigger, wanted, swapper, options, session, fallback)
+  }
+
+  /** The same request once more, same key, and not a third time: null when it has no key or may not. */
+  private onceMore(): (() => Promise<Outcome>) | null {
+    if (!this.wanted.key || !this.options.retry) return null
+    const { trigger, wanted, swapper, session, fallback } = this
+    const options = { ...this.options, retry: false }
+    const next = new Navigation(
+      trigger,
+      wanted,
+      swapper,
+      options,
+      session,
+      fallback,
+    )
+    return () => next.run()
   }
 }
 

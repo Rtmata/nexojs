@@ -18,6 +18,8 @@ export interface Wanted {
   url: URL
   method: string
   body?: FormData | URLSearchParams
+  /** One per attempt of a request that changes something, the same on a retry: the server answers it once (keep's `echo`). */
+  key?: string
   segments: string[]
   /** A stale entry will do (going back): shown at once, asked again behind. */
   stale?: boolean
@@ -168,7 +170,7 @@ export class Loader {
     const response = await fetch(key, {
       method: wanted.method,
       body: wanted.body,
-      headers: { accept: 'text/html', ...headers },
+      headers: { accept: 'text/html', ...keyed(wanted), ...headers },
       signal,
     })
     return cachedFrom(response, key)
@@ -176,6 +178,11 @@ export class Loader {
 }
 
 const NO_ABORT = new AbortController().signal
+
+/** The `Idempotency-Key` header, when the request has a key. */
+function keyed(wanted: Wanted): Record<string, string> {
+  return wanted.key ? { 'idempotency-key': wanted.key } : {}
+}
 
 /** What is asked for: the URL with its segments; the `#hash` is the page's business, not the request's, so one entry serves every hash. */
 function keyOf(wanted: Pick<Wanted, 'url' | 'segments'>): string {

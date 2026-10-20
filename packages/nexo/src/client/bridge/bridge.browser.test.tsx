@@ -261,6 +261,14 @@ class Shelf extends Component<{ n: number; q: URLSearchParams }> {
             <form id="order" action="/order" method="post">
               <button id="order-go">order</button>
             </form>
+            <form
+              id="order-once"
+              action="/order"
+              method="post"
+              data-bridge-retry="false"
+            >
+              <button id="order-once-go">order, one try</button>
+            </form>
             <form id="notify" action="/notify" method="post">
               <button id="notify-go">notify</button>
             </form>
@@ -467,6 +475,8 @@ class Top extends Component<{
 
 const requests: string[] = []
 let orders = 0
+/** The Idempotency-Key each order came with. */
+const keys: (string | null)[] = []
 let notifies = 0
 const intents: string[] = []
 /** The shelf's version, told by an ETag when `?etag` asks for one. */
@@ -498,8 +508,9 @@ const router = boat()
     const data = await ctx.request.formData()
     return redirect(`/shelf/${data.get('n')}`, 303)
   })
-  .post('/order', () => {
+  .post('/order', (ctx) => {
     orders++
+    keys.push(ctx.request.headers.get('idempotency-key'))
     return redirect('/thanks', 303)
   })
   .post('/notify', (ctx) => {
@@ -820,6 +831,57 @@ describe.if(chrome)('when things go wrong', () => {
     expect(page.url()).toBe(url('/shelf/1'))
     expect(intents).toEqual([])
     expect(await page.getAttribute('#intent', 'data-bridge-active')).toBeNull()
+  })
+
+  test('a POST whose response was lost is sent again with its key, and the server answers it once', async () => {
+    await open('/shelf/1')
+    orders = 0
+    keys.length = 0
+    let lost = false
+    await page.route(
+      (u) => u.pathname === '/order',
+      async (route) => {
+        if (lost) return route.continue()
+        lost = true
+        await route.fetch() // the server gets it; the browser never sees the answer
+        return route.abort()
+      },
+    )
+    await page.click('#order-go')
+    await page.waitForSelector('text=Thanks')
+    await page.unrouteAll()
+    expect(orders).toBe(1)
+    expect(keys).toEqual([expect.stringMatching(/^[0-9a-f]{32}$/)])
+    expect(await sameDocument()).toBe(true)
+    // the second fetch is the quiet retry; the fail is the landing's: a page without the segment (decision 12)
+    expect(await log()).toEqual([
+      'bridge:fetch',
+      'bridge:fetch',
+      'bridge:fail',
+      'bridge:swap',
+      'bridge:swapped',
+    ])
+  })
+
+  test('data-bridge-retry="false": one try, then bridge:fail', async () => {
+    await open('/shelf/1')
+    let tries = 0
+    await page.route(
+      (u) => u.pathname === '/order',
+      (route) => {
+        if (route.request().resourceType() !== 'fetch') return route.continue()
+        tries++
+        return route.abort()
+      },
+    )
+    await page.click('#order-once-go')
+    await page.waitForFunction(() =>
+      (window as unknown as { log: string[] }).log.includes('bridge:fail'),
+    )
+    await page.waitForTimeout(100)
+    await page.unrouteAll()
+    expect(tries).toBe(1)
+    expect(await sameDocument()).toBe(true)
   })
 
   test('a navigation that joined a prefetch which then fails asks normally', async () => {

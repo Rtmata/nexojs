@@ -23,6 +23,8 @@ export interface Options {
   fail: string | null
   /** Another segment marked busy while loading: a global indicator. */
   busy: string | null
+  /** A request that changes something and got no response is sent once more with the same key (true by default); `data-bridge-retry="false"` turns it off. */
+  retry: boolean
 }
 
 /**
@@ -43,6 +45,7 @@ export interface VisitOptions {
   transition?: boolean
   fail?: string | null
   busy?: string | null
+  retry?: boolean
   from?: Element
 }
 
@@ -88,6 +91,7 @@ function optionsRead(target: Target, read: Reader): Options {
     transition: read('transition') === 'true',
     fail: read('fail'),
     busy: read('busy'),
+    retry: read('retry') !== 'false',
   }
 }
 
