@@ -30,6 +30,12 @@ export interface Context<P extends Params = Params, L extends string = string> {
    * Absent only when hedge is off (`keep({ hedge: false })`).
    */
   hedge?: { token: string }
+  /**
+   * What keep's `bunker` gives every request: a nonce for the page's own
+   * inline scripts under its Content Security Policy
+   * (`<script nonce={ctx.bunker.nonce}>`). Absent only when bunker is off.
+   */
+  bunker?: { nonce: string }
 }
 
 /** The context of a route declared per language: `lang` is always there. */

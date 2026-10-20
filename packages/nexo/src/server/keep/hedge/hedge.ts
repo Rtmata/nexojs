@@ -1,6 +1,8 @@
 import type { Context, Handler } from '../../../shared/http/types'
 import type { Middleware } from '../middleware'
-import { mint, TokenCookie } from './cookie'
+import { mint } from '../random'
+import { withHeaders } from '../response'
+import { TokenCookie } from './cookie'
 import {
   FetchSite,
   IssuedToken,
@@ -97,12 +99,12 @@ class Issued {
     return new Issued(brought ?? mint(), cookie, brought === null)
   }
 
-  /** The response with the cookie, when the request had none; copied, since a redirect's headers can't be touched. */
+  /** The response with the cookie, when the request had none. */
   stamp(response: Response): Response {
     if (!this.fresh) return response
-    const stamped = new Response(response.body, response)
-    stamped.headers.append('set-cookie', this.cookie.write(this.token))
-    return stamped
+    return withHeaders(response, [
+      ['set-cookie', this.cookie.write(this.token)],
+    ])
   }
 }
 

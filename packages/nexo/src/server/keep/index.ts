@@ -9,5 +9,6 @@ export type {
 export { files } from './files'
 export { HEDGE_FIELD, HEDGE_HEADER } from './hedge'
 export type { HedgeOptions } from './hedge'
+export type { BunkerOptions, Directives } from './bunker'
 export { hooks } from './middleware'
 export type { Hooks, Middleware } from './middleware'

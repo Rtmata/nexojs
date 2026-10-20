@@ -33,9 +33,3 @@ export class TokenCookie {
     return `${this.name}=${token}; Path=/; HttpOnly; SameSite=Lax${secure}`
   }
 }
-
-/** A fresh token: 128 random bits, as hex. */
-export function mint(): string {
-  const bytes = crypto.getRandomValues(new Uint8Array(16))
-  return [...bytes].map((b) => b.toString(16).padStart(2, '0')).join('')
-}

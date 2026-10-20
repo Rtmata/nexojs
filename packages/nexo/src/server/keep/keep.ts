@@ -6,6 +6,7 @@ import type {
 } from '../../shared/http/types'
 import { listenWithBun, type Listening } from '../dock/bun'
 import { Contexts } from './contexts'
+import { bunker, type BunkerOptions } from './bunker'
 import { FunctionRouter } from './function-router'
 import { hedge, type HedgeOptions } from './hedge'
 import { compose, hooks, type Hooks, type Middleware } from './middleware'
@@ -77,6 +78,12 @@ export interface KeepOptions {
    * `hedge`): on by default, `false` turns it off, an object tunes it.
    */
   hedge?: false | HedgeOptions
+  /**
+   * The headers every response carries to tell the browser what it may do
+   * with it (see `bunker`): on by default, `false` turns them off, an
+   * object tunes them or adds a Content Security Policy.
+   */
+  bunker?: false | BunkerOptions
 }
 
 export interface StopOptions {
@@ -120,8 +127,9 @@ export function keep(options: KeepOptions): Server {
 }
 
 /**
- * The server (pattern: facade): middlewares around the request flow (hedge
- * first, outermost, unless turned off), the static folders, and listening.
+ * The server (pattern: facade): middlewares around the request flow
+ * (bunker outermost so every answer gets its headers, then hedge, unless
+ * turned off), the static folders, and listening.
  */
 class KeepServer implements Server {
   private readonly router: KeepRouter
@@ -146,6 +154,7 @@ class KeepServer implements Server {
     this.contexts = new Contexts(this.router)
     this.flow = new RequestFlow(this.router, this.folders, this.contexts)
     this.idleTimeout = options.idleTimeout ?? 120
+    if (options.bunker !== false) this.middlewares.push(bunker(options.bunker))
     if (options.hedge !== false) this.middlewares.push(hedge(options.hedge))
   }
 
