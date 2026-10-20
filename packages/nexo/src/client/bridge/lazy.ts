@@ -34,6 +34,8 @@ function urlOf(element: Element): URL | null {
  * A link is followed only when a click on it would be bridge's: another
  * site, a download, one that opens elsewhere are the browser's. A segment
  * fills itself as its own target, whatever the page's: its scroll stays.
+ * Nobody asked, so it never gets in the way: a target someone is already
+ * waiting on is left alone, and the element is asked for again on sight.
  */
 export class Lazy {
   private readonly watch = new Watch(SELF_LOADING, 'load', (element) =>
@@ -77,6 +79,7 @@ export class Lazy {
     options: Options,
   ): void {
     const { session } = this
+    if (session.inflight.running(names)) return this.watch.release(element)
     const quiet = new QuietFallback(element, wanted, () =>
       this.watch.release(element),
     )

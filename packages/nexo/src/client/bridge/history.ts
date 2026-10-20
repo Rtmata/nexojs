@@ -41,6 +41,8 @@ export class HistoryKeeper {
   private settling: ReturnType<typeof setTimeout> | undefined
   /** The travel under way, if any: the scroll goes back only for the one that is still it. */
   private trip: object | null = null
+  /** A URL a scroll marker asked for, waiting for the page to settle; null when the address bar is right as it is. */
+  private retitled: string | null = null
 
   constructor(private readonly restore: Restore) {
     history.scrollRestoration = 'manual'
@@ -68,9 +70,9 @@ export class HistoryKeeper {
     this.write(mode === 'push' ? 'pushState' : 'replaceState', this.current)
   }
 
-  /** The current URL changed by other means (a scroll marker): the entry follows, once the page settles. */
+  /** The current URL changed by a scroll marker: the entry follows, once the page settles. */
   retitle(url: URL): void {
-    this.current = { ...this.current, url: url.href }
+    this.retitled = url.href
     this.settle()
   }
 
@@ -95,8 +97,11 @@ export class HistoryKeeper {
     this.settling = setTimeout(() => this.rememberScroll(scrollY), SETTLE)
   }
 
+  /** The entry rewritten where the page is: a marker's URL if one is waiting, else the address bar as it stands — the page may have changed it itself (a tab, a filter), and that stays. */
   private rememberScroll(y: number): void {
-    this.current = { ...this.current, scrollY: y }
+    const url = this.retitled ?? location.href
+    this.retitled = null
+    this.current = { ...this.current, url, scrollY: y }
     this.write('replaceState', this.current)
   }
 

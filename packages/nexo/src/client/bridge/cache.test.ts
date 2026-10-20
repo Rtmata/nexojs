@@ -14,12 +14,19 @@ describe('ResponseCache', () => {
     let clock = 0
     const cache = new ResponseCache(1000, () => clock)
     cache.set('/a', page('<p>a</p>'))
-    clock = 1000
+    clock = 999
     expect(cache.get('/a')?.html).toBe('<p>a</p>')
-    clock = 1001
+    clock = 1000
     expect(cache.get('/a')).toBeUndefined()
     expect(cache.has('/a')).toBe(false)
     expect(cache.getStale('/a')?.html).toBe('<p>a</p>')
+  })
+
+  test('fresh for no time is stale at once, in the same tick', () => {
+    const cache = new ResponseCache(1000, () => 0)
+    cache.set('/a', page('a'), 0)
+    expect(cache.get('/a')).toBeUndefined()
+    expect(cache.getStale('/a')?.html).toBe('a')
   })
 
   test('a response may say how long it is fresh', () => {

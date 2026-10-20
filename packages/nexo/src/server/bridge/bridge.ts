@@ -61,7 +61,7 @@ export class ClientScript {
 
   async answer(request: Request): Promise<Response> {
     const { text, etag } = await this.built
-    if (request.headers.get('if-none-match') === etag)
+    if (matches(request.headers.get('if-none-match'), etag))
       return new Response(null, { status: 304, headers: { etag } })
     return new Response(text, { headers: { ...SCRIPT_HEADERS, etag } })
   }
@@ -76,6 +76,17 @@ export class ClientScript {
 const SCRIPT_HEADERS = {
   'content-type': 'text/javascript; charset=utf-8',
   'cache-control': 'no-cache',
+}
+
+/**
+ * Whether an `If-None-Match` names `etag` (RFC 9110 §13.1.2): a list of
+ * tags is any of them, and a weak one (`W/"…"`, as a proxy that compressed
+ * the script rewrites it) still names the same script.
+ */
+export function matches(ifNoneMatch: string | null, etag: string): boolean {
+  if (!ifNoneMatch) return false
+  const weakless = (tag: string) => tag.trim().replace(/^W\//, '')
+  return ifNoneMatch.split(',').some((tag) => weakless(tag) === etag)
 }
 
 async function contentHash(text: string): Promise<string> {

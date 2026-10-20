@@ -31,6 +31,22 @@ describe('bridge()', () => {
     expect(again.headers.get('etag')).toBe(etag)
   })
 
+  test('a weak tag, or one in a list, still names the script', async () => {
+    const etag = (await get(CLIENT_PATH)).headers.get('etag')!
+    const weak = await get(CLIENT_PATH, {
+      headers: { 'if-none-match': `W/${etag}` },
+    })
+    expect(weak.status).toBe(304)
+    const listed = await get(CLIENT_PATH, {
+      headers: { 'if-none-match': `"other", ${etag}` },
+    })
+    expect(listed.status).toBe(304)
+    const other = await get(CLIENT_PATH, {
+      headers: { 'if-none-match': '"other"' },
+    })
+    expect(other.status).toBe(200)
+  })
+
   test('lets every other request through', async () => {
     expect(await (await get('/')).text()).toBe('home')
     expect((await get('/_nexo/other.js')).status).toBe(404)

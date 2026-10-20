@@ -37,10 +37,10 @@ export class ResponseCache {
     return this._era
   }
 
-  /** A fresh entry: what a navigation ahead may reuse. */
+  /** A fresh entry: what a navigation ahead may reuse. Fresh for 0 ms is stale at once, so the time itself is already past. */
   get(key: string): Cached | undefined {
     const entry = this.entries.get(key)
-    return entry && entry.freshUntil >= this.now() ? entry.cached : undefined
+    return entry && entry.freshUntil > this.now() ? entry.cached : undefined
   }
 
   /** Any entry, fresh or stale. */

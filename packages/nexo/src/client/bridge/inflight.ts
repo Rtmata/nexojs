@@ -11,8 +11,9 @@ import { announce } from './events'
  */
 export class Inflight {
   private readonly flights = new Map<string, Flight>()
-  /** How many requests each target has seen start: a navigation can tell whether anything came after it. */
+  /** How many requests each target has seen start, and all of them together: a navigation can tell whether anything came after it. */
   private readonly started = new Map<string, number>()
+  private all = 0
 
   start(targets: string[], trigger: Element, busy: Element[]): Flight {
     if (targets.includes(TOP)) this.abortAll()
@@ -20,15 +21,22 @@ export class Inflight {
     const flight = new Flight(trigger, busy, () => this.forget(flight))
     for (const name of targets) {
       this.flights.set(name, flight)
-      this.started.set(name, this.count([name]) + 1)
+      this.started.set(name, (this.started.get(name) ?? 0) + 1)
     }
+    this.all++
     return flight
   }
 
-  /** The requests started on these targets so far, all together; a whole page counts on every target. */
+  /** The requests started on these targets so far: a whole page counts on every target, and every target counts on the whole page. */
   count(targets: string[]): number {
-    const names = targets.includes(TOP) ? targets : [...targets, TOP]
+    if (targets.includes(TOP)) return this.all
+    const names = [...targets, TOP]
     return names.reduce((n, name) => n + (this.started.get(name) ?? 0), 0)
+  }
+
+  /** Something is still running on one of these targets (a whole page covers them all). */
+  running(targets: string[]): boolean {
+    return [...targets, TOP].some((name) => this.flights.has(name))
   }
 
   abortAll(): void {

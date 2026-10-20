@@ -54,15 +54,22 @@ export class Prefetch {
  * The browser's own prefetch for links bridge leaves to it, one rule set
  * per eagerness. Browsers read a rule set once, when its script enters the
  * document, so a changed set is a fresh script in place of the old one.
+ * A new body is a new page: the sets start over with it, not with every
+ * link the tab has seen.
  */
 class SpeculationRules {
-  private readonly urls = {
-    conservative: new Set<string>(),
-    moderate: new Set<string>(),
-    eager: new Set<string>(),
+  private urls = this.empty()
+
+  private empty() {
+    return {
+      conservative: new Set<string>(),
+      moderate: new Set<string>(),
+      eager: new Set<string>(),
+    }
   }
 
   scan(root: ParentNode): void {
+    if (root === document.body) this.urls = this.empty()
     const before = this.count()
     for (const link of root.querySelectorAll<HTMLAnchorElement>('a[href]')) {
       const eagerness = EAGERNESS[inherited(link, 'prefetch') ?? '']

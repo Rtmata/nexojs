@@ -16,13 +16,16 @@ export function segmentsOf(url: URL | string): string[] {
  * A copy of `url` asking for `names` (none: a copy asking for the whole
  * page). The commas stay as written — `?_segment=shelf,counter` — so the
  * URL reads as it is typed; `URLSearchParams` would spell them `%2C`.
+ * Each name is encoded on its own, so one with `&`, `+` or `%` arrives
+ * as it was named, the way `segmentsOf` reads it.
  */
 export function withSegments(url: URL, names: readonly string[]): URL {
   const copy = new URL(url)
   copy.search = without(copy.search)
   if (!names.length) return copy
   const joint = copy.search ? '&' : '?'
-  copy.search = `${copy.search}${joint}${SEGMENT_PARAM}=${names.join(',')}`
+  const list = names.map(encodeURIComponent).join(',')
+  copy.search = `${copy.search}${joint}${SEGMENT_PARAM}=${list}`
   return copy
 }
 

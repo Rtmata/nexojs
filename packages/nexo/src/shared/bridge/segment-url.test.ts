@@ -34,6 +34,13 @@ describe('withSegments', () => {
     ])
   })
 
+  test('a name with query characters arrives as it was named', () => {
+    const url = new URL('http://m.test/es/arcade')
+    const asked = withSegments(url, ['a+b', 'c&d'])
+    expect(asked.search).toBe('?_segment=a%2Bb,c%26d')
+    expect(segmentsOf(asked)).toEqual(['a+b', 'c&d'])
+  })
+
   test('the rest of the query stays as written', () => {
     const raw = new URL(
       'http://m.test/a?from=/lobby&q=a%20b&_segment=x&tag=c:d',

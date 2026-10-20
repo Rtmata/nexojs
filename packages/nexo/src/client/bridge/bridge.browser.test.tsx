@@ -362,9 +362,14 @@ class SelfLoading extends Component<{ n: number }> {
 }
 
 /** A whole-page site: every link swaps the full page; a body script counts how often it ran. */
-class Top extends Component<{ n: number; theme: string; lazy: boolean }> {
+class Top extends Component<{
+  n: number
+  theme: string
+  lazy: boolean
+  etag: boolean
+}> {
   template() {
-    const { n, theme, lazy } = this.props
+    const { n, theme, lazy, etag } = this.props
     return (
       <html data-bridge-target="_top" lang={`l${n}`}>
         <head>
@@ -394,6 +399,18 @@ class Top extends Component<{ n: number; theme: string; lazy: boolean }> {
           <a id="hover" href={`/top/${n + 1}`} data-bridge-prefetch="hover">
             hover
           </a>
+          <a
+            id="none-hover"
+            href={`/top/${n + 10}`}
+            data-bridge-target="_none"
+            data-bridge-prefetch="hover"
+          >
+            plain hover
+          </a>
+          <a id="etag" href={`/top/${n + 1}?etag&delay=200`}>
+            etag, slowly
+          </a>
+          {etag ? <i id="version">v{version}</i> : null}
           <Segment name="note" tag="p">
             <a id="note-link" href={`/top/${n + 1}`} data-bridge-target="note">
               note
@@ -509,12 +526,21 @@ const router = boat()
       { status: 404 },
     ),
   )
-  .get('/top/:n', (ctx) => {
+  .get('/top/:n', async (ctx) => {
     if (!ctx.request.headers.get('sec-purpose'))
       requests.push(ctx.url.pathname + ctx.url.search)
-    const theme = ctx.url.searchParams.get('theme') ?? topTheme
-    const lazy = ctx.url.searchParams.has('lazy')
-    return render(<Top n={Number(ctx.params.n)} theme={theme} lazy={lazy} />)
+    const q = ctx.url.searchParams
+    const delay = Number(q.get('delay') ?? 0)
+    if (delay) await Bun.sleep(delay)
+    const tag = `"t${version}"`
+    if (q.has('etag') && ctx.request.headers.get('if-none-match') === tag)
+      return new Response(null, { status: 304, headers: { etag: tag } })
+    const headers: Record<string, string> = q.has('etag')
+      ? { etag: tag, 'cache-control': 'max-age=0' }
+      : {}
+    const theme = q.get('theme') ?? topTheme
+    const props = { theme, lazy: q.has('lazy'), etag: q.has('etag') }
+    return render(<Top n={Number(ctx.params.n)} {...props} />, { headers })
   })
   .get('/themes/:name', () => css('body{}'))
   .get('/pages/:n', (ctx) => css(`#title{color:rgb(${ctx.params.n},0,0)}`))
@@ -1151,6 +1177,16 @@ describe.if(chrome)('history and scroll', () => {
     expect(await page.evaluate(() => history.state.draft)).toBe('ryu')
   })
 
+  test('a URL the page changed itself survives the scroll settling', async () => {
+    await open('/shelf/1')
+    await page.evaluate(() => history.replaceState(history.state, '', '?tab=2'))
+    await page.evaluate(() => scrollTo(0, 300))
+    await page.waitForTimeout(300)
+    expect(page.url()).toBe(url('/shelf/1?tab=2'))
+    await page.reload()
+    await page.waitForFunction(() => scrollY === 300)
+  })
+
   test('a jump to a #hash keeps its hash once the scroll settles', async () => {
     await open('/shelf/1')
     await page.click('#anchor')
@@ -1451,6 +1487,19 @@ describe.if(chrome)('lazy content, markers and prefetch', () => {
     expect(await text('[data-bridge-segment="side"]')).toContain('side loaded')
   })
 
+  test('lazy content yields to a request the visitor already made on its target', async () => {
+    await open('/shelf/1?lazy')
+    await page.evaluate(() => {
+      document.getElementById('slow')!.click() // the shelf, in 300 ms
+      document.getElementById('more')!.scrollIntoView() // append to the shelf, on sight
+    })
+    await page.waitForSelector('text=game 2')
+    await page.waitForTimeout(300)
+    expect(await log()).not.toContain('bridge:cancel')
+    const items = await page.$$eval('li', (es) => es.map((e) => e.textContent))
+    expect(items).toEqual(['game 2'])
+  })
+
   test('a lazy link a click would leave to the browser is not followed', async () => {
     let away = 0
     await page.route('**/example.invalid/**', (route) => {
@@ -1649,6 +1698,31 @@ describe.if(chrome)('the whole page (_top)', () => {
       'bridge:swap',
       'bridge:swapped',
     ])
+  })
+
+  test('a newer whole page arriving after a click on a segment leaves the click alone', async () => {
+    await open('/top/1')
+    version = 1
+    await page.click('#etag')
+    await page.waitForSelector('text=v1')
+    await page.goBack()
+    await page.waitForSelector('h1:has-text("Top 1")')
+    version = 2
+    await page.goForward() // stale v1 at once; the revalidation takes 200 ms
+    await page.waitForSelector('text=v1')
+    await page.click('#note-link')
+    await page.waitForSelector('text=note 3')
+    await page.waitForTimeout(400)
+    expect(await text('[data-bridge-segment="note"]')).toContain('note 3')
+    expect(await text('#version')).toBe('v1')
+  })
+
+  test('a new page starts its own speculation rules: the old links are gone', async () => {
+    await open('/top/1')
+    await page.click('#next')
+    await page.waitForSelector('h1:has-text("Top 2")')
+    const rules = await page.textContent('script[type="speculationrules"]')
+    expect(JSON.parse(rules!).prefetch[0].urls).toEqual([url('/top/12')])
   })
 
   test('a page cancelled while its stylesheet loads leaves no stylesheet behind', async () => {

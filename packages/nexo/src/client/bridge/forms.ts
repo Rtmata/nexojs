@@ -57,6 +57,12 @@ function opensElsewhere(
  * Whether a submission is one bridge can send, or one the browser must
  * keep: one already stopped, a `dialog` form (it closes its dialog,
  * nothing is sent), a form that opens elsewhere, or one going to another site.
+ *
+ * A form of this site whose answer redirects to ANOTHER site (a payment,
+ * a sign-in handoff) is not bridge's either, but nothing here can tell:
+ * `fetch` follows the redirect and fails there, before any response, and
+ * a POST is never sent again. Mark such forms `data-bridge-target="_none"`
+ * so the browser submits them. Decided 2026-10-20.
  */
 export function isPlainSubmission(submission: Submission): boolean {
   if (submission.defaultPrevented || submission.method === 'DIALOG')
