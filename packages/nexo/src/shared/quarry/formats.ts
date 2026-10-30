@@ -1,4 +1,5 @@
 import { BoundedCache } from '../cache/bounded-cache'
+import { durationWriter, type DurationWriter } from './duration-writers'
 
 /**
  * The `Intl` formatters one language needs, each built once per set of
@@ -75,12 +76,9 @@ export class Formats {
   }
 
   /** `short` by default, as durations usually sit next to other text. */
-  duration(options: Intl.DurationFormatOptions): Intl.DurationFormat {
+  duration(options: Intl.DurationFormatOptions): DurationWriter {
     const all = { style: 'short' as const, ...options }
-    return this.once(
-      ['duration', all],
-      () => new Intl.DurationFormat(this.lang, all),
-    )
+    return this.once(['duration', all], () => durationWriter(this, all))
   }
 
   names(options: Intl.DisplayNamesOptions): Intl.DisplayNames {
