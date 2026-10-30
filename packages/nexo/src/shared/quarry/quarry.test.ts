@@ -422,3 +422,277 @@ describe('digits, visitors and types', () => {
     expect([calendar, gender]).toHaveLength(2)
   })
 })
+const NBSP = ' '
+const clean = (text: string) => text.replaceAll(/[  ]/g, ' ')
+
+describe('partialDate with a time', () => {
+  test('keeps the day as written, whatever the time or offset', () => {
+    expect(es.partialDate('1884-04-06T23:00:00+00:00')).toBe(
+      '6 de abril de 1884',
+    )
+    expect(es.partialDate('2026-10-21 18:57:03')).toBe('21 de octubre de 2026')
+    expect(es.partialDate('2026-10-21T02:00:00Z')).toBe('21 de octubre de 2026')
+    expect(es.partialDate('2026-10-21T02:00:00.123-06:00')).toBe(
+      '21 de octubre de 2026',
+    )
+    expect(es.partialDate('2026-10-21T02:00')).toBe('21 de octubre de 2026')
+  })
+
+  test('still refuses what is not a date', () => {
+    expect(() => es.partialDate('2026-10-21 whenever')).toThrow('quarry:')
+    expect(() => es.partialDate('2026-10T02:00')).toThrow('quarry:')
+    expect(() => es.partialDate('2026-02-30T02:00')).toThrow('quarry:')
+  })
+})
+
+describe('date', () => {
+  const late = new Date('2026-10-21T02:00:00Z')
+
+  test('reads the moment in the time zone asked for', () => {
+    const timeZone = 'America/Monterrey'
+    expect(es.date(late, { timeZone })).toBe('20 de octubre de 2026')
+    expect(es.date(late, { timeZone: 'UTC' })).toBe('21 de octubre de 2026')
+  })
+
+  test('fields add to the full date', () => {
+    const timeZone = 'UTC'
+    expect(es.date(late, { timeZone, month: 'short' })).toBe('21 oct 2026')
+    expect(clean(en.date(late, { timeZone, hour: 'numeric' }))).toContain(
+      'October 21, 2026',
+    )
+  })
+
+  test('styles go to Intl alone', () => {
+    const timeZone = 'UTC'
+    expect(es.date(late, { timeZone, timeStyle: 'short' })).toBe('2:00')
+  })
+
+  test('refuses an invalid date', () => {
+    expect(() => es.date(new Date('nope'))).toThrow('quarry:')
+  })
+})
+
+describe('relative', () => {
+  const now = new Date('2026-10-30T09:00:00Z')
+  const timeZone = 'UTC'
+  const from = (at: string, more = {}) =>
+    es.relative(new Date(at), { now, timeZone, ...more })
+
+  test('counts elapsed time under a day', () => {
+    expect(from('2026-10-30T07:00:00Z')).toBe('hace 2 horas')
+    expect(from('2026-10-30T08:58:00Z')).toBe('hace 2 minutos')
+    expect(from('2026-10-30T08:59:30Z')).toBe('este minuto')
+  })
+
+  test('last night is hours, not yesterday', () => {
+    expect(from('2026-10-29T23:00:00Z')).toBe('hace 10 horas')
+  })
+
+  test('counts calendar days from a day on', () => {
+    expect(from('2026-10-29T08:00:00Z')).toBe('ayer')
+    expect(from('2026-10-28T23:00:00Z')).toBe('anteayer') // 34 h, not "ayer"
+    expect(from('2026-10-26T09:00:00Z')).toBe('hace 4 días')
+  })
+
+  test('climbs to weeks, months and years, never overstating', () => {
+    expect(from('2026-10-16T09:00:00Z')).toBe('hace 2 semanas')
+    expect(from('2026-08-30T09:00:00Z')).toBe('hace 2 meses')
+    expect(from('2026-09-01T09:00:00Z')).toBe('el mes pasado')
+    expect(from('2024-10-30T09:00:00Z')).toBe('hace 2 años')
+    expect(from('2024-11-01T09:00:00Z')).toBe('el año pasado')
+  })
+
+  test('goes into the future', () => {
+    expect(from('2026-10-30T11:00:00Z')).toBe('dentro de 2 horas')
+    expect(from('2026-10-31T10:00:00Z')).toBe('mañana')
+    expect(from('2028-10-30T09:00:00Z')).toBe('dentro de 2 años')
+  })
+
+  test('counts days in the time zone asked for', () => {
+    const at = '2026-10-29T03:00:00Z' // the 28th, 21:00, in Monterrey
+    const late = new Date('2026-10-30T04:00:00Z') // the 29th, 22:00, there
+    const q = (timeZone: string) =>
+      es.relative(new Date(at), { now: late, timeZone })
+    expect(q('America/Monterrey')).toBe('ayer')
+    expect(q('UTC')).toBe('ayer')
+    const near = new Date('2026-10-30T06:30:00Z') // the 30th, 00:30, there
+    expect(
+      es.relative(new Date(at), { now: near, timeZone: 'America/Monterrey' }),
+    ).toBe('anteayer')
+  })
+
+  test('uses only the units allowed', () => {
+    expect(from('2026-10-01T09:00:00Z', { units: ['day'] })).toBe(
+      'hace 29 días',
+    )
+    expect(from('2026-10-30T07:00:00Z', { units: ['minute'] })).toBe(
+      'hace 120 minutos',
+    )
+    expect(from('2026-10-29T23:00:00Z', { units: ['day'] })).toBe('ayer')
+    expect(from('2026-10-30T08:59:30Z', { units: ['second'] })).toBe(
+      'hace 30 segundos',
+    )
+  })
+
+  test('passes style and numeric to Intl', () => {
+    expect(from('2026-10-30T08:58:00Z', { style: 'short' })).toBe('hace 2 min')
+    expect(from('2026-10-29T08:00:00Z', { numeric: 'always' })).toBe(
+      'hace 1 día',
+    )
+  })
+
+  test('refuses an invalid date or no units', () => {
+    expect(() => es.relative(new Date('nope'))).toThrow('quarry:')
+    expect(() => es.relative(now, { units: [] })).toThrow('quarry:')
+  })
+})
+
+describe('bytes', () => {
+  test('counts in 1000s with the largest unit', () => {
+    expect(clean(es.bytes(1_887_436))).toBe('1,9 MB')
+    expect(clean(es.bytes(51_200))).toBe('51,2 kB')
+    expect(clean(en.bytes(2_000_000_000))).toBe('2 GB')
+    expect(clean(es.bytes(0))).toBe('0 B')
+  })
+
+  test('steps up when rounding reaches the next unit', () => {
+    expect(clean(en.bytes(999_999))).toBe('1 MB')
+    expect(clean(en.bytes(999_940))).toBe('999.9 kB')
+  })
+
+  test('binary counts in 1024s and says so', () => {
+    expect(es.bytes(1_887_436, { binary: true })).toBe(`1,8${NBSP}MiB`)
+    expect(en.bytes(1024, { binary: true })).toBe(`1${NBSP}KiB`)
+    expect(clean(en.bytes(512, { binary: true }))).not.toContain('KiB')
+  })
+
+  test('passes number options through', () => {
+    expect(clean(en.bytes(1_234_567, { maximumFractionDigits: 2 }))).toBe(
+      '1.23 MB',
+    )
+  })
+
+  test('stops at the largest unit and keeps the sign', () => {
+    expect(clean(en.bytes(5e18))).toBe('5,000 PB')
+    expect(clean(en.bytes(-2_000_000))).toBe('-2 MB')
+  })
+
+  test('refuses what is not a number', () => {
+    expect(() => en.bytes(NaN)).toThrow('quarry:')
+  })
+})
+
+describe('duration', () => {
+  test('splits the unit given', () => {
+    expect(es.duration({ minutes: 190 })).toBe('3 h y 10 min')
+    expect(es.duration({ seconds: 11400 }, { style: 'long' })).toBe(
+      '3 horas y 10 minutos',
+    )
+    expect(es.duration({ hours: 1, minutes: 90 })).toBe('2 h y 30 min')
+    expect(en.duration({ hours: 50 })).toBe('2 days, 2 hr')
+  })
+
+  test('rounds to the smallest unit given', () => {
+    expect(es.duration({ minutes: 12.4 })).toBe('12 min')
+    expect(es.duration({ minutes: 59.6 })).toBe('1 h')
+  })
+
+  test('units limits how many show, rounding to the last', () => {
+    expect(es.duration({ minutes: 190 }, { units: 1 })).toBe('3 h')
+    expect(es.duration({ minutes: 230 }, { units: 1 })).toBe('4 h')
+    expect(es.duration({ seconds: 3661 }, { units: 2 })).toBe('1 h y 1 min')
+    expect(es.duration({ minutes: 10 }, { units: 3 })).toBe('10 min')
+  })
+
+  test('zero still says its unit', () => {
+    expect(es.duration({ minutes: 0 })).toBe('0 min')
+    expect(es.duration({ minutes: 0.2 })).toBe('0 min')
+  })
+
+  test('passes other styles through', () => {
+    expect(es.duration({ minutes: 190 }, { style: 'narrow' })).toBe('3h 10min')
+    expect(es.duration({ minutes: 190 }, { style: 'digital' })).toBe('3:10:00')
+  })
+
+  test('refuses nothing, negatives and non-numbers', () => {
+    expect(() => es.duration({})).toThrow('quarry:')
+    expect(() => es.duration({ minutes: -1 })).toThrow('quarry:')
+    expect(() => es.duration({ minutes: NaN })).toThrow('quarry:')
+  })
+})
+
+describe('month and weekday', () => {
+  test('name a month', () => {
+    expect(es.month(9)).toBe('septiembre')
+    expect(es.month(9, { style: 'short' })).toBe('sept')
+    expect(en.month(1, { style: 'narrow' })).toBe('J')
+  })
+
+  test('weekdays are ISO: 1 is Monday, 7 is Sunday', () => {
+    expect(en.weekday(1)).toBe('Monday')
+    expect(es.weekday(7)).toBe('domingo')
+    expect(es.weekday(7, { style: 'short' })).toBe('dom')
+  })
+
+  test('refuse what does not exist', () => {
+    for (const bad of [0, 13, 1.5])
+      expect(() => es.month(bad)).toThrow('quarry:')
+    for (const bad of [0, 8, 1.5])
+      expect(() => es.weekday(bad)).toThrow('quarry:')
+  })
+
+  test('months lists all twelve in order', () => {
+    const months = es.months({ style: 'short' })
+    expect(months).toHaveLength(12)
+    expect(months[0]).toBe('ene')
+    expect(months[8]).toBe('sept')
+  })
+
+  test('weekdays start where the language starts the week', () => {
+    expect(quarry('es-MX').weekdays({ style: 'short' })[0]).toEqual({
+      day: 7,
+      name: 'dom',
+    })
+    expect(quarry('es-ES').weekdays()[0]).toEqual({ day: 1, name: 'lunes' })
+    expect(quarry('es-MX').weekdays()).toHaveLength(7)
+    expect(quarry('es-MX').weekdays()[6]!.day).toBe(6)
+  })
+})
+
+describe('names of codes', () => {
+  test('one method per kind of code', () => {
+    expect(en.language('es')).toBe('Spanish')
+    expect(es.region('JP')).toBe('Japón')
+    expect(es.currency('MXN')).toBe('peso mexicano')
+    expect(es.script('Latn')).toBe('latino')
+    expect(es.calendar('gregory')).toBe('calendario gregoriano')
+    expect(es.field('month')).toBe('mes')
+  })
+
+  test('passes options through', () => {
+    expect(
+      es.capitalize(es.language('pt-BR', { languageDisplay: 'standard' })),
+    ).toBe('Portugués (Brasil)')
+    expect(es.region('US', { style: 'short' })).toBe('EE. UU.')
+  })
+
+  test('gives nothing for what has no name, or is no code', () => {
+    for (const code of [null, '', 'und', 'xx', 'not a code!'])
+      expect(es.language(code)).toBe('')
+    expect(es.field('nope')).toBe('')
+  })
+
+  test('keeps the name Intl has for an unknown region', () => {
+    expect(es.region('ZZ')).toBe('Región desconocida')
+  })
+})
+
+test('the new methods are bound, like the others', () => {
+  const { bytes, duration, month, language, date, relative } = en
+  expect(clean(bytes(1000))).toBe('1 kB')
+  expect(duration({ minutes: 5 })).toBe('5 min')
+  expect(month(1)).toBe('January')
+  expect(language('en')).toBe('English')
+  expect(date(new Date(0), { timeZone: 'UTC' })).toBe('January 1, 1970')
+  expect(relative(new Date(0), { now: new Date(1000) })).toBe('this minute')
+})

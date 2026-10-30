@@ -1,21 +1,36 @@
 import { baseOf, canonicalTag } from '../lang/tag'
 import { BoundedCache } from '../cache/bounded-cache'
+import {
+  CalendarNames,
+  type NameOptions,
+  type WeekdayName,
+} from './calendar-names'
 import { capitalize } from './capitalize'
+import { DisplayNames, type DisplayNameOptions } from './display-names'
+import { Durations, type Duration, type DurationOptions } from './durations'
 import { Formats } from './formats'
+import { Moments, type RelativeOptions } from './moments'
 import { Numbers, type PluralForms } from './numbers'
 import type { Year } from './partial-date'
+import { bytes, type BytesOptions } from './sizes'
 import { Slugger } from './slugger'
 import { wordsFor, type Gender } from './words'
 import { Years, type CalendarOptions, type PartialDateOptions } from './years'
 
+export type { NameOptions, NameStyle, WeekdayName } from './calendar-names'
+export type { DisplayNameOptions } from './display-names'
+export type { Duration, DurationOptions, DurationUnit } from './durations'
+export type { RelativeOptions, RelativeUnit } from './moments'
 export type { PluralForms } from './numbers'
+export type { BytesOptions } from './sizes'
 export type { Gender } from './words'
 export type { Year } from './partial-date'
 export type { CalendarOptions, PartialDateOptions } from './years'
 
 /**
  * Shapes raw values for readers in a language: numbers, ordinals, plurals,
- * lists, capitalization, dates and years. Built on the platform's `Intl`, so
+ * lists, capitalization, dates and years, sizes, durations, and the names of
+ * months, weekdays, languages and more. Built on the platform's `Intl`, so
  * every language `Intl` knows works; quarry only adds what `Intl` doesn't have.
  *
  *   const q = quarry('es')
@@ -55,8 +70,22 @@ export interface Quarry {
    * A partial ISO date, never inventing precision:
    * `1991-05-22` → full date, `1991-05` → month and year, `1991` → year,
    * `198` → the decade, `19` → the century. `null` or `''` give `''`.
+   * A time after the day is ignored: the day stays the one written. For an
+   * exact moment read in the reader's time zone, use `date`.
    */
   partialDate(date: string | null, options?: PartialDateOptions): string
+  /**
+   * The day of an exact moment, in the reader's time zone by default:
+   * `new Date('2026-10-21T02:00:00Z')` → `'20 de octubre de 2026'` in Mexico.
+   * Fields add to the full date (`{ month: 'short' }`, `{ hour: 'numeric' }`);
+   * `dateStyle` and `timeStyle` go to `Intl` alone, which can't mix them.
+   */
+  date(moment: Date, options?: Intl.DateTimeFormatOptions): string
+  /**
+   * How far from now, past or future: `'hace 2 horas'`, `'ayer'`, `'en 3 años'`.
+   * Elapsed time under a day, calendar days from there on.
+   */
+  relative(moment: Date, options?: RelativeOptions): string
   /** The decade of a year or partial date: `'1980s'`, or `"the '80s"` with `short`. */
   decade(year: Year, options?: { short?: boolean }): string
   /** The century of a year or partial date: `'20th century'` / `'siglo XX'`. */
@@ -65,6 +94,36 @@ export interface Quarry {
   yearRange(from: Year, to: Year, options?: CalendarOptions): string
   /** How long ago: `'1991'` → `'35 years ago'`. Needs at least a full year. */
   ago(date: Year, now?: Date): string
+  /**
+   * `1887436` → `'1,9 MB'`, counting in 1000s. With `binary`, in 1024s:
+   * `'1,8 MiB'`. Number options pass through.
+   */
+  bytes(value: number, options?: BytesOptions): string
+  /**
+   * `{ minutes: 190 }` → `'3 h y 10 min'`. Say the unit you have; it's split
+   * and rounded to the smallest one given. `units` limits how many show.
+   */
+  duration(duration: Duration, options?: DurationOptions): string
+  /** `9` → `'septiembre'`, `'sept'` with `style: 'short'`. From 1 to 12. */
+  month(month: number, options?: NameOptions): string
+  /** `7` → `'domingo'`. ISO: 1 is Monday, 7 is Sunday. */
+  weekday(day: number, options?: NameOptions): string
+  /** The twelve month names, in order. */
+  months(options?: NameOptions): string[]
+  /** The seven days from the one the language's week starts on, each with its ISO number. */
+  weekdays(options?: NameOptions): WeekdayName[]
+  /** `'es'` → `'español'`. `''` when there's no name for it, like `'und'`. */
+  language(code: string | null, options?: DisplayNameOptions): string
+  /** `'JP'` → `'Japón'`. `''` when there's no name for it. */
+  region(code: string | null, options?: DisplayNameOptions): string
+  /** `'MXN'` → `'peso mexicano'`. `''` when there's no name for it. */
+  currency(code: string | null, options?: DisplayNameOptions): string
+  /** `'Latn'` → `'latino'`. `''` when there's no name for it. */
+  script(code: string | null, options?: DisplayNameOptions): string
+  /** `'gregory'` → `'calendario gregoriano'`. `''` when there's no name for it. */
+  calendar(code: string | null, options?: DisplayNameOptions): string
+  /** `'month'` → `'mes'`: a part of a date. `''` when there's no name for it. */
+  field(code: string | null, options?: DisplayNameOptions): string
 }
 
 export interface OrdinalOptions {
@@ -109,6 +168,10 @@ class LanguageQuarry implements Quarry {
   private readonly numbers: Numbers
   private readonly years: Years
   private readonly slugger: Slugger
+  private readonly moments: Moments
+  private readonly durations: Durations
+  private readonly calendarNames: CalendarNames
+  private readonly displayNames: DisplayNames
 
   constructor(readonly lang: string) {
     this.base = baseOf(lang)
@@ -117,6 +180,10 @@ class LanguageQuarry implements Quarry {
     this.numbers = new Numbers(this.formats, words)
     this.years = new Years(this.formats, words, this.numbers)
     this.slugger = new Slugger(this.formats, this.base)
+    this.moments = new Moments(this.formats)
+    this.durations = new Durations(this.formats)
+    this.calendarNames = new CalendarNames(this.formats)
+    this.displayNames = new DisplayNames(this.formats)
   }
 
   readonly number = (value: number, options?: Intl.NumberFormatOptions) =>
@@ -151,6 +218,48 @@ class LanguageQuarry implements Quarry {
     this.years.yearRange(from, to, options)
 
   readonly ago = (date: Year, now?: Date) => this.years.ago(date, now)
+
+  readonly date = (moment: Date, options?: Intl.DateTimeFormatOptions) =>
+    this.moments.date(moment, options)
+
+  readonly relative = (moment: Date, options?: RelativeOptions) =>
+    this.moments.relative(moment, options)
+
+  readonly bytes = (value: number, options?: BytesOptions) =>
+    bytes(this.numbers, value, options)
+
+  readonly duration = (duration: Duration, options?: DurationOptions) =>
+    this.durations.duration(duration, options)
+
+  readonly month = (month: number, options?: NameOptions) =>
+    this.calendarNames.month(month, options)
+
+  readonly weekday = (day: number, options?: NameOptions) =>
+    this.calendarNames.weekday(day, options)
+
+  readonly months = (options?: NameOptions) =>
+    this.calendarNames.months(options)
+
+  readonly weekdays = (options?: NameOptions) =>
+    this.calendarNames.weekdays(options)
+
+  readonly language = (code: string | null, options?: DisplayNameOptions) =>
+    this.displayNames.name('language', code, options)
+
+  readonly region = (code: string | null, options?: DisplayNameOptions) =>
+    this.displayNames.name('region', code, options)
+
+  readonly currency = (code: string | null, options?: DisplayNameOptions) =>
+    this.displayNames.name('currency', code, options)
+
+  readonly script = (code: string | null, options?: DisplayNameOptions) =>
+    this.displayNames.name('script', code, options)
+
+  readonly calendar = (code: string | null, options?: DisplayNameOptions) =>
+    this.displayNames.name('calendar', code, options)
+
+  readonly field = (code: string | null, options?: DisplayNameOptions) =>
+    this.displayNames.name('dateTimeField', code, options)
 }
 
 /** The tag as `Intl` writes it, so 'ES', 'es' and 'es_es'… share one quarry. */

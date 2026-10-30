@@ -1,10 +1,20 @@
 export { quarry } from './quarry'
 export type {
+  BytesOptions,
   CalendarOptions,
+  DisplayNameOptions,
+  Duration,
+  DurationOptions,
+  DurationUnit,
   Gender,
+  NameOptions,
+  NameStyle,
   OrdinalOptions,
   PartialDateOptions,
   PluralForms,
   Quarry,
+  RelativeOptions,
+  RelativeUnit,
+  WeekdayName,
   Year,
 } from './quarry'

@@ -102,7 +102,7 @@ export class Years {
     // -0 reads as past; a date ahead of now is always future.
     const signed = then > now ? Math.abs(years) : -years
     return this.formats
-      .relative(date.month ? 'always' : 'auto')
+      .relative({ numeric: date.month ? 'always' : 'auto' })
       .format(signed, 'year')
   }
 }

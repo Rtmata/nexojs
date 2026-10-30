@@ -13,7 +13,7 @@ Each module is independent and imported on its own. Its README sits next to its 
 | `omino`   | `@nexoamigos/nexo/omino`   | JSX components rendered on the server                        | [src/shared/omino](src/shared/omino)     |
 | `bridge`  | `@nexoamigos/nexo/bridge`  | Navigation in the browser by segments of the page            | [src/client/bridge](src/client/bridge)   |
 | `voices`  | `@nexoamigos/nexo/voices`  | Translations checked across languages                        | [src/shared/voices](src/shared/voices)   |
-| `quarry`  | `@nexoamigos/nexo/quarry`  | Formatting: numbers, partial dates, lists                    | [src/shared/quarry](src/shared/quarry)   |
+| `quarry`  | `@nexoamigos/nexo/quarry`  | Formatting: numbers, dates, sizes, durations, names          | [src/shared/quarry](src/shared/quarry)   |
 | `witness` | `@nexoamigos/nexo/witness` | Development: reload on change                                | [src/server/witness](src/server/witness) |
 
 The names come from the island of _The Witness_: a request lands at a **dock**, enters the **keep**, and the **boat** carries it to its destination, where **omino** pieces assemble the page while the **witness** watches; the **bridge** extends segment by segment.

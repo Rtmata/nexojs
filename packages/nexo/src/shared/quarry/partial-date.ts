@@ -1,7 +1,12 @@
 /** A year as a number, or a partial ISO date (`'1991'`, `'198'`, `'1991-05'`). */
 export type Year = number | string
 
-const PARTIAL_ISO = /^(\d{2,4})(?:-(\d{2})(?:-(\d{2}))?)?$/
+/**
+ * A time after the day is allowed and ignored, offset and all: the date stays
+ * the one that was written (`1884-04-06T23:00:00+00:00` is April 6, anywhere).
+ */
+const PARTIAL_ISO =
+  /^(\d{2,4})(?:-(\d{2})(?:-(\d{2})(?:[T ]\d{2}:\d{2}(?::\d{2}(?:[.,]\d+)?)?(?:Z|[+-]\d{2}(?::?\d{2})?)?)?)?)?$/i
 
 /** The whole years a JavaScript `Date` can hold. */
 const FIRST_YEAR = -271_820
