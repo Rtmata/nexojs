@@ -10,7 +10,7 @@ This guide describes how Nexo's code is written. It applies to every module.
 4. **No patches.** When a fix needs a special case, a flag or an extra branch, the design is wrong: restructure instead. Code that is simple to understand is simple to test and simple to fix.
 5. **Look like the neighborhood.** New code follows the style of the code around it, even where you would have chosen differently.
 6. **Independent modules.** Every module works on its own. Modules connect through plain values visible at the call site (lists, functions, `Request`/`Response`), never by requiring each other. Shared internals that aren't public live in `src/shared/<topic>/` (e.g. `url/decode.ts`, `lang/tag.ts`).
-7. **Explicit runtime boundaries.** Code that only runs on the server lives in `src/server/`; code that runs anywhere in `src/shared/`. Bun-specific code lives only in `src/server/dock/`.
+7. **Explicit runtime boundaries.** Code that only runs on the server lives in `src/server/`; code that runs anywhere in `src/shared/`. Code that needs a browser lives in `src/client/`. Bun-specific code lives only in `src/server/dock/`.
 
 ## Design principles
 
@@ -23,13 +23,14 @@ This guide describes how Nexo's code is written. It applies to every module.
 - **KISS**: the simplest design that works. If a reviewer needs a diagram, simplify.
 - **DRY**: one rule, one place. Logic shared by modules lives in `src/shared/<topic>/` (e.g. one way to compare language tags).
 - **Named patterns**: when a class follows a known pattern, its doc comment says so (_strategy_, _chain of responsibility_, _facade_…), so readers recognize it.
-- **Performance-critical modules** (motion, graphics): hot paths may use data-oriented design — compact data plus systems that walk it, in the spirit of Unity's DOTS — decided per module when it arrives.
+- **Performance-critical modules** (motion, graphics, signal graphs): hot paths may use data-oriented design — compact data plus systems that walk it, in the spirit of Unity's DOTS — decided per module when it arrives. Compact data needs a measurement that justifies it, and the size limits still apply.
 
 ## Structure
 
 - **Public API:** one entry function per module, named after it (`boat()`, `keep()`, `quarry()`, `voices()`), or classes when users extend them (`Component`). Public imports are per module (`@nexoamigos/nexo/boat`).
 - **Inside a module:** small classes, each with one responsibility, composed by the module's entry function. A class that needs two sentences to describe does two things: split it.
 - **Composition by default.** Inheritance only for a real "is a" relationship (a component is a `Component`).
+- **Module-level mutable state** is rare and documented, and is never held across an `await`: concurrent requests must not see each other.
 
 ## Functions
 
@@ -47,6 +48,7 @@ This guide describes how Nexo's code is written. It applies to every module.
 ## Tests
 
 - Tests live next to the code (`router.ts` → `router.test.ts`) and run with `bun test`.
+- `*.browser.test.tsx` runs DOM code in real engines through Playwright, inside `bun test`.
 - Every bug fix comes with a test that fails without the fix.
 - Type-level checks use `// @ts-expect-error` with the reason.
 
