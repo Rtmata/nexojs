@@ -5,14 +5,13 @@ import {
   reading,
   Source,
   untrack,
+  type Named,
   type Observer,
 } from './source'
 
-export interface ComputedOptions<T> {
+export interface ComputedOptions<T> extends Named {
   /** When a new result counts as the same one. `Object.is` by default. */
   equals?: (previous: T, next: T) => boolean
-  /** Shown in errors, such as a cycle. */
-  name?: string
 }
 
 /** A node's result is a value or an error; reading delivers whichever it holds. */
@@ -31,7 +30,6 @@ export class Computed<T>
   readonly pure = true
   private readonly dependencies = new Dependencies(this)
   private readonly equals: (previous: T, next: T) => boolean
-  private readonly name: string
   private result?: Result<T>
   private view?: ReadonlyView<T>
   private stale = false
@@ -42,9 +40,8 @@ export class Computed<T>
     private readonly fn: () => T,
     options: ComputedOptions<T> = {},
   ) {
-    super()
+    super('computed', options.name)
     this.equals = options.equals ?? Object.is
-    this.name = options.name ? `"${options.name}"` : 'a computed'
   }
 
   get(): T {
@@ -142,7 +139,7 @@ export class Computed<T>
 
   private cycle(): Error {
     return new Error(
-      `connector: ${this.name} reads itself while it runs. Break the cycle between its sources`,
+      `connector: ${this.label} reads itself while it runs. Break the cycle between its sources`,
     )
   }
 }

@@ -6,6 +6,25 @@ export interface Observer {
   depend(source: Source): void
   /** Computeds are pure: writing a signal while one runs is an error. */
   readonly pure: boolean
+  /** How errors name it. */
+  readonly label: string
+}
+
+/** Every node can carry a name, for errors and for inspecting. */
+export interface Named {
+  /** Shown in errors and by `sources()`. */
+  name?: string
+}
+
+const ARTICLES = {
+  signal: 'a signal',
+  computed: 'a computed',
+  effect: 'an effect',
+}
+
+/** How errors name a node: `computed "total"`, or `a computed` with no name. */
+export function label(kind: keyof typeof ARTICLES, name?: string): string {
+  return name === undefined ? ARTICLES[kind] : `${kind} "${name}"`
 }
 
 /**
@@ -27,7 +46,15 @@ export const current = {
  */
 export abstract class Source {
   readonly observers = new Set<Observer>()
+  readonly label: string
   version = 0
+
+  constructor(
+    kind: 'signal' | 'computed',
+    readonly name?: string,
+  ) {
+    this.label = label(kind, name)
+  }
 
   /** Bring the result up to date. A signal always is. */
   abstract refresh(): void

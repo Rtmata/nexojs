@@ -1,5 +1,5 @@
 import { batch } from './batch'
-import { current, Source, untrack } from './source'
+import { current, Source, untrack, type Named } from './source'
 
 /** Anything with a `.get()`: a signal, a computed, your own object. */
 export interface Readable<T> {
@@ -11,7 +11,7 @@ export interface Writable<T> extends Readable<T> {
   set(value: T): void
 }
 
-export interface SignalOptions<T> {
+export interface SignalOptions<T> extends Named {
   /** When the new value counts as the same one. `Object.is` by default. */
   equals?: (previous: T, next: T) => boolean
 }
@@ -34,7 +34,7 @@ export class Signal<T> extends Source implements Writable<T> {
     private value: T,
     options: SignalOptions<T> = {},
   ) {
-    super()
+    super('signal', options.name)
     this.equals = options.equals ?? Object.is
   }
 
@@ -51,7 +51,7 @@ export class Signal<T> extends Source implements Writable<T> {
   }
 
   set(next: T): void {
-    ensureOutsideComputed()
+    ensureOutsideComputed(this)
     if (this.equals(this.value, next)) return
     this.value = next
     this.version++
@@ -95,9 +95,10 @@ export function readonlyView<T>(node: ReadonlyView<T>): ReadonlyView<T> {
   }
 }
 
-function ensureOutsideComputed(): void {
-  if (!current.observer?.pure) return
+function ensureOutsideComputed(written: Source): void {
+  const running = current.observer
+  if (!running?.pure) return
   throw new Error(
-    `connector: a signal was written while a computed ran. A computed only works out a value: use an effect, or untrack() if the write is on purpose`,
+    `connector: ${written.label} was written while ${running.label} ran. A computed only works out a value: use an effect, or untrack() if the write is on purpose`,
   )
 }

@@ -12,9 +12,15 @@ export {
   sync,
   throttle,
 } from './schedulers'
-export type { IdleScheduler, ManualScheduler, Scheduler } from './schedulers'
+export type {
+  IdleScheduler,
+  ManualScheduler,
+  QueueScheduler,
+  Scheduler,
+} from './schedulers'
 export { Signal, signal } from './signal'
 export type { Readable, ReadonlyView, SignalOptions, Writable } from './signal'
 export { untrack } from './source'
+export type { Named } from './source'
 export { sources, watch } from './watch'
 export type { WatchCallback, WatchOptions, WatchSource } from './watch'

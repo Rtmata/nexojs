@@ -451,15 +451,42 @@ describe('effects that never settle', () => {
     stop2()
   })
 
-  test('the limit can be adjusted', () => {
+  test('another limit is another scheduler, and the shared one keeps its own', () => {
     const n = signal(0)
     const run = mock(() => n.set(n.get() + 1))
     const errors: unknown[] = []
-    sync.limit = 5
-    effect(run, { scheduler: sync, onError: (e) => errors.push(e) })
-    sync.limit = 100
+    const short = sync.with({ limit: 5 })
+    effect(run, { scheduler: short, onError: (e) => errors.push(e) })
     expect(run.mock.calls.length).toBeLessThan(10)
     expect(errors).toHaveLength(1)
+    expect(short.limit).toBe(5)
+    expect(sync.limit).toBe(100)
+  })
+
+  test('flush keeps to each scheduler limit', () => {
+    const n = signal(0)
+    const errors: unknown[] = []
+    const deep = microtask.with({ limit: 200 })
+    const stop = effect(() => n.get() < 150 && n.set(n.get() + 1), {
+      scheduler: deep,
+      onError: (e) => errors.push(e),
+    })
+    flush()
+    expect(errors).toHaveLength(0)
+    expect(n.peek()).toBe(150)
+    stop()
+  })
+
+  test('flush stops a looping effect past the default limit', () => {
+    const n = signal(0)
+    const errors: unknown[] = []
+    const stop = effect(() => n.set(n.get() + 1), {
+      onError: (e) => errors.push(e),
+    })
+    flush()
+    expect(errors).toHaveLength(1)
+    expect(n.peek()).toBeLessThan(110)
+    stop()
   })
 
   test('a scheduler that lets time pass may loop: it is an animation', async () => {
@@ -700,5 +727,115 @@ describe('sources', () => {
     expect(sources(c)).toEqual([a, b])
     const stop = effect(() => a.get(), { scheduler: sync })
     expect(sources(stop)).toEqual([a])
+  })
+})
+
+describe('names', () => {
+  test('nodes keep the name they were given', () => {
+    const page = signal(1, { name: 'page' })
+    const total = computed(() => page.get() * 2, { name: 'total' })
+    total.get()
+    expect(sources(total).map((s) => s.name)).toEqual(['page'])
+    expect(signal(0).name).toBeUndefined()
+  })
+
+  test('a write inside a computed names both', () => {
+    const page = signal(0, { name: 'page' })
+    const total = computed(() => page.set(1), { name: 'total' })
+    expect(() => total.get()).toThrow(
+      'signal "page" was written while computed "total" ran',
+    )
+  })
+
+  test('a looping effect is named', () => {
+    const n = signal(0)
+    const errors: unknown[] = []
+    effect(() => n.set(n.get() + 1), {
+      name: 'layout',
+      scheduler: sync,
+      onError: (e) => errors.push(e),
+    })
+    expect((errors[0] as Error).message).toContain(
+      'effect "layout" was stopped',
+    )
+  })
+
+  test('without a name, the kind is said', () => {
+    const n = signal(0)
+    const errors: unknown[] = []
+    effect(() => n.set(n.get() + 1), {
+      scheduler: sync,
+      onError: (e) => errors.push(e),
+    })
+    expect((errors[0] as Error).message).toContain('an effect was stopped')
+  })
+})
+
+describe('effects that return a promise', () => {
+  const failing = (signal: AbortSignal, error: unknown) =>
+    new Promise((_, reject) =>
+      signal.addEventListener('abort', () => reject(error ?? signal.reason)),
+    )
+
+  test('a late rejection ends only its own run', async () => {
+    const s = signal(1)
+    const runs: AbortSignal[] = []
+    const errors: unknown[] = []
+    const stop = effect(
+      ({ signal }) => {
+        runs.push(signal)
+        if (s.get() === 1)
+          return new Promise((_, reject) =>
+            setTimeout(() => reject(new Error('late')), 5),
+          )
+      },
+      { onError: (e) => errors.push(e) },
+    )
+    flush()
+    s.set(2)
+    flush()
+    await Bun.sleep(15)
+    expect((errors[0] as Error).message).toBe('late')
+    expect(runs[1]!.aborted).toBe(false)
+    stop()
+  })
+
+  test('its own cancellation is not an error', async () => {
+    const s = signal(1)
+    const errors: unknown[] = []
+    const stop = effect(({ signal }) => (s.get(), failing(signal, undefined)), {
+      onError: (e) => errors.push(e),
+    })
+    flush()
+    s.set(2)
+    flush()
+    stop()
+    await Bun.sleep(1)
+    expect(errors).toHaveLength(0)
+  })
+
+  test('a foreign AbortError is reported', async () => {
+    const s = signal(1)
+    const errors: unknown[] = []
+    const foreign = new DOMException('other', 'AbortError')
+    const stop = effect(({ signal }) => (s.get(), failing(signal, foreign)), {
+      onError: (e) => errors.push(e),
+    })
+    flush()
+    s.set(2)
+    flush()
+    await Bun.sleep(1)
+    expect(errors).toEqual([foreign])
+    stop()
+  })
+
+  test('any thenable is watched, not only a Promise', async () => {
+    const errors: unknown[] = []
+    const thenable = {
+      then: (_: unknown, reject: (e: unknown) => void) => reject('nope'),
+    }
+    effect(() => thenable, { scheduler: sync, onError: (e) => errors.push(e) })
+    await Bun.sleep(1)
+    expect(errors).toEqual(['nope'])
   })
 })

@@ -4,25 +4,46 @@
  */
 export interface Scheduler {
   schedule(run: () => void): () => unknown
+  /**
+   * Only for those that can block the thread: how many passes in one turn
+   * before effects waking each other are stopped. `flush()` keeps to it too.
+   */
+  readonly limit?: number
   /** Only for those that can block the thread: true while looping out of control. */
   exhausted?(): boolean
 }
 
+/** A scheduler that runs in passes within one turn, with a fixed `limit`. */
+export interface QueueScheduler extends Scheduler {
+  readonly limit: number
+  /** The same timing with another limit, for the effects you pass it to. */
+  with(options: { limit: number }): QueueScheduler
+}
+
 /** Effects that keep waking each other within one turn, as Preact's figure. */
-export const DEFAULT_LIMIT = 100
+const DEFAULT_LIMIT = 100
+
+type Start = (drain: () => void) => void
 
 /**
  * Runs what's queued in passes, one turn of the event loop at most. These are
  * the schedulers that could hang the page if effects wake each other forever,
  * so they count passes, and an effect past `limit` is stopped with an error.
+ * The limit belongs to the instance: changing it means making another one.
  */
-class Queue implements Scheduler {
-  limit = DEFAULT_LIMIT
+class Queue implements QueueScheduler {
   private readonly waiting = new Set<() => void>()
   private passes = 0
   private draining = false
 
-  constructor(private readonly start: (drain: () => void) => void) {}
+  constructor(
+    private readonly start: Start,
+    readonly limit = DEFAULT_LIMIT,
+  ) {}
+
+  with(options: { limit: number }): QueueScheduler {
+    return new Queue(this.start, options.limit)
+  }
 
   schedule(run: () => void): () => unknown {
     const wasIdle = this.waiting.size === 0 && !this.draining
@@ -54,10 +75,10 @@ class Queue implements Scheduler {
 }
 
 /** The default: after the current code, before the browser paints. */
-export const microtask = new Queue(queueMicrotask)
+export const microtask: QueueScheduler = new Queue(queueMicrotask)
 
 /** Right away, as soon as the write's batch ends. */
-export const sync = new Queue((drain) => drain())
+export const sync: QueueScheduler = new Queue((drain) => drain())
 
 /** Once per animation frame. Needs a browser: there are no frames elsewhere. */
 export const frame: Scheduler = {

@@ -1,6 +1,13 @@
 import { whenSettled } from './batch'
-import { DEFAULT_LIMIT, microtask, type Scheduler } from './schedulers'
-import { Dependencies, reading, Source, type Observer } from './source'
+import { microtask, type Scheduler } from './schedulers'
+import {
+  Dependencies,
+  label,
+  reading,
+  Source,
+  type Named,
+  type Observer,
+} from './source'
 
 export interface RunContext {
   /** Aborted just before the next run and when the effect ends. */
@@ -9,7 +16,7 @@ export interface RunContext {
 
 export type EffectBody = (run: RunContext) => unknown
 
-export interface EffectOptions {
+export interface EffectOptions extends Named {
   /** When it runs after a change. `microtask` by default. */
   scheduler?: Scheduler
   /** Aborting it ends the effect, along with whatever else shares the signal. */
@@ -40,6 +47,8 @@ const pending = new Set<EffectNode>()
  */
 export class EffectNode implements Observer {
   readonly pure = false
+  readonly name?: string
+  readonly label: string
   private readonly dependencies = new Dependencies(this)
   private readonly scheduler: Scheduler
   private readonly onError: (error: unknown) => void
@@ -53,6 +62,8 @@ export class EffectNode implements Observer {
     private readonly body: EffectBody,
     options: EffectOptions = {},
   ) {
+    this.name = options.name
+    this.label = label('effect', options.name)
     this.scheduler = options.scheduler ?? microtask
     this.onError = options.onError ?? report
     this.dependencies.connect()
@@ -69,7 +80,7 @@ export class EffectNode implements Observer {
 
   /** Whether `flush` should keep going for it: only schedulers that can loop. */
   get settlesInTurn(): boolean {
-    return this.scheduler.exhausted !== undefined
+    return this.scheduler.limit !== undefined
   }
 
   /** Have the scheduler run it for the first time. */
@@ -92,17 +103,23 @@ export class EffectNode implements Observer {
     this.dependencies.add(source)
   }
 
-  /** What `flush` does: skip the wait. */
+  /** Skip the wait. */
   runNow(): void {
     this.withdraw()
     this.runIfChanged()
   }
 
+  /** One pass of `flush`: past its scheduler's limit, it's looping. */
+  flushPass(pass: number): void {
+    if (pass > (this.scheduler.limit ?? Infinity)) this.fail()
+    else this.runNow()
+  }
+
   /** It's looping: this run becomes an error instead. */
-  fail(error: unknown): void {
+  fail(): void {
     this.withdraw()
     this.stale = false
-    this.handle(error)
+    this.handle(this.looping(), this.run)
   }
 
   readonly dispose: Dispose = () => {
@@ -126,7 +143,7 @@ export class EffectNode implements Observer {
   }
 
   private readonly fire = (): void => {
-    if (this.scheduler.exhausted?.()) this.fail(tooManyRuns())
+    if (this.scheduler.exhausted?.()) this.fail()
     else this.runNow()
   }
 
@@ -146,9 +163,9 @@ export class EffectNode implements Observer {
     const run = this.nextRun()
     this.dependencies.begin()
     try {
-      this.settle(this.callBody(run), run.signal)
+      this.settle(this.callBody(run), run)
     } catch (error) {
-      this.handle(error)
+      this.handle(error, run)
     } finally {
       this.dependencies.end()
     }
@@ -166,32 +183,57 @@ export class EffectNode implements Observer {
   }
 
   /** A returned function is cleanup; a returned promise can still fail. */
-  private settle(result: unknown, signal: AbortSignal): void {
-    if (typeof result === 'function') this.cleanUp(result, signal)
-    else if (result instanceof Promise)
-      result.catch((error) => this.handle(error))
+  private settle(result: unknown, run: AbortController): void {
+    if (typeof result === 'function') this.cleanUp(result, run)
+    else if (isThenable(result))
+      result.then(undefined, (error) => this.rejected(error, run))
   }
 
-  private cleanUp(cleanup: Function, signal: AbortSignal): void {
+  private cleanUp(cleanup: Function, run: AbortController): void {
     const safely = () => {
       try {
         cleanup()
       } catch (error) {
-        this.handle(error)
+        this.handle(error, run)
       }
     }
-    signal.addEventListener('abort', safely, { once: true })
+    run.signal.addEventListener('abort', safely, { once: true })
   }
 
-  /** The run's cleanup happens first; an `onError` that throws goes to `report`. */
-  private handle(error: unknown): void {
-    this.run?.abort()
+  /** The cancellation the run itself asked for isn't an error. */
+  private rejected(error: unknown, run: AbortController): void {
+    if (isOwnCancel(run.signal, error)) return
+    this.handle(error, run)
+  }
+
+  /**
+   * An error ends the run it came from, and only that one: its cleanup
+   * happens first. An `onError` that throws goes to `report`.
+   */
+  private handle(error: unknown, run?: AbortController): void {
+    run?.abort()
     try {
       this.onError(error)
     } catch (second) {
       report(second)
     }
   }
+
+  private looping(): Error {
+    return new Error(
+      `connector: ${this.label} was stopped: effects keep waking each other. An effect probably writes something it reads: use untrack(), or the frame scheduler if it's an animation`,
+    )
+  }
+}
+
+/** Anything with a `then`, not only this realm's `Promise`. */
+function isThenable(value: unknown): value is PromiseLike<unknown> {
+  return typeof (value as PromiseLike<unknown> | null)?.then === 'function'
+}
+
+/** What `fetch` and `throwIfAborted()` reject with when their signal aborts. */
+function isOwnCancel(signal: AbortSignal, error: unknown): boolean {
+  return signal.aborted && error === signal.reason
 }
 
 const nodes = new WeakMap<Dispose, EffectNode>()
@@ -222,24 +264,14 @@ export function nodeOf(dispose: Dispose): EffectNode | undefined {
 
 /**
  * Run everything pending now, in order, instead of when its scheduler would,
- * until effects stop waking each other. A `frame` or `later` effect runs once:
- * writing to itself there is an animation, not a loop.
+ * until effects stop waking each other; each one is stopped past its own
+ * scheduler's `limit`. A `frame` or `later` effect runs once: writing to
+ * itself there is an animation, not a loop.
  */
 export function flush(): void {
   let due = [...pending]
   for (let pass = 1; due.length > 0; pass++) {
-    if (pass > DEFAULT_LIMIT) return failAll(due)
-    for (const node of due) node.runNow()
+    for (const node of due) node.flushPass(pass)
     due = [...pending].filter((node) => node.settlesInTurn)
   }
-}
-
-function failAll(nodes: EffectNode[]): void {
-  for (const node of nodes) node.fail(tooManyRuns())
-}
-
-function tooManyRuns(): Error {
-  return new Error(
-    `connector: effects keep waking each other, so they were stopped. An effect probably writes something it reads: use untrack(), or the frame scheduler if it's an animation`,
-  )
 }
