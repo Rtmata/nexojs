@@ -232,7 +232,7 @@ function isThenable(value: unknown): value is PromiseLike<unknown> {
 }
 
 /** What `fetch` and `throwIfAborted()` reject with when their signal aborts. */
-function isOwnCancel(signal: AbortSignal, error: unknown): boolean {
+export function isOwnCancel(signal: AbortSignal, error: unknown): boolean {
   return signal.aborted && error === signal.reason
 }
 

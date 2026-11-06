@@ -20,6 +20,7 @@ const ARTICLES = {
   signal: 'a signal',
   computed: 'a computed',
   effect: 'an effect',
+  event: 'an event',
 }
 
 /** How errors name a node: `computed "total"`, or `a computed` with no name. */

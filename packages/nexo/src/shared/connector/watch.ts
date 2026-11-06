@@ -18,7 +18,7 @@ export interface WatchOptions extends EffectOptions {
   immediate?: boolean
 }
 
-type Values<S extends readonly WatchSource<unknown>[]> = {
+export type Values<S extends readonly WatchSource<unknown>[]> = {
   [K in keyof S]: S[K] extends WatchSource<infer T> ? T : never
 }
 
@@ -87,7 +87,7 @@ function readerOf(source: WatchSource<unknown>): () => unknown {
   return () => readable.get()
 }
 
-function isList(
+export function isList(
   sources: WatchSource<unknown> | readonly WatchSource<unknown>[],
 ): sources is readonly WatchSource<unknown>[] {
   return Array.isArray(sources)
