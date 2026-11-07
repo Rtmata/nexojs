@@ -40,6 +40,21 @@ describe.skipIf(!chrome)('connector in Chrome', () => {
     await browser?.close()
   })
 
+  test('microtask, the default, runs an effect after the current code', async () => {
+    const result = await page.evaluate(async () => {
+      const { effect, signal } = (window as any).connector
+      const n = signal(1)
+      const runs: number[] = []
+      effect(() => runs.push(n.get()))
+      const before = runs.length
+      await Promise.resolve()
+      n.set(2)
+      await Promise.resolve()
+      return { before, runs }
+    })
+    expect(result).toEqual({ before: 0, runs: [1, 2] })
+  })
+
   test('frame runs an effect on the next animation frame', async () => {
     const result = await page.evaluate(async () => {
       const { effect, frame, signal } = (window as any).connector

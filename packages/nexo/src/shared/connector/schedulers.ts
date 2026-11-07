@@ -74,8 +74,13 @@ class Queue implements QueueScheduler {
   }
 }
 
-/** The default: after the current code, before the browser paints. */
-export const microtask: QueueScheduler = new Queue(queueMicrotask)
+/**
+ * The default: after the current code, before the browser paints. Called as a
+ * plain function: browsers refuse `queueMicrotask` with another `this`.
+ */
+export const microtask: QueueScheduler = new Queue((drain) =>
+  queueMicrotask(drain),
+)
 
 /** Right away, as soon as the write's batch ends. */
 export const sync: QueueScheduler = new Queue((drain) => drain())
