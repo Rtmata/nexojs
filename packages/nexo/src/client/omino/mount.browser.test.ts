@@ -236,6 +236,84 @@ for (const [name, engine] of engines) {
       })
     })
 
+    test('bind:value on text: both ways, the caret stays when nothing changed', async () => {
+      expect(await play('bindText')).toEqual({
+        first: 'Ada',
+        fromDom: 'Grace',
+        caretKept: true,
+        toDom: 'Lin',
+      })
+    })
+
+    test('bind-on="change" waits for commit', async () => {
+      expect(await play('bindOnChange')).toEqual({
+        afterInput: '',
+        afterChange: 'typing',
+      })
+    })
+
+    test('an IME composition writes once it ends', async () => {
+      expect(await play('bindIme')).toEqual({ composing: '', ended: '你' })
+    })
+
+    test('numbers are valueAsNumber or null; dates the platform string or null', async () => {
+      expect(await play('bindNumberAndDate')).toEqual({
+        first: '3',
+        empty: null,
+        typed: 12.5,
+        cleared: '',
+        dayTyped: '2026-10-29',
+        dayEmpty: null,
+      })
+    })
+
+    test('the control table: checkbox, radio group, checkbox group, selects', async () => {
+      expect(await play('bindControls')).toEqual({
+        firstRadio: [false, true, false],
+        firstSelect: '2',
+        agree: true,
+        size: 'l',
+        tags: ['a', 'b'],
+        pick: '1',
+        many: ['x', 'y'],
+      })
+    })
+
+    test('files, read-only; contenteditable text', async () => {
+      expect(await play('bindFilesAndEditable')).toEqual({
+        file: 'a.txt',
+        first: 'hi',
+        text: 'typed',
+      })
+    })
+
+    test('a { get, set } transforms', async () => {
+      expect(await play('bindTransform')).toEqual({
+        first: 'ADA',
+        stored: 'grace',
+      })
+    })
+
+    test('bind:open on details, bind:volume on media', async () => {
+      expect(await play('bindDetailsAndVolume')).toEqual({
+        open: true,
+        toDom: 0.3,
+        fromDom: 0.7,
+      })
+    })
+
+    test('sizes from one ResizeObserver', async () => {
+      expect(await play('bindSize')).toEqual({ first: 120, after: 80 })
+    })
+
+    test('bind: mistakes are clear errors', async () => {
+      const caught = await play('bindErrors')
+      expect(caught).toHaveLength(3)
+      expect(caught[0]).toContain('bind:checked')
+      expect(caught[1]).toContain('.get() and .set()')
+      expect(caught[2]).toContain('bind-on')
+    })
+
     test('aborting the mount ends components and removes the content', async () => {
       expect(await play('abortEnds')).toEqual({
         log: ['ended'],

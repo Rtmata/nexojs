@@ -593,3 +593,232 @@ export async function rowsComeAndGo() {
   )
   return { during, after }
 }
+
+/** What a person typing does: change the value, then the browser's event. */
+function type(
+  el: HTMLInputElement | HTMLTextAreaElement,
+  value: string,
+  init: InputEventInit = {},
+) {
+  el.value = value
+  el.dispatchEvent(new InputEvent('input', { bubbles: true, ...init }))
+}
+
+function change(el: Element) {
+  el.dispatchEvent(new Event('change', { bubbles: true }))
+}
+
+export function bindText() {
+  const name = signal('Ada')
+  const { el } = run(<input bind:value={name} />)
+  const input = el.querySelector('input')!
+  const first = input.value
+  type(input, 'Grace')
+  const fromDom = name.get()
+  input.setSelectionRange(2, 2)
+  name.set('Grace')
+  flush()
+  const caretKept = input.selectionStart === 2
+  name.set('Lin')
+  flush()
+  return { first, fromDom, caretKept, toDom: input.value }
+}
+
+export function bindOnChange() {
+  const name = signal('')
+  const { el } = run(<input bind:value={name} bind-on="change" />)
+  const input = el.querySelector('input')!
+  type(input, 'typing')
+  const afterInput = name.get()
+  change(input)
+  return { afterInput, afterChange: name.get() }
+}
+
+export function bindIme() {
+  const text = signal('')
+  const { el } = run(<textarea bind:value={text} />)
+  const area = el.querySelector('textarea')!
+  type(area, 'ni', { isComposing: true })
+  const composing = text.get()
+  area.value = '你'
+  area.dispatchEvent(new CompositionEvent('compositionend', { data: '你' }))
+  return { composing, ended: text.get() }
+}
+
+export function bindNumberAndDate() {
+  const n = signal<number | null>(3)
+  const day = signal<string | null>(null)
+  const { el } = run(
+    <>
+      <input type="number" bind:value={n} />
+      <input type="date" bind:value={day} />
+    </>,
+  )
+  const [number, date] = el.querySelectorAll('input')
+  const first = number!.value
+  type(number!, '')
+  const empty = n.get()
+  type(number!, '12.5')
+  const typed = n.get()
+  n.set(null)
+  flush()
+  type(date!, '2026-10-29')
+  const dayTyped = day.get()
+  type(date!, '')
+  return {
+    first,
+    empty,
+    typed,
+    cleared: number!.value,
+    dayTyped,
+    dayEmpty: day.get(),
+  }
+}
+
+export function bindControls() {
+  const agree = signal(false)
+  const size = signal('m')
+  const tags = signal<string[]>(['a'])
+  const pick = signal('2')
+  const many = signal<string[]>(['y'])
+  const { el } = run(
+    <form>
+      <input type="checkbox" class="agree" bind:checked={agree} />
+      {['s', 'm', 'l'].map((v) => (
+        <input type="radio" name="size" value={v} bind:group={size} />
+      ))}
+      {['a', 'b'].map((v) => (
+        <input type="checkbox" class="tag" value={v} bind:group={tags} />
+      ))}
+      <select class="one" bind:value={pick}>
+        <option value="1">1</option>
+        <option value="2">2</option>
+      </select>
+      <select class="many" multiple bind:value={many}>
+        <option value="x">x</option>
+        <option value="y">y</option>
+      </select>
+    </form>,
+  )
+  const q = <T extends Element>(s: string) =>
+    el.querySelector(s) as unknown as T
+  const radios = [...el.querySelectorAll<HTMLInputElement>('[name=size]')]
+  const firstRadio = radios.map((r) => r.checked)
+  const firstSelect = q<HTMLSelectElement>('.one').value
+  q<HTMLInputElement>('.agree').checked = true
+  change(q('.agree'))
+  radios[2]!.checked = true
+  change(radios[2]!)
+  const b = el.querySelectorAll<HTMLInputElement>('.tag')[1]!
+  b.checked = true
+  change(b)
+  q<HTMLSelectElement>('.one').value = '1'
+  change(q('.one'))
+  q<HTMLSelectElement>('.many').options[0]!.selected = true
+  change(q('.many'))
+  return {
+    firstRadio,
+    firstSelect,
+    agree: agree.get(),
+    size: size.get(),
+    tags: tags.get(),
+    pick: pick.get(),
+    many: many.get(),
+  }
+}
+
+export function bindFilesAndEditable() {
+  const files = signal<FileList | null>(null)
+  const text = signal('hi')
+  const { el } = run(
+    <>
+      <input type="file" bind:files={files} />
+      <div contenteditable="true" bind:textContent={text} />
+    </>,
+  )
+  const input = el.querySelector('input')!
+  const dt = new DataTransfer()
+  dt.items.add(new File(['x'], 'a.txt'))
+  input.files = dt.files
+  change(input)
+  const div = el.querySelector('div')!
+  const first = div.textContent
+  div.textContent = 'typed'
+  div.dispatchEvent(new InputEvent('input', { bubbles: true }))
+  return { file: files.get()?.[0]?.name, first, text: text.get() }
+}
+
+export function bindTransform() {
+  const name = signal('ada')
+  const upper = {
+    get: () => name.get().toUpperCase(),
+    set: (v: unknown) => name.set(String(v).toLowerCase()),
+  }
+  const { el } = run(<input bind:value={upper} />)
+  const input = el.querySelector('input')!
+  const first = input.value
+  type(input, 'GRACE')
+  return { first, stored: name.get() }
+}
+
+export async function bindDetailsAndVolume() {
+  const open = signal(false)
+  const volume = signal(1)
+  const { el } = run(
+    <>
+      <details bind:open={open}>
+        <summary>s</summary>
+      </details>
+      <audio bind:volume={volume} />
+    </>,
+  )
+  const details = el.querySelector('details')!
+  details.open = true
+  await wait(50)
+  const audio = el.querySelector('audio')!
+  volume.set(0.3)
+  flush()
+  const toDom = audio.volume
+  audio.volume = 0.7
+  await wait(50)
+  return {
+    open: open.get(),
+    toDom: Math.round(toDom * 10) / 10,
+    fromDom: Math.round(volume.get() * 10) / 10,
+  }
+}
+
+/**
+ * A page renders (and resize observers report) on animation frames. Headless
+ * WebKit only renders when one is asked for, so the test asks.
+ */
+async function frames(n: number): Promise<void> {
+  for (let i = 0; i < n; i++) await new Promise(requestAnimationFrame)
+}
+
+export async function bindSize() {
+  const width = signal(0)
+  const { el } = run(<div style="width: 120px" bind:clientWidth={width} />)
+  await frames(5)
+  const first = width.get()
+  ;(el.firstElementChild as HTMLElement).style.width = '80px'
+  await frames(5)
+  return { first, after: width.get() }
+}
+
+export function bindErrors() {
+  const caught: string[] = []
+  const tryIt = (tree: () => Child) => {
+    try {
+      run(tree())
+    } catch (e) {
+      caught.push((e as Error).message)
+    }
+  }
+  tryIt(() => <input bind:checked={signal(false)} />)
+  tryIt(() => <input bind:value="plain" />)
+  tryIt(() => (
+    <input type="checkbox" bind:checked={signal(false)} bind-on="input" />
+  ))
+  return caught
+}

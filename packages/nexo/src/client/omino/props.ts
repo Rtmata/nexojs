@@ -5,6 +5,7 @@ import {
   type ClassValue,
 } from '../../shared/omino/attributes'
 import { isHole } from '../../shared/omino/hole'
+import { Bindings, type Where } from './bindings'
 import type { Holes } from './holes'
 import { isEventName, listen } from './listeners'
 import type { Motions } from './motions'
@@ -34,20 +35,29 @@ const MOTION_PROPS = new Set(['enter', 'exit', 'exit-timeout'])
  * (C.20); `on…` as listeners (C.18a). Any value may be a hole.
  */
 export class ElementProps {
+  private readonly bindings: Bindings
+
   constructor(
     private readonly holes: Holes,
     private readonly motions: Motions,
-  ) {}
+  ) {
+    this.bindings = new Bindings(holes)
+  }
 
-  apply(el: Element, props: Record<string, unknown>, signal: AbortSignal) {
-    for (const [name, value] of Object.entries(props))
-      this.one(el, name, value, signal)
+  /** `bind:` last: it reads what the others set (`type`, `contenteditable`). */
+  apply(el: Element, props: Record<string, unknown>, at: Where) {
+    const entries = Object.entries(props)
+    for (const [name, value] of entries)
+      if (!isBinding(name)) this.one(el, name, value, at.signal)
+    const on = props['bind-on'] as string | undefined
+    for (const [name, value] of entries)
+      if (isBinding(name)) this.bindings.bind(el, name.slice(5), value, on, at)
   }
 
   private one(el: Element, name: string, value: unknown, signal: AbortSignal) {
     if (isEventName(name)) return listen(el, name, value, signal)
     if (name.startsWith('prop:')) return this.property(el, name, value, signal)
-    if (name.startsWith('bind:')) throw notYet(el, name)
+    if (name === 'bind-on') return
     if (MOTION_PROPS.has(name)) return this.motions.set(el, name, value)
     ensureName(el.localName, name)
     if (name === 'class') return this.classes(el, value, signal)
@@ -159,8 +169,6 @@ function ensureCssName(el: Element, name: string): void {
   )
 }
 
-function notYet(el: Element, name: string): Error {
-  return new Error(
-    `omino: <${el.localName} ${name}> comes with two-way binding (C.16), not built yet`,
-  )
+function isBinding(name: string): boolean {
+  return name.startsWith('bind:')
 }

@@ -161,7 +161,7 @@ export class DomBuilder {
     const inside = { ...place, ns: namespaceInside(tag, el.namespaceURI!) }
     if (el.localName === 'script') ensureInert(rest.type, children as Child)
     this.children(el, children as Child, inside)
-    this.props.apply(el, rest, place.life.signal)
+    this.props.apply(el, rest, this.where(place))
     if (ref !== undefined) this.ref(el, ref, place)
     return el
   }
@@ -227,6 +227,11 @@ export class DomBuilder {
     return this.slots
       .content(own, place.scope)
       .flatMap(({ child, scope }) => this.build(child, { ...place, scope }))
+  }
+
+  private where(place: Place) {
+    const inserted = (fn: () => unknown) => this.inserted(fn, place)
+    return { signal: place.life.signal, inserted }
   }
 
   /** An untracked effect on the inserted phase (C.15b): once, children first. */
