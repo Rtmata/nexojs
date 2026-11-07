@@ -167,6 +167,29 @@ APG Combobox (R.39). The element you'd write without Nexo decides what it is:
 
 On an `<input type="text">`, the list its `aria-controls` names holds the suggestions. Fill it as the visitor types (from your own `input` listener, or a bridge swap) and set `data-combobox-filter="none"`, or leave a fixed list for the panel to filter (`contains`, the default, or `starts`). `type="search"` is refused: ARIA lets it be only a searchbox. On a `<select>`, the panel adds an input and a list made from the options, hides the select and writes every choice back to it, firing its `input` and `change`. A typed text that names no option goes back to the select's own when focus leaves. `aria-autocomplete` picks APG's variant: `none`, `list` (default) or `both` (the rest of the first match written in and selected, taken when focus leaves). Keys: ↓ opens and moves in, Alt+↓ only opens, ↑, Enter takes the active suggestion (with none, the form submits), Escape closes, and when closed it clears free text. Focus stays in the input; style the active suggestion with `[data-active]`. `combobox:change` carries `{ value, text }`.
 
+## menu
+
+APG Menu and Menubar + Menu Button, in Open UI's shape (R.35). Layer 0 is the native popover opened by its invoker; without JS the menus still open and their buttons still work:
+
+```html
+<button commandfor="acts" command="toggle-popover">More</button>
+<div id="acts" data-panel="menu" popover>
+  <button>Favorite</button>
+  <button commandfor="formats" command="toggle-popover">Export</button>
+  <div id="formats" popover>
+    <button data-value="json">JSON</button><button>CSV</button>
+  </div>
+  <hr />
+  <button role="menuitemcheckbox">Subtitles</button>
+  <div role="group">
+    <button role="menuitemradio" aria-checked="true">Small</button>
+    <button role="menuitemradio">Large</button>
+  </div>
+</div>
+```
+
+On a popover it's a menu; on an in-page element (`<div data-panel="menu" aria-label="Main">`), a menubar with one tab stop. Buttons and links become `menuitem`; write `role="menuitemcheckbox"` or `"menuitemradio"` for checkable items (radios group by the nearest `role="group"`); an `<hr>` is a separator. The panel adds `aria-haspopup` / `aria-expanded` to the triggers and moves focus into a menu when it opens (the first item; ↑ on the menu button opens on the last). Keys: the arrows of the menu's axis move and wrap, the other axis opens a submenu or goes back to its item, and under a menubar it moves to the bar's next menu. Home / End, typeahead, Enter chooses and closes every menu, Space flips a checkable and keeps the menu open, Escape closes the menu it's in, and Tab leaves and closes them all. `menu:select` carries `{ value, checked }` (`data-value`, else the text). Placing the menus is CSS (anchor positioning). For a context menu, open the same popover from `press-hold:press` or the ContextMenu key. The `command` bridge is shared with `dialog`.
+
 ## Lazy media: markup, no panel
 
 `<img loading="lazy">` and `<iframe loading="lazy">` work in every engine. For `<video>`, `loading="lazy"` is Chrome-only (150+). Write `preload="none"` too: every engine then waits to fetch the video, though the `poster` still loads early where `loading` is missing. A script can't help here, because the poster is requested before any script runs.

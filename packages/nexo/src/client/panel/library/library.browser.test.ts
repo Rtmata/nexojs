@@ -1063,3 +1063,186 @@ for (const [name, engine] of engines) {
     })
   })
 }
+
+for (const [name, engine] of engines) {
+  describe(`menu in ${name}`, () => {
+    let browser: Browser
+    let page: Page
+    const call = (fn: string, ...args: unknown[]) =>
+      page.evaluate(
+        ([f, a]) => (window as any).library[f as string](...(a as unknown[])),
+        [fn, args] as const,
+      )
+    const press = async (key: string) => {
+      await page.keyboard.press(key)
+      await call('settled')
+    }
+    const state = () =>
+      call('menuState') as Promise<{
+        focused: string
+        open: string[]
+        expanded: string[]
+      }>
+    const actions = `
+      <button id="more" commandfor="acts" command="toggle-popover">More</button>
+      <div id="acts" data-panel="menu" popover>
+        <button>Favorite</button>
+        <button id="export" commandfor="formats" command="toggle-popover">Export</button>
+        <div id="formats" popover><button data-value="json">JSON</button><button>CSV</button></div>
+        <hr>
+        <button role="menuitemcheckbox">Subtitles</button>
+        <div role="group"><button role="menuitemradio" aria-checked="true">Small</button><button role="menuitemradio">Large</button></div>
+      </div>
+      <button id="away">away</button>`
+
+    beforeAll(async () => {
+      browser = await engine.launch()
+      page = await browser.newPage()
+      await page.setContent(
+        '<!doctype html><title>library</title><body></body>',
+      )
+      await page.evaluate(async (code) => {
+        const url = URL.createObjectURL(
+          new Blob([code], { type: 'text/javascript' }),
+        )
+        ;(window as any).library = await import(url)
+      }, code)
+    }, LAUNCH)
+    afterAll(async () => {
+      await browser?.close()
+    })
+
+    test('menu button: opens on the first item; submenus by → and ←; Escape back to the button', async () => {
+      await call('setup', actions)
+      expect(await call('rolesOf', '#acts, #formats, #acts button')).toEqual([
+        'menu',
+        'menuitem',
+        'menuitem',
+        'menu',
+        'menuitem',
+        'menuitem',
+        'menuitemcheckbox',
+        'menuitemradio',
+        'menuitemradio',
+      ])
+      await page.click('#more')
+      await call('settled')
+      expect(await state()).toEqual({
+        focused: 'Favorite',
+        open: ['acts'],
+        expanded: ['more:true', 'export:false'],
+      })
+      await press('ArrowDown')
+      await press('ArrowRight')
+      expect(await state()).toMatchObject({
+        focused: 'JSON',
+        open: ['acts', 'formats'],
+      })
+      await press('ArrowDown')
+      await press('ArrowLeft')
+      expect(await state()).toMatchObject({ focused: 'export', open: ['acts'] })
+      await press('Escape')
+      expect(await state()).toMatchObject({ focused: 'more', open: [] })
+      await press('ArrowUp')
+      expect(await state()).toMatchObject({ focused: 'Large', open: ['acts'] })
+      await press('Escape')
+    })
+
+    test('choosing: Enter closes everything and says what; Space flips a checkable and stays', async () => {
+      await call('record')
+      await call('setup', actions)
+      await page.focus('#more')
+      await press('ArrowDown')
+      await press('ArrowDown')
+      await press('Enter')
+      expect(await state()).toMatchObject({
+        focused: 'JSON',
+        open: ['acts', 'formats'],
+      })
+      await press('Enter')
+      expect(await state()).toMatchObject({ focused: 'more', open: [] })
+      await press('ArrowUp')
+      await press('Space')
+      await press('ArrowUp')
+      await press('ArrowUp')
+      await press('Space')
+      await press('Space')
+      await press('ArrowDown')
+      expect(await state()).toMatchObject({ focused: 'Small', open: ['acts'] })
+      await press('Enter')
+      const chosen = ((await call('events')) as string[]).filter((e) =>
+        e.startsWith('menu'),
+      )
+      expect(chosen).toEqual([
+        'menu:select json',
+        'menu:select Large=true',
+        'menu:select Subtitles=true',
+        'menu:select Subtitles=false',
+        'menu:select Small=true',
+      ])
+      expect(await state()).toMatchObject({ focused: 'more', open: [] })
+    })
+
+    test('Escape in a submenu closes only it, back on its item', async () => {
+      await call('setup', actions)
+      await page.focus('#more')
+      await press('ArrowDown')
+      await press('ArrowDown')
+      await press('ArrowRight')
+      await press('Escape')
+      expect(await state()).toMatchObject({ focused: 'export', open: ['acts'] })
+      await press('Escape')
+      expect(await state()).toMatchObject({ focused: 'more', open: [] })
+    })
+
+    test('typeahead; Tab leaves and closes every menu', async () => {
+      await call('setup', actions)
+      await page.focus('#more')
+      await press('ArrowDown')
+      await press('s')
+      expect((await state()).focused).toBe('Subtitles')
+      await press('Tab')
+      expect((await state()).open).toEqual([])
+    })
+
+    test('menubar: one tab stop, ← → along it, ↓ into a menu, ← → from a menu to the next', async () => {
+      await call(
+        'setup',
+        `<div data-panel="menu" aria-label="Main">
+          <button commandfor="file" command="toggle-popover">File</button>
+          <div id="file" popover><button>New</button><button>Open</button></div>
+          <button commandfor="edit" command="toggle-popover">Edit</button>
+          <div id="edit" popover><button>Undo</button></div>
+          <button>Help</button>
+        </div>`,
+      )
+      expect(await call('rolesOf', '[data-panel=menu]')).toEqual(['menubar'])
+      await page.keyboard.press('Tab')
+      expect((await state()).focused).toBe('File')
+      await press('ArrowRight')
+      await press('ArrowDown')
+      expect(await state()).toMatchObject({ focused: 'Undo', open: ['edit'] })
+      await press('ArrowRight')
+      expect(await state()).toMatchObject({ focused: 'Help', open: [] })
+      await press('ArrowLeft')
+      await press('ArrowDown')
+      await press('ArrowLeft')
+      expect(await state()).toMatchObject({ focused: 'New', open: ['file'] })
+      await press('Escape')
+      expect(await state()).toMatchObject({ focused: 'File', open: [] })
+    })
+
+    test('bridged: commandfor works where the platform lacks it', async () => {
+      await call('withoutPlatform', actions, ['command'])
+      await page.click('#more')
+      await call('settled')
+      expect(await state()).toMatchObject({
+        focused: 'Favorite',
+        open: ['acts'],
+      })
+      await page.click('#more')
+      await call('settled')
+      expect((await state()).open).toEqual([])
+    })
+  })
+}

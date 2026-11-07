@@ -2,6 +2,7 @@
 import {
   activity,
   attach,
+  menu,
   combobox,
   listbox,
   confirmOnHold,
@@ -44,6 +45,7 @@ const panels = registry({
   sequence,
   listbox,
   combobox,
+  menu,
 })
 
 export function setup(html: string): void {
@@ -146,6 +148,7 @@ export function record(): void {
     'sequence:done',
     'listbox:change',
     'combobox:change',
+    'menu:select',
     'change',
   ])
     document.addEventListener(name, (e) => w.events.push(describeEvent(e)))
@@ -161,6 +164,9 @@ function describeEvent(e: Event): string {
     detail.phase ??
     detail.values?.join(',') ??
     detail.text ??
+    (detail.checked === undefined
+      ? detail.value
+      : `${detail.value}=${detail.checked}`) ??
     (e.target as HTMLSelectElement).value
   return extra ? `${e.type} ${extra}` : e.type
 }
@@ -306,4 +312,30 @@ export function selectState(selector: string) {
 export function selectedText(): string {
   const field = document.activeElement as HTMLInputElement
   return field.value.slice(field.selectionStart ?? 0, field.selectionEnd ?? 0)
+}
+
+/** What has focus, which menus are open, and what the triggers say. */
+export function menuState() {
+  const focused = document.activeElement
+  return {
+    focused: focused?.id || focused?.textContent?.trim() || null,
+    open: [...document.querySelectorAll('[popover]')]
+      .filter((p) => p.matches(':popover-open'))
+      .map((p) => p.id),
+    expanded: [...document.querySelectorAll('[aria-haspopup]')].map(
+      (t) =>
+        `${t.id || t.textContent?.trim()}:${t.getAttribute('aria-expanded')}`,
+    ),
+  }
+}
+
+export function rolesOf(selector: string): (string | null)[] {
+  return [...document.querySelectorAll(selector)].map((e) =>
+    e.getAttribute('role'),
+  )
+}
+
+/** A frame or two: the popover `toggle` event is queued as a task. */
+export function settled(): Promise<void> {
+  return new Promise((done) => setTimeout(done, 30))
 }
