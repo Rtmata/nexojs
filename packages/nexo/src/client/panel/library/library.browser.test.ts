@@ -1335,3 +1335,120 @@ for (const [name, engine] of engines) {
     })
   })
 }
+
+for (const [name, engine] of engines) {
+  describe(`toast in ${name}`, () => {
+    let browser: Browser
+    let page: Page
+    const call = (fn: string, ...args: unknown[]) =>
+      page.evaluate(
+        ([f, a]) => (window as any).library[f as string](...(a as unknown[])),
+        [fn, args] as const,
+      )
+    const region = (attrs = '', inside = '') => `
+      <button id="away" style="position:fixed;left:0;top:0">away</button>
+      <ol id="page" data-panel="toast" aria-label="Avisos" data-toast-close="Cerrar" ${attrs}
+          style="position:fixed;right:0;bottom:0;width:300px;min-height:100px;margin:0">${inside}</ol>`
+    const later = (ms: number) => page.waitForTimeout(ms)
+
+    beforeAll(async () => {
+      browser = await engine.launch()
+      page = await browser.newPage({ viewport: { width: 800, height: 600 } })
+      await page.setContent(
+        '<!doctype html><title>library</title><body></body>',
+      )
+      await page.evaluate(async (code) => {
+        const url = URL.createObjectURL(
+          new Blob([code], { type: 'text/javascript' }),
+        )
+        ;(window as any).library = await import(url)
+      }, code)
+    }, LAUNCH)
+    afterAll(async () => {
+      await browser?.close()
+    })
+
+    test("persistent: the server's message and the app's stay until closed", async () => {
+      await call('record')
+      await call('setup', region('', '<li>Guardado</li>'))
+      expect(await call('attributes', '#page', ['role'])).toEqual({
+        role: 'log',
+      })
+      await call('say', 'Agregado a favoritos <button>Deshacer</button>')
+      await later(300)
+      expect(await call('messages')).toEqual([
+        'Guardado [Cerrar]',
+        'Agregado a favoritos Deshacer [Cerrar]',
+      ])
+      await page.click('#page li:nth-child(2) [data-toast-dismiss]')
+      await later(50)
+      expect(await call('messages')).toEqual(['Guardado [Cerrar]'])
+      expect(
+        ((await call('events')) as string[]).filter((e) =>
+          e.startsWith('toast'),
+        ),
+      ).toEqual(['toast:dismiss Agregado a favoritos Deshacer close'])
+    })
+
+    test('duration: plain messages leave by themselves, paused under the pointer; one with controls stays', async () => {
+      await page.mouse.move(10, 300)
+      await call('setup', region('data-toast-duration="250"'))
+      await call('say', 'Copiado')
+      await call('say', 'Borrado <button>Deshacer</button>')
+      await later(450)
+      expect(await call('messages')).toEqual(['Borrado Deshacer [Cerrar]'])
+      await page.mouse.move(700, 580)
+      await call('say', 'Descargado')
+      await later(450)
+      expect((await call('messages')) as string[]).toContain(
+        'Descargado [Cerrar]',
+      )
+      await page.mouse.move(10, 300)
+      await later(450)
+      expect(await call('messages')).toEqual(['Borrado Deshacer [Cerrar]'])
+    })
+
+    test('closing keeps focus in the region; F8 reaches the region', async () => {
+      await call('setup', region('', '<li>Uno</li><li>Dos</li>'))
+      await page.focus('#page li:first-child [data-toast-dismiss]')
+      await page.keyboard.press('Enter')
+      await later(50)
+      expect(
+        await page.evaluate(
+          () => document.activeElement?.closest('li')?.textContent,
+        ),
+      ).toContain('Dos')
+      await page.focus('#away')
+      await page.keyboard.press('F8')
+      expect(await page.evaluate(() => document.activeElement?.id)).toBe('page')
+    })
+
+    test('a modal dialog holds its own region; toastRegion() and F8 follow the top modal', async () => {
+      await call(
+        'setup',
+        region() +
+          `<dialog id="info"><button id="fav">Favorito</button><ol id="in-info" data-panel="toast" aria-label="Avisos"></ol></dialog>`,
+      )
+      expect(await call('regionInUse')).toBe('page')
+      await call('openModal', 'info')
+      expect(await call('regionInUse')).toBe('in-info')
+      await call('say', 'Agregado a favoritos')
+      expect(await call('messages', '#in-info')).toEqual([
+        'Agregado a favoritos [Close]',
+      ])
+      await page.keyboard.press('F8')
+      expect(await page.evaluate(() => document.activeElement?.id)).toBe(
+        'in-info',
+      )
+    })
+
+    test('ended: the region as the server sent it', async () => {
+      await call('setupAndEnd', region('', '<li>Guardado</li>'))
+      expect(await call('attributes', '#page', ['role', 'tabindex'])).toEqual({
+        role: null,
+        tabindex: null,
+      })
+      expect(await call('messages')).toEqual(['Guardado'])
+    })
+  })
+}

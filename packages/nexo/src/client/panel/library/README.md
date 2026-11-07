@@ -207,6 +207,37 @@ Where the engine has interest invokers (Chrome 142+), the panel does nothing. El
 
 The defaults are what Chromium 156 does for `interest-delay: normal`. Place it with CSS anchor positioning. Where the platform lacks interest invokers, a tooltip stays hidden without JS, so never put anything essential only in a tooltip.
 
+## toast
+
+A messages region (R.40) that exists from the first render (a live region added later is often not announced). Its children are the messages, added by the app or by bridge (`data-bridge-swap="append"`). A message the server rendered after a form post is layer 0.
+
+```html
+<ol
+  id="notices"
+  data-panel="toast"
+  role="log"
+  aria-label="Notices"
+  data-toast-close="Close"
+>
+  <li>Saved</li>
+</ol>
+```
+
+```ts
+toastRegion()!.insertAdjacentHTML(
+  'beforeend',
+  '<li>Added to favorites <button>Undo</button></li>',
+)
+```
+
+- **Staying:** messages stay until closed (WCAG 2.2.1), and each one gets a close button (`[data-toast-dismiss]`, named by `data-toast-close`). With `data-toast-duration="5000"`, a message without controls of its own leaves by itself, paused while hovered or focused and while the window isn't (Radix). A message with an Undo always waits for the visitor.
+- **Roles:** `role="log"` is the default, for ordered, polite messages; use a separate `role="alert"` region for urgent ones.
+- **Leaving:** a closing message gets `[data-leaving]` for its exit animation, and focus stays in the region.
+- **Reaching it:** F8 (`data-toast-key`) moves focus to the region in use.
+- **Modal dialogs:** everything outside an open modal `<dialog>` is inert, so a dialog that sends messages holds its own region. `toastRegion()` returns the one of the top-most modal, else the page's.
+- **Placing it:** CSS (`position: fixed; z-index`). Never `display: none` the region.
+- **Event:** `toast:dismiss` carries `{ text, reason }` (`close` or `timeout`).
+
 ## Lazy media: markup, no panel
 
 `<img loading="lazy">` and `<iframe loading="lazy">` work in every engine. For `<video>`, `loading="lazy"` is Chrome-only (150+). Write `preload="none"` too: every engine then waits to fetch the video, though the `poster` still loads early where `loading` is missing. A script can't help here, because the poster is requested before any script runs.

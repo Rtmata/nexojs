@@ -2,6 +2,8 @@
 import {
   activity,
   attach,
+  toast,
+  toastRegion,
   hasInterest,
   tooltip,
   menu,
@@ -49,6 +51,7 @@ const panels = registry({
   combobox,
   menu,
   tooltip,
+  toast,
 })
 
 export function setup(html: string): void {
@@ -154,6 +157,7 @@ export function record(): void {
     'menu:select',
     'interest',
     'loseinterest',
+    'toast:dismiss',
     'change',
   ])
     document.addEventListener(name, (e) => w.events.push(describeEvent(e)), {
@@ -173,6 +177,7 @@ function describeEvent(e: Event): string {
     detail.state ??
     detail.phase ??
     detail.values?.join(',') ??
+    (detail.reason ? `${detail.text} ${detail.reason}` : undefined) ??
     detail.text ??
     (detail.checked === undefined
       ? detail.value
@@ -365,4 +370,27 @@ export function tipState(tip = '#tip', invoker = '#info') {
     details: i.getAttribute('aria-details'),
     expanded: i.getAttribute('aria-expanded'),
   }
+}
+
+/** What the app does to say something: a message into the region in use. */
+export function say(html: string): void {
+  toastRegion()!.insertAdjacentHTML('beforeend', `<li>${html}</li>`)
+}
+
+export function messages(selector = '[data-panel~=toast]'): string[] {
+  return [...document.querySelector(selector)!.children].map((m) => {
+    const copy = m.cloneNode(true) as HTMLElement
+    const close = copy.querySelector('[data-toast-dismiss]')
+    const label = close?.getAttribute('aria-label')
+    close?.remove()
+    return `${copy.textContent!.trim()}${label ? ` [${label}]` : ''}`
+  })
+}
+
+export function regionInUse(): string | null {
+  return toastRegion()?.id ?? null
+}
+
+export function openModal(id: string): void {
+  ;(document.getElementById(id) as HTMLDialogElement).showModal()
 }
