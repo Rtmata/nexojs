@@ -109,14 +109,17 @@ describe('elements', () => {
     expect(await renderToString(<i class={[false, null]} />)).toBe('<i></i>')
   })
 
-  test('refuses event handlers and bad names with a clear error', async () => {
-    await expect(renderToString(<button onclick={() => {}} />)).rejects.toThrow(
-      'no event handlers',
+  test("a function handler is the browser's: left out (C.18d); text is refused", async () => {
+    expect(await renderToString(<button onclick={() => {}} />)).toBe(
+      '<button></button>',
     )
-    // Also as text, which is how injected data would arrive.
+    // As text, which is how injected data would arrive.
     await expect(
-      renderToString(<img src="x" onError="alert(1)" />),
+      renderToString(<img src="x" onerror="alert(1)" />),
     ).rejects.toThrow('no event handlers')
+    await expect(renderToString(<i onClick={() => {}} />)).rejects.toThrow(
+      'lowercase',
+    )
     await expect(renderToString(jsx('bad tag', {}))).rejects.toThrow(
       'is not a tag name',
     )
@@ -880,5 +883,37 @@ describe("Nexo's own props on the server", () => {
     const html = await (await render(page)).text()
     expect(html).toContain('<input>')
     expect(called).toBe(false)
+  })
+})
+
+describe('the server side of client features', () => {
+  test('style objects: CSS names, holes read once, null left out (C.20b)', async () => {
+    const size = { get: () => '10px' }
+    expect(
+      await renderToString(
+        <p style={{ 'font-size': size, '--accent': 'red', color: null }} />,
+      ),
+    ).toBe('<p style="font-size: 10px; --accent: red"></p>')
+    await expect(
+      renderToString(<p style={{ fontSize: '1px' }} />),
+    ).rejects.toThrow("'font-size'")
+  })
+
+  test('bind: writes the value it starts with (C.16)', async () => {
+    const name = { get: () => 'Ada', set() {} }
+    const on = { get: () => true, set() {} }
+    const size = { get: () => 'm', set() {} }
+    expect(await renderToString(<input bind:value={name} />)).toBe(
+      '<input value="Ada">',
+    )
+    expect(
+      await renderToString(<input type="checkbox" bind:checked={on} />),
+    ).toBe('<input type="checkbox" checked>')
+    expect(
+      await renderToString(<input type="radio" value="m" bind:group={size} />),
+    ).toBe('<input type="radio" value="m" checked>')
+    expect(await renderToString(<details bind:open={on} />)).toBe(
+      '<details open></details>',
+    )
   })
 })

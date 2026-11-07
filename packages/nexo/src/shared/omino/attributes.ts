@@ -48,7 +48,8 @@ const SCRIPT_URL = /^(javascript|vbscript):/i
  *   // ' href="/nes" class="card big"'
  */
 export class Attributes {
-  render(tag: string, props: Record<string, unknown>): string {
+  render(tag: string, given: Record<string, unknown>): string {
+    const props = { ...given, ...initialValues(tag, given) }
     return Object.entries(props)
       .filter(([name]) => !isOwnProp(name))
       .map(([name, value]) => this.one(tag, name, value))
@@ -57,9 +58,9 @@ export class Attributes {
 
   private one(tag: string, name: string, given: unknown): string {
     ensureName(tag, name)
-    ensureNoHandler(tag, name, given)
+    if (/^on/i.test(name)) return handlerOnServer(tag, name, given)
     const raw = readOnce(given) // C.12: the server reads a hole once
-    const value = name === 'class' ? classNames(raw as ClassValue) || null : raw
+    const value = valueOf(tag, name, raw)
     if (value === null || value === undefined || value === false) return ''
     ensureNoCode(tag, name, value)
     if (value === true) return ` ${name}`
@@ -76,18 +77,82 @@ export function ensureName(tag: string, name: string): void {
   )
 }
 
-/** An attribute that would put code in the page: an event handler, or a URL that runs script. */
+/** A URL that runs script. (Handlers are dealt with before: `handlerOnServer`.) */
 function ensureNoCode(tag: string, name: string, value: unknown): void {
-  ensureNoHandler(tag, name, value)
   ensureNoScriptUrl(tag, name, value)
 }
 
-/** Before anything reads it: an `on…` function is a handler, never a hole. */
-function ensureNoHandler(tag: string, name: string, value: unknown): void {
-  if (!/^on/i.test(name) || isAbsent(value)) return
+/**
+ * `on…` on the server (C.18d): a function (or `{ handleEvent }`) is the
+ * browser's, so it's left out and the same JSX renders on both sides; text
+ * would be inline JavaScript, refused on both sides.
+ */
+function handlerOnServer(tag: string, name: string, value: unknown): string {
+  if (isAbsent(value)) return ''
+  ensureEventName(tag, name)
+  if (typeof value !== 'string') return ''
   throw new Error(
-    `omino: <${tag} ${name}> is not allowed. Server-rendered HTML carries no event handlers; attach behavior in the browser instead`,
+    `omino: <${tag} ${name}="…"> would be inline JavaScript: server-rendered HTML carries no event handlers. Pass a function; it runs in the browser`,
   )
+}
+
+/** Shared with the client: event names are lowercase, as in HTML (C.18a). */
+export function ensureEventName(tag: string, name: string): void {
+  const type = name.slice(2)
+  if (type === type.toLowerCase()) return
+  throw new Error(
+    `omino: <${tag} ${name}> never fires: event names are lowercase, as in HTML. Write on${type.toLowerCase()}`,
+  )
+}
+
+/** `class` lists and objects, `style` objects (C.20b); anything else as given. */
+function valueOf(tag: string, name: string, raw: unknown): unknown {
+  if (name === 'class') return classNames(raw as ClassValue) || null
+  if (name === 'style' && isStyleObject(raw)) return styleText(tag, raw) || null
+  return raw
+}
+
+function isStyleObject(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null && !Array.isArray(value)
+}
+
+/** CSS's own names (kebab-case); each value maybe a hole, read once; `null`/`false` left out. */
+function styleText(tag: string, style: Record<string, unknown>): string {
+  const parts: string[] = []
+  for (const [property, given] of Object.entries(style)) {
+    ensureCssName(tag, property)
+    const value = readOnce(given)
+    if (!isAbsent(value)) parts.push(`${property}: ${value}`)
+  }
+  return parts.join('; ')
+}
+
+/** Shared with the client: `fontSize` would be ignored without a word. */
+export function ensureCssName(tag: string, name: string): void {
+  if (name.startsWith('--') || !/[A-Z]/.test(name)) return
+  const kebab = name.replace(/[A-Z]/g, (c) => `-${c.toLowerCase()}`)
+  throw new Error(
+    `omino: <${tag} style={{ ${name} }}> uses CSS's own names: write '${kebab}'`,
+  )
+}
+
+/**
+ * `bind:` on the server: the signal's value now, as the attribute that
+ * shows it at first (C.16). The browser binds it once it mounts.
+ */
+function initialValues(tag: string, props: Record<string, unknown>) {
+  const read = (name: string) => readOnce(props[`bind:${name}`])
+  const initial: Record<string, unknown> = {}
+  if ('bind:value' in props && tag === 'input') initial.value = read('value')
+  if ('bind:checked' in props) initial.checked = Boolean(read('checked'))
+  if ('bind:open' in props) initial.open = Boolean(read('open'))
+  if ('bind:group' in props)
+    initial.checked = inGroup(read('group'), props.value)
+  return initial
+}
+
+function inGroup(group: unknown, value: unknown): boolean {
+  return Array.isArray(group) ? group.includes(value) : group === value
 }
 
 /** Shared with the client renderer: a URL that would run code is refused on both sides. */

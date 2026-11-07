@@ -1,5 +1,6 @@
 import {
   classNames,
+  ensureCssName,
   ensureName,
   ensureNoScriptUrl,
   type ClassValue,
@@ -107,7 +108,7 @@ export class ElementProps {
     value: unknown,
     signal: AbortSignal,
   ) {
-    ensureCssName(el, property)
+    ensureCssName(el.localName, property)
     const style = (el as HTMLElement).style
     this.holes.write(value, (v) => setStyle(style, property, v), signal)
   }
@@ -157,15 +158,6 @@ function ensureText(el: Element, name: string, value: unknown): void {
   if (typeof value !== 'object' && typeof value !== 'function') return
   throw new Error(
     `omino: <${el.localName} ${name}> must be a string, number or boolean. For an object on a web component, write prop:${name}`,
-  )
-}
-
-/** `fontSize` would be ignored without a word: CSS's names are kebab-case. */
-function ensureCssName(el: Element, name: string): void {
-  if (name.startsWith('--') || !/[A-Z]/.test(name)) return
-  const kebab = name.replace(/[A-Z]/g, (c) => `-${c.toLowerCase()}`)
-  throw new Error(
-    `omino: <${el.localName} style={{ ${name} }}> uses CSS's own names: write '${kebab}'`,
   )
 }
 

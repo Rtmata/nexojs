@@ -1,3 +1,5 @@
+import { ensureEventName } from '../../shared/omino/attributes'
+
 /** The platform's `EventListener` object, with `addEventListener`'s options. */
 export interface ListenerObject {
   handleEvent(event: Event): unknown
@@ -34,11 +36,8 @@ export function isEventName(name: string): boolean {
 }
 
 function eventType(el: Element, name: string): string {
-  const type = name.slice(2)
-  if (type === type.toLowerCase()) return type
-  throw new Error(
-    `omino: <${tag(el)} ${name}> never fires: event names are lowercase, as in HTML. Write on${type.toLowerCase()}`,
-  )
+  ensureEventName(el.localName, name)
+  return name.slice(2)
 }
 
 function isListenerObject(value: unknown): value is ListenerObject {
