@@ -125,3 +125,91 @@ for (const [name, engine] of engines) {
     })
   })
 }
+
+const tabsMarkup = (attrs = '') => `
+  <button id="before">before</button>
+  <div data-panel="tabs" ${attrs}>
+    <ul>
+      <li><a id="t1" href="#games">Games</a></li>
+      <li><a id="t2" href="#screens">Screens</a></li>
+      <li><a id="t3" href="#notes">Notes</a></li>
+    </ul>
+    <section id="games"><p>games</p></section>
+    <section id="screens"><p>screens</p></section>
+    <section id="notes"><p>notes</p></section>
+  </div>`
+
+for (const [name, engine] of engines) {
+  describe(`tabs in ${name}`, () => {
+    let browser: Browser
+    let page: Page
+    const call = (fn: string, arg?: unknown) =>
+      page.evaluate(([f, a]) => (window as any).library[f as string](a), [
+        fn,
+        arg,
+      ] as const)
+    const state = () => call('tabsState')
+
+    beforeAll(async () => {
+      browser = await engine.launch()
+      page = await browser.newPage()
+      await page.setContent(
+        '<!doctype html><title>library</title><body></body>',
+      )
+      await page.evaluate(async (code) => {
+        const url = URL.createObjectURL(
+          new Blob([code], { type: 'text/javascript' }),
+        )
+        ;(window as any).library = await import(url)
+      }, code)
+    })
+    afterAll(async () => {
+      await browser?.close()
+    })
+
+    test('layer 0: without the panel, every section shows', async () => {
+      await call('plain', tabsMarkup())
+      expect((await state()).shown).toEqual(['games', 'screens', 'notes'])
+    })
+
+    test('APG roles; one panel shown; arrows select (automatic)', async () => {
+      await call('setup', tabsMarkup())
+      const first = await state()
+      expect(first.shown).toEqual(['games'])
+      expect(first.roles).toEqual([
+        'tablist',
+        'presentation',
+        'tab',
+        'presentation',
+        'tab',
+        'presentation',
+        'tab',
+        'tabpanel',
+        'tabpanel',
+        'tabpanel',
+      ])
+      await page.focus('#before')
+      await page.keyboard.press('Tab')
+      await page.keyboard.press('ArrowRight')
+      expect(await state()).toMatchObject({
+        shown: ['screens'],
+        selected: ['t2'],
+      })
+      await page.keyboard.press('Tab')
+      expect(await page.evaluate(() => document.activeElement?.id)).toBe(
+        'screens',
+      )
+    })
+
+    test('manual: arrows move, Space or a click selects; no hash jump', async () => {
+      await call('setup', tabsMarkup('data-tabs-activation="manual"'))
+      await page.focus('#t1')
+      await page.keyboard.press('ArrowRight')
+      expect((await state()).shown).toEqual(['games'])
+      await page.keyboard.press(' ')
+      expect((await state()).shown).toEqual(['screens'])
+      await page.click('#t3')
+      expect(await state()).toMatchObject({ shown: ['notes'], hash: '' })
+    })
+  })
+}

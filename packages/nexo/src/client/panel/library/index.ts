@@ -5,3 +5,4 @@
  */
 export { FocusGroup, focusgroup, readSpec } from './focusgroup'
 export type { FocusSpec } from './focusgroup'
+export { tabs } from './tabs'
