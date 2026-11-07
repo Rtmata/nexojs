@@ -907,3 +907,159 @@ for (const [name, engine] of engines) {
     })
   })
 }
+
+for (const [name, engine] of engines) {
+  describe(`combobox in ${name}`, () => {
+    let browser: Browser
+    let page: Page
+    const call = (fn: string, ...args: unknown[]) =>
+      page.evaluate(
+        ([f, a]) => (window as any).library[f as string](...(a as unknown[])),
+        [fn, args] as const,
+      )
+    /** The combobox's events and the select's `change`s (the made input's own `change` is native, left alone). */
+    const changes = async () =>
+      ((await call('events')) as string[]).filter(
+        (e) => e.startsWith('combobox') || /^change (snes|md|pce)$/.test(e),
+      )
+
+    beforeAll(async () => {
+      browser = await engine.launch()
+      page = await browser.newPage()
+      await page.setContent(
+        '<!doctype html><title>library</title><body></body>',
+      )
+      await page.evaluate(async (code) => {
+        const url = URL.createObjectURL(
+          new Blob([code], { type: 'text/javascript' }),
+        )
+        ;(window as any).library = await import(url)
+      }, code)
+    }, LAUNCH)
+    afterAll(async () => {
+      await browser?.close()
+    })
+
+    test('free text: the app fills the list as you type; arrows, Enter, Escape (APG)', async () => {
+      await call('record')
+      await call(
+        'setup',
+        `<form><input id="q" name="q" data-panel="combobox" data-combobox-filter="none" aria-controls="titles" aria-label="Search">
+         <ul id="titles" hidden></ul></form>`,
+      )
+      await call('suggestOnInput', '#q', '#titles', ['Ys', 'Ys II', 'Zelda'])
+      await page.focus('#q')
+      await page.keyboard.type('ys')
+      expect(await call('comboState')).toEqual({
+        value: 'ys',
+        expanded: 'true',
+        shown: ['Ys', 'Ys II'],
+        active: null,
+        named: null,
+      })
+      await page.keyboard.press('ArrowDown')
+      await page.keyboard.press('ArrowDown')
+      expect(await call('comboState')).toMatchObject({
+        active: 'Ys II',
+        named: true,
+      })
+      await page.keyboard.press('Enter')
+      expect(await call('comboState')).toMatchObject({
+        value: 'Ys II',
+        expanded: 'false',
+        shown: [],
+      })
+      await page.keyboard.press('Escape')
+      expect(await call('comboState')).toMatchObject({ value: '' })
+      expect(await changes()).toEqual(['combobox:change Ys II'])
+    })
+
+    test('a select becomes a filterable select, and stays the form value', async () => {
+      await call('record')
+      await call(
+        'setup',
+        `<label for="plat">Platform</label>
+         <select id="plat" name="platform" data-panel="combobox">
+           <option value="snes">SNES</option><option value="md">Mega Drive</option><option value="pce">PC Engine</option>
+         </select><button id="away">away</button>`,
+      )
+      expect(await call('selectState', '#plat')).toEqual({
+        value: 'snes',
+        hidden: true,
+        labelled: true,
+      })
+      expect(await call('comboState')).toMatchObject({
+        value: 'SNES',
+        expanded: 'false',
+      })
+      await page.click('[role=combobox]', { clickCount: 3 })
+      await page.keyboard.type('mega')
+      expect(await call('comboState')).toMatchObject({ shown: ['Mega Drive'] })
+      await page.keyboard.press('ArrowDown')
+      await page.keyboard.press('Enter')
+      expect(await call('selectState', '#plat')).toMatchObject({ value: 'md' })
+      await page.keyboard.press('ControlOrMeta+a')
+      await page.keyboard.type('nothing like it')
+      await page.focus('#away')
+      expect(await call('comboState')).toMatchObject({ value: 'Mega Drive' })
+      await page.click('[role=combobox]', { clickCount: 3 })
+      await page.keyboard.type('pc engine')
+      await page.focus('#away')
+      expect(await call('selectState', '#plat')).toMatchObject({ value: 'pce' })
+      expect(await changes()).toEqual([
+        'change md',
+        'combobox:change Mega Drive',
+        'change pce',
+        'combobox:change PC Engine',
+      ])
+    })
+
+    test('both: the rest written in and selected, taken when focus leaves', async () => {
+      await call('record')
+      await call(
+        'setup',
+        `<input id="q" data-panel="combobox" aria-autocomplete="both" aria-controls="titles" aria-label="Search">
+         <ul id="titles" hidden><li>Ys</li><li>Ys II</li><li>Zelda</li></ul><button id="away">away</button>`,
+      )
+      await page.focus('#q')
+      await page.keyboard.type('ze')
+      expect(await call('comboState')).toMatchObject({
+        value: 'zelda',
+        shown: ['Zelda'],
+        active: 'Zelda',
+      })
+      expect(await call('selectedText')).toBe('lda')
+      await page.focus('#away')
+      expect(await call('comboState', '#q')).toMatchObject({ value: 'Zelda' })
+      expect(await changes()).toEqual(['combobox:change Zelda'])
+    })
+
+    test('ended: the select is back as the server sent it', async () => {
+      await call(
+        'setupAndEnd',
+        `<label for="plat">Platform</label>
+         <select id="plat" data-panel="combobox"><option value="snes">SNES</option></select>`,
+      )
+      expect(await call('attributes', 'select', ['hidden'])).toEqual({
+        hidden: null,
+      })
+      expect(await call('attributes', 'label', ['for'])).toEqual({
+        for: 'plat',
+      })
+      expect(
+        await page.evaluate(
+          () => document.querySelectorAll('input, ul').length,
+        ),
+      ).toBe(0)
+    })
+
+    test('refused where ARIA forbids it: type=search may only be a searchbox', async () => {
+      expect(
+        await call(
+          'setupError',
+          '<input type="search" data-panel="combobox" aria-controls="x"><ul id="x"></ul>',
+        ),
+      ).toContain('<input type="search">')
+    })
+  })
+}

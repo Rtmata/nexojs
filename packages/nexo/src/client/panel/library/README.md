@@ -143,6 +143,30 @@ APG Listbox over a plain list, for choices that aren't a form's. In a form, writ
 
 Focus stays on the list (`aria-activedescendant`); style the active option with `[data-active]` and the chosen ones with `[aria-selected=true]`. One choice: the arrows select. `data-listbox-multiple`: Space toggles, Shift+arrows select on the way, Shift+Space selects from the last toggled one, Ctrl+Shift+Home/End to the ends, Ctrl+A all (again: none). Typeahead in both. `listbox:change` carries `{ value, values }`, from `data-value` or the text. When the panel ends, the list is plain again.
 
+## combobox
+
+APG Combobox (R.39). The element you'd write without Nexo decides what it is:
+
+```html
+<!-- free text with suggestions: layer 0 sends what was typed -->
+<input
+  name="q"
+  data-panel="combobox"
+  aria-controls="titles"
+  aria-label="Search"
+/>
+<ul id="titles" hidden></ul>
+
+<!-- a filterable select: layer 0 is the select, which sends the option's value -->
+<label for="platform">Platform</label>
+<select id="platform" name="platform" data-panel="combobox">
+  <option value="snes">SNES</option>
+  …
+</select>
+```
+
+On an `<input type="text">`, the list its `aria-controls` names holds the suggestions. Fill it as the visitor types (from your own `input` listener, or a bridge swap) and set `data-combobox-filter="none"`, or leave a fixed list for the panel to filter (`contains`, the default, or `starts`). `type="search"` is refused: ARIA lets it be only a searchbox. On a `<select>`, the panel adds an input and a list made from the options, hides the select and writes every choice back to it, firing its `input` and `change`. A typed text that names no option goes back to the select's own when focus leaves. `aria-autocomplete` picks APG's variant: `none`, `list` (default) or `both` (the rest of the first match written in and selected, taken when focus leaves). Keys: ↓ opens and moves in, Alt+↓ only opens, ↑, Enter takes the active suggestion (with none, the form submits), Escape closes, and when closed it clears free text. Focus stays in the input; style the active suggestion with `[data-active]`. `combobox:change` carries `{ value, text }`.
+
 ## Lazy media: markup, no panel
 
 `<img loading="lazy">` and `<iframe loading="lazy">` work in every engine. For `<video>`, `loading="lazy"` is Chrome-only (150+). Write `preload="none"` too: every engine then waits to fetch the video, though the `poster` still loads early where `loading` is missing. A script can't help here, because the poster is requested before any script runs.

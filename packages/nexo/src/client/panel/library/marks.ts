@@ -12,6 +12,12 @@ export class Marks {
     el.setAttribute(name, value)
   }
 
+  /** A boolean attribute on or off (`hidden`), remembered the same way. */
+  toggle(el: Element, name: string, on: boolean): void {
+    this.set(el, name, '')
+    if (!on) el.removeAttribute(name)
+  }
+
   /** Writes it only where the author didn't. */
   default(el: Element, name: string, value: string): void {
     if (!el.hasAttribute(name)) this.set(el, name, value)

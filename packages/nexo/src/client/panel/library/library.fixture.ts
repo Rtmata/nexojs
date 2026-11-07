@@ -2,6 +2,7 @@
 import {
   activity,
   attach,
+  combobox,
   listbox,
   confirmOnHold,
   decode,
@@ -42,6 +43,7 @@ const panels = registry({
   decode,
   sequence,
   listbox,
+  combobox,
 })
 
 export function setup(html: string): void {
@@ -143,6 +145,8 @@ export function record(): void {
     'sequence:phase',
     'sequence:done',
     'listbox:change',
+    'combobox:change',
+    'change',
   ])
     document.addEventListener(name, (e) => w.events.push(describeEvent(e)))
 }
@@ -155,7 +159,9 @@ function describeEvent(e: Event): string {
     detail.action ??
     detail.state ??
     detail.phase ??
-    detail.values?.join(',')
+    detail.values?.join(',') ??
+    detail.text ??
+    (e.target as HTMLSelectElement).value
   return extra ? `${e.type} ${extra}` : e.type
 }
 
@@ -235,4 +241,69 @@ export function listboxState(selector = '[data-panel=listbox]') {
       ? list.getAttribute('aria-activedescendant') === active.id
       : null,
   }
+}
+
+/** The message a panel refuses some markup with. */
+export function setupError(html: string): string {
+  try {
+    setup(html)
+    return 'no error'
+  } catch (error) {
+    return (error as Error).message
+  }
+}
+
+/** What the server would send back as the visitor types: titles containing the text. */
+export function suggestOnInput(
+  input: string,
+  list: string,
+  titles: string[],
+): void {
+  const field = document.querySelector<HTMLInputElement>(input)!
+  const popup = document.querySelector(list)!
+  field.addEventListener('input', () => {
+    const text = field.value.toLowerCase()
+    const found = text
+      ? titles.filter((t) => t.toLowerCase().includes(text))
+      : []
+    popup.replaceChildren(
+      ...found.map((t) =>
+        Object.assign(document.createElement('li'), { textContent: t }),
+      ),
+    )
+  })
+}
+
+/** The combobox as a screen reader gets it, and what its list shows. */
+export function comboState(input = '[role=combobox]') {
+  const field = document.querySelector<HTMLInputElement>(input)!
+  const list = document.getElementById(field.getAttribute('aria-controls')!)!
+  const active = list.querySelector('[data-active]')
+  return {
+    value: field.value,
+    expanded: field.getAttribute('aria-expanded'),
+    shown: [...list.querySelectorAll<HTMLElement>('[role=option]')]
+      .filter((o) => !list.hidden && !o.hidden)
+      .map((o) => o.textContent),
+    active: active?.textContent ?? null,
+    named: active
+      ? field.getAttribute('aria-activedescendant') === active.id
+      : null,
+  }
+}
+
+export function selectState(selector: string) {
+  const select = document.querySelector<HTMLSelectElement>(selector)!
+  const label = document.querySelector(`label[for]`)
+  const input = document.querySelector('[role=combobox]')
+  return {
+    value: select.value,
+    hidden: select.hidden,
+    labelled: label?.getAttribute('for') === input?.id,
+  }
+}
+
+export function selectedText(): string {
+  const field = document.activeElement as HTMLInputElement
+  return field.value.slice(field.selectionStart ?? 0, field.selectionEnd ?? 0)
 }

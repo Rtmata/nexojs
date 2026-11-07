@@ -19,9 +19,17 @@ export class Options {
     return [...this.list.querySelectorAll<HTMLElement>('[role=option]')]
   }
 
-  /** What keys move through: disabled options are skipped. */
+  /** What keys move through: disabled and filtered-out (hidden) options are skipped. */
   enabled(): HTMLElement[] {
-    return this.all().filter((o) => o.getAttribute('aria-disabled') !== 'true')
+    return this.all().filter(
+      (o) => !o.hidden && o.getAttribute('aria-disabled') !== 'true',
+    )
+  }
+
+  /** No active option: nothing is named on the controller. */
+  clear(): void {
+    this.controller.removeAttribute('aria-activedescendant')
+    for (const o of this.all()) o.removeAttribute('data-active')
   }
 
   get active(): HTMLElement | undefined {
