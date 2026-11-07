@@ -1,5 +1,12 @@
 /** The built-in panels (D.4) in real engines, with real keys (Playwright). */
-import { afterAll, beforeAll, describe, expect, test } from 'bun:test'
+import {
+  afterAll,
+  beforeAll,
+  beforeEach,
+  describe,
+  expect,
+  test,
+} from 'bun:test'
 import {
   chromium,
   firefox,
@@ -210,6 +217,79 @@ for (const [name, engine] of engines) {
       expect((await state()).shown).toEqual(['screens'])
       await page.click('#t3')
       expect(await state()).toMatchObject({ shown: ['notes'], hash: '' })
+    })
+  })
+}
+
+const dialogMarkup = (closedby = '') => `
+  <button id="open" commandfor="info" command="show-modal">info</button>
+  <dialog id="info" data-panel="dialog" ${closedby}>
+    <h2>Ys</h2><button id="inside">ok</button>
+    <button id="shut" commandfor="info" command="close">close</button>
+  </dialog>`
+
+for (const [name, engine] of engines) {
+  describe(`dialog in ${name}`, () => {
+    let browser: Browser
+    let page: Page
+    const call = (fn: string, ...args: unknown[]) =>
+      page.evaluate(
+        ([f, a]) => (window as any).library[f as string](...(a as unknown[])),
+        [fn, args] as const,
+      )
+    const state = () => call('dialogState')
+
+    beforeAll(async () => {
+      browser = await engine.launch()
+    })
+    beforeEach(async () => {
+      page = await browser.newPage({ viewport: { width: 800, height: 600 } })
+      await page.setContent(
+        '<!doctype html><title>library</title><body></body>',
+      )
+      await page.evaluate(async (code) => {
+        const url = URL.createObjectURL(
+          new Blob([code], { type: 'text/javascript' }),
+        )
+        ;(window as any).library = await import(url)
+      }, code)
+    })
+    afterAll(async () => {
+      await browser?.close()
+    })
+
+    test('native: commands open and close, focus returns; a name from its heading', async () => {
+      await call('setup', dialogMarkup())
+      await page.click('#open')
+      expect(await state()).toMatchObject({
+        open: true,
+        labelledby: 'info-title',
+      })
+      await page.click('#shut')
+      expect(await state()).toMatchObject({ open: false, focused: 'open' })
+    })
+
+    test('bridged: commands where the platform lacks them', async () => {
+      await call('withoutPlatform', dialogMarkup(), ['command'])
+      await page.click('#open')
+      expect((await state()).open).toBe(true)
+      await page.click('#shut')
+      expect((await state()).open).toBe(false)
+    })
+
+    test('bridged: closedby="any" closes on the backdrop; "none" keeps Escape out', async () => {
+      await call('withoutPlatform', dialogMarkup('closedby="any"'), [
+        'closedBy',
+      ])
+      await page.click('#open')
+      await page.mouse.click(5, 5)
+      expect((await state()).open).toBe(false)
+      await call('withoutPlatform', dialogMarkup('closedby="none"'), [
+        'closedBy',
+      ])
+      await page.click('#open')
+      await page.keyboard.press('Escape')
+      expect((await state()).open).toBe(true)
     })
   })
 }

@@ -1,7 +1,7 @@
 /** Scenarios for library.browser.test.ts: markup in, panels attached. */
-import { attach, focusgroup, registry, tabs } from '../index'
+import { attach, dialog, focusgroup, registry, tabs } from '../index'
 
-const panels = registry({ focusgroup, tabs })
+const panels = registry({ dialog, focusgroup, tabs })
 
 export function setup(html: string): void {
   document.body.innerHTML = html
@@ -31,5 +31,25 @@ export function tabsState() {
     roles: [...document.querySelectorAll('[role]')].map((e) =>
       e.getAttribute('role'),
     ),
+  }
+}
+
+/** As an engine that lacks them: the platform's features taken away before connecting. */
+export function withoutPlatform(html: string, missing: string[]): void {
+  const prototypes: Record<string, object> = {
+    command: HTMLButtonElement.prototype,
+    closedBy: HTMLDialogElement.prototype,
+  }
+  for (const name of missing)
+    delete (prototypes[name] as Record<string, unknown>)[name]
+  setup(html)
+}
+
+export function dialogState() {
+  const d = document.querySelector('dialog')!
+  return {
+    open: d.open,
+    labelledby: d.getAttribute('aria-labelledby'),
+    focused: document.activeElement?.id ?? null,
   }
 }
