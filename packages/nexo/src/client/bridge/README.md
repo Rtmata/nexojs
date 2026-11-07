@@ -55,11 +55,24 @@ DOM events that bubble, so `document.addEventListener` hears them all. `bridge:f
 | ---------------- | ------------------------------------------------------------------- | ------------------------------------------------------- |
 | `bridge:fetch`   | `url`, `method`, `targets`                                          | Nothing happens; the handler owns it.                   |
 | `bridge:swap`    | `page`, `url`, `status`, `targets`, `swap()`                        | The swap is handed over: call `detail.swap()` yourself. |
-| `bridge:swapped` | `url`, `name`                                                       | —                                                       |
+| `bridge:swapped` | `url`, `name`, `signal` (the segment's lifetime)                    | —                                                       |
+| `bridge:leave`   | `waitUntil(promise)`: exits to wait for before the segment goes     | —                                                       |
 | `bridge:fail`    | `url`, `method`, `error`; `page`, `status` once there is a response | The page is left as it is.                              |
 | `bridge:cancel`  | —                                                                   | —                                                       |
 
 Swapped content never runs scripts: client code lives in modules that listen for `bridge:swapped`.
+
+## Segment lifetimes
+
+Every segment has a lifetime, an `AbortSignal`, nested as segments are: an outer segment replaced ends the inner ones. Before a segment goes, `bridge:leave` fires on it and what its listeners hand `detail.waitUntil()` is awaited (at most 4 s); then its signal aborts, then it's replaced. `arrivals` runs code for every segment on the page now, innermost first and the page root last, and for each one that arrives later, so a module that starts late misses nothing:
+
+```js
+import { arrivals } from '@nexoamigos/nexo/bridge/client'
+
+arrivals((segment, { signal }) => attach(segment, registry, { signal }))
+```
+
+An element with `data-bridge-persist` and an `id` is carried over when the incoming content has its twin: the element itself, with its state and its own lifetime. Component styles a segment response brings (`<style data-scope-for>`) go into the head, once.
 
 ## From a script
 

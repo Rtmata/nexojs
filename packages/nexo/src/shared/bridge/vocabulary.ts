@@ -23,3 +23,10 @@ export const SEGMENT_PARAM = '_segment'
 
 /** The URL the client script is served at. */
 export const CLIENT_PATH = '/_nexo/bridge.js'
+
+/**
+ * The marker omino writes on a component's `<style>` (C.20a). bridge moves
+ * those a segment response brings into the head, once: the attribute is the
+ * whole contract, neither module imports the other.
+ */
+export const COMPONENT_STYLE = 'data-scope-for'

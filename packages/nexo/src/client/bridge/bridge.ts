@@ -43,6 +43,8 @@ export const reload = (
 export const prefetch = (url: string | URL, options?: VisitOptions) =>
   api.prefetch(url, options)
 export type { VisitOptions }
+export { arrivals } from './lives'
+export type { Arrival } from './lives'
 
 /** What looks at the page as it is and as it changes: lazy content, prefetch, scroll markers. */
 interface Watcher {

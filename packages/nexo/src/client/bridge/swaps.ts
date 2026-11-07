@@ -1,5 +1,10 @@
-import { SEGMENT_ATTRIBUTE } from '../../shared/bridge/vocabulary'
+import {
+  COMPONENT_STYLE,
+  SEGMENT_ATTRIBUTE,
+} from '../../shared/bridge/vocabulary'
 import { segmentIn } from './attributes'
+import { announce } from './events'
+import { lives, PERSIST } from './lives'
 import type { Options } from './options'
 
 /** One segment of this page and what the response brought for it. */
@@ -99,7 +104,10 @@ function put({ current, incoming, mode }: Placed): Element {
   return current
 }
 
+/** Persisted elements carried over; then the old segment's life ends (C.19b) and it goes. */
 function replace(current: Element, incoming: Element): Element {
+  carryPersisted(current, incoming)
+  lives.end(current)
   current.replaceWith(incoming)
   return incoming
 }
@@ -126,4 +134,47 @@ function wrapped(current: Element, content: Element): Element {
   copy.removeAttribute('aria-busy')
   copy.append(...content.cloneNode(true).childNodes)
   return copy
+}
+
+/** What a swap takes out of the page: replaced segments; appending and prepending take nothing. */
+export function leavingOf(swaps: Swap[]): Element[] {
+  return outermost(placed(swaps))
+    .filter((swap) => swap.mode === 'replace')
+    .map((swap) => swap.current)
+}
+
+/** At most this long for exits that never finish (C.15c, Angular's 4 s). */
+const LEAVE_WAIT = 4000
+
+/**
+ * Before they're removed (C.19b): `bridge:leave` on each, and what its
+ * listeners hand `detail.waitUntil(promise)` — their exits — is awaited.
+ */
+export async function leave(elements: Element[]): Promise<void> {
+  const waits: Promise<unknown>[] = []
+  const waitUntil = (promise: Promise<unknown>) =>
+    void waits.push(promise.catch(reportError))
+  for (const element of elements)
+    announce(element, 'bridge:leave', { waitUntil })
+  if (waits.length === 0) return
+  const atMost = new Promise((done) => setTimeout(done, LEAVE_WAIT))
+  await Promise.race([Promise.all(waits), atMost])
+}
+
+/** `data-bridge-persist` (C.19b): the element itself takes its twin's place in what comes in. */
+export function carryPersisted(current: Element, incoming: Element): void {
+  for (const kept of current.querySelectorAll(`[${PERSIST}][id]`)) {
+    const twin = incoming.querySelector(`[id="${CSS.escape(kept.id)}"]`)
+    if (twin?.hasAttribute(PERSIST)) twin.replaceWith(kept)
+  }
+}
+
+/** A segment response brings its components' styles in front: into the head, once (C.20a). */
+export function adoptStyles(page: Document): void {
+  for (const style of page.querySelectorAll(`style[${COMPONENT_STYLE}]`)) {
+    const name = CSS.escape(style.getAttribute(COMPONENT_STYLE)!)
+    if (document.head.querySelector(`style[${COMPONENT_STYLE}="${name}"]`))
+      continue
+    document.head.append(document.adoptNode(style))
+  }
 }

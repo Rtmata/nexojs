@@ -1,6 +1,7 @@
 import { samePage } from '../../shared/bridge/segment-url'
 import { SEGMENT_ATTRIBUTE } from '../../shared/bridge/vocabulary'
 import { announce } from './events'
+import { lives } from './lives'
 import { BrowserFallback, type Fallback } from './fallback'
 import { FocusMove } from './focus'
 import type { HistoryKeeper } from './history'
@@ -130,6 +131,8 @@ export class Navigation {
     const detail = { ...loaded, targets: this.swapper.targets, swap }
     if (!announce(this.trigger, 'bridge:swap', detail)) return
     if (!(await ready(prepared, flight))) return
+    await prepared.leave()
+    if (flight.aborted) return
     const before = { scrollY, focused: document.activeElement } // read before the new content can shorten the page
     const swapped = () => (flight.aborted ? null : swap())
     const elements = await this.transition(swapped)
@@ -274,7 +277,8 @@ function anchorOf(hash: string): Element | null {
   }
 }
 
+/** With the new element's lifetime (C.19b): aborted when bridge takes it out. */
 function swapped(element: Element, url: URL): void {
   const name = element.getAttribute(SEGMENT_ATTRIBUTE)
-  announce(element, 'bridge:swapped', { url, name })
+  announce(element, 'bridge:swapped', { url, name, signal: lives.of(element) })
 }

@@ -2,7 +2,16 @@ import { segmentIn } from './attributes'
 import type { Loaded } from './loader'
 import type { Options } from './options'
 import { WholePage } from './page'
-import { apply, errorSwap, pairAll, twinNames, type Swap } from './swaps'
+import {
+  adoptStyles,
+  apply,
+  errorSwap,
+  leave,
+  leavingOf,
+  pairAll,
+  twinNames,
+  type Swap,
+} from './swaps'
 import type { Prepared, Swapper } from './swapper'
 
 /**
@@ -39,7 +48,12 @@ export class BySegments implements Swapper {
       loaded.status < 400
         ? pairAll(this.targets, loaded.page, this.options.swap)
         : this.errorSwaps(loaded.page)
-    return { outdated: false, ready: async () => {}, apply: () => apply(swaps) }
+    return {
+      outdated: false,
+      ready: async () => {},
+      leave: () => leave(leavingOf(swaps)),
+      apply: () => (adoptStyles(loaded.page), apply(swaps)),
+    }
   }
 
   landing(): Swapper {

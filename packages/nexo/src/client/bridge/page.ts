@@ -1,7 +1,9 @@
 import { TOP } from '../../shared/bridge/vocabulary'
 import { HeadMerge } from './head'
 import type { Loaded } from './loader'
+import { lives } from './lives'
 import type { Prepared, Swapper } from './swapper'
+import { carryPersisted, leave } from './swaps'
 
 /**
  * The response goes in as the whole page (`data-bridge-target="_top"`, or
@@ -26,6 +28,7 @@ export class WholePage implements Swapper {
     return {
       outdated: head.trackedChanged(),
       ready: (signal) => head.loadStyles(signal),
+      leave: () => leave([document.body]),
       apply: () => [replace(loaded.page, head)],
     }
   }
@@ -43,6 +46,8 @@ function replace(page: Document, head: HeadMerge): Element {
     root.setAttribute(name, value)
   head.apply()
   const body = document.adoptNode(page.body)
+  carryPersisted(document.body, body)
+  lives.end(document.body)
   document.body.replaceWith(body)
   return body
 }
