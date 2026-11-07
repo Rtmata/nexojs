@@ -2,6 +2,7 @@
 import {
   activity,
   attach,
+  listbox,
   confirmOnHold,
   decode,
   indicator,
@@ -40,6 +41,7 @@ const panels = registry({
   typewriter,
   decode,
   sequence,
+  listbox,
 })
 
 export function setup(html: string): void {
@@ -140,6 +142,7 @@ export function record(): void {
     'decode:done',
     'sequence:phase',
     'sequence:done',
+    'listbox:change',
   ])
     document.addEventListener(name, (e) => w.events.push(describeEvent(e)))
 }
@@ -151,7 +154,8 @@ function describeEvent(e: Event): string {
     detail.direction ??
     detail.action ??
     detail.state ??
-    detail.phase
+    detail.phase ??
+    detail.values?.join(',')
   return extra ? `${e.type} ${extra}` : e.type
 }
 
@@ -213,4 +217,22 @@ export function startSequence(selector: string): void {
 
 export function phaseOf(selector: string): string | null {
   return document.querySelector(selector)!.getAttribute('data-phase')
+}
+
+/** The listbox as a screen reader would get it. */
+export function listboxState(selector = '[data-panel=listbox]') {
+  const list = document.querySelector(selector)!
+  const active = list.querySelector('[data-active]')
+  const options = [...list.querySelectorAll('[role=option]')]
+  return {
+    role: list.getAttribute('role'),
+    multi: list.getAttribute('aria-multiselectable'),
+    selected: options
+      .filter((o) => o.getAttribute('aria-selected') === 'true')
+      .map((o) => o.textContent),
+    active: active?.textContent ?? null,
+    named: active
+      ? list.getAttribute('aria-activedescendant') === active.id
+      : null,
+  }
 }

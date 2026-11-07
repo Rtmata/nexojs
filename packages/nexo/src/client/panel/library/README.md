@@ -129,6 +129,20 @@ Text effects. `typewriter` shows a character every `speed` ms (30); `decode` set
 
 Phases one after another, such as a page turn: `data-sequence-phases='["out","step","in"]'`. When the `on` event arrives (`sequence:start`), `data-phase` takes each phase; CSS animates on it, and the next starts when the element's animations finish (at most 4 s). `sequence:phase` carries `{ phase, waitUntil }`: hand `waitUntil` a promise (the next page loading) and the phase waits for it too. Ends with `sequence:done`.
 
+## listbox
+
+APG Listbox over a plain list, for choices that aren't a form's. In a form, write native radios (one choice) or checkboxes (several): they work without JS, send their value, and take rich labels; no panel needed (R.38).
+
+```html
+<ul data-panel="listbox" aria-label="Platform">
+  <li data-value="snes">SNES</li>
+  <li>Mega Drive</li>
+  <li aria-disabled="true">Jaguar</li>
+</ul>
+```
+
+Focus stays on the list (`aria-activedescendant`); style the active option with `[data-active]` and the chosen ones with `[aria-selected=true]`. One choice: the arrows select. `data-listbox-multiple`: Space toggles, Shift+arrows select on the way, Shift+Space selects from the last toggled one, Ctrl+Shift+Home/End to the ends, Ctrl+A all (again: none). Typeahead in both. `listbox:change` carries `{ value, values }`, from `data-value` or the text. When the panel ends, the list is plain again.
+
 ## Lazy media: markup, no panel
 
 `<img loading="lazy">` and `<iframe loading="lazy">` work in every engine. For `<video>`, `loading="lazy"` is Chrome-only (150+). Write `preload="none"` too: every engine then waits to fetch the video, though the `poster` still loads early where `loading` is missing. A script can't help here, because the poster is requested before any script runs.

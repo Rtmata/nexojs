@@ -790,3 +790,120 @@ for (const [name, engine] of engines) {
     })
   })
 }
+
+for (const [name, engine] of engines) {
+  describe(`listbox in ${name}`, () => {
+    let browser: Browser
+    let page: Page
+    const call = (fn: string, ...args: unknown[]) =>
+      page.evaluate(
+        ([f, a]) => (window as any).library[f as string](...(a as unknown[])),
+        [fn, args] as const,
+      )
+    const platforms = (attrs = '') => `
+      <ul id="lb" data-panel="listbox" aria-label="Platform" ${attrs}>
+        <li data-value="snes">SNES</li><li>Mega Drive</li>
+        <li aria-disabled="true">Jaguar</li><li>PC Engine</li><li>Playdia</li>
+      </ul>`
+
+    beforeAll(async () => {
+      browser = await engine.launch()
+      page = await browser.newPage()
+      await page.setContent(
+        '<!doctype html><title>library</title><body></body>',
+      )
+      await page.evaluate(async (code) => {
+        const url = URL.createObjectURL(
+          new Blob([code], { type: 'text/javascript' }),
+        )
+        ;(window as any).library = await import(url)
+      }, code)
+    }, LAUNCH)
+    afterAll(async () => {
+      await browser?.close()
+    })
+
+    test('single: roles, focus on the list, arrows select, typeahead, disabled skipped', async () => {
+      await call('record')
+      await call('setup', platforms())
+      await page.focus('#lb')
+      expect(await call('listboxState')).toEqual({
+        role: 'listbox',
+        multi: null,
+        selected: [],
+        active: 'SNES',
+        named: true,
+      })
+      await page.keyboard.press('ArrowDown')
+      await page.keyboard.press('ArrowDown')
+      expect(await call('listboxState')).toMatchObject({
+        selected: ['PC Engine'],
+        active: 'PC Engine',
+      })
+      await page.keyboard.press('p')
+      expect(await call('listboxState')).toMatchObject({
+        selected: ['Playdia'],
+      })
+      await page.keyboard.press('Home')
+      await page.click('#lb li:nth-child(2)')
+      expect(
+        ((await call('events')) as string[]).filter((e) =>
+          e.startsWith('listbox'),
+        ),
+      ).toEqual([
+        'listbox:change Mega Drive',
+        'listbox:change PC Engine',
+        'listbox:change Playdia',
+        'listbox:change snes',
+        'listbox:change Mega Drive',
+      ])
+    })
+
+    test('multiple: Space, Shift+arrows, Shift+Space, Ctrl+A', async () => {
+      await call('setup', platforms('data-listbox-multiple'))
+      await page.focus('#lb')
+      await page.keyboard.press('Space')
+      await page.keyboard.press('Shift+ArrowDown')
+      expect(await call('listboxState')).toMatchObject({
+        multi: 'true',
+        selected: ['SNES', 'Mega Drive'],
+      })
+      await page.keyboard.press('Space')
+      await page.keyboard.press('End')
+      await page.keyboard.press('Shift+Space')
+      expect((await call('listboxState')).selected).toEqual([
+        'SNES',
+        'Mega Drive',
+        'PC Engine',
+        'Playdia',
+      ])
+      await page.keyboard.press('ControlOrMeta+a')
+      expect((await call('listboxState')).selected).toEqual([])
+      await page.keyboard.press('ControlOrMeta+a')
+      expect((await call('listboxState')).selected).toEqual([
+        'SNES',
+        'Mega Drive',
+        'PC Engine',
+        'Playdia',
+      ])
+    })
+
+    test('ended: back to the plain list', async () => {
+      await call('setupAndEnd', platforms())
+      expect(
+        await call('attributes', '#lb', [
+          'role',
+          'tabindex',
+          'aria-activedescendant',
+        ]),
+      ).toEqual({
+        role: null,
+        tabindex: null,
+        'aria-activedescendant': null,
+      })
+      expect(
+        await call('attributes', '#lb li', ['role', 'aria-selected']),
+      ).toEqual({ role: null, 'aria-selected': null })
+    })
+  })
+}
