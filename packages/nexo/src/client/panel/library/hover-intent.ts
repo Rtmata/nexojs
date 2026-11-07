@@ -1,0 +1,53 @@
+import { panel } from '../panel'
+import { number } from '../params'
+import { emit } from './hold'
+
+/**
+ * Hover intent (Archive): a mouse that stays `enter` ms means it, one that
+ * leaves for `leave` ms means it's gone (Chromium's interest delays per
+ * Open UI's interest-invokers explainer: about 250 and 150 ms). Mouse only:
+ * touch and pen hovers don't count. `data-intent` while it holds; events
+ * `hover-intent:enter` / `hover-intent:leave`. Open UI's `interestfor`
+ * (Chrome 142 only) is the native way when it's about showing a popover.
+ */
+export const hoverIntent = panel({
+  params: { enter: number(250), leave: number(150) },
+  connect: (el, delays) => new HoverIntent(el, delays),
+  events: {
+    pointerenter: (e, ctx) =>
+      (e as PointerEvent).pointerType === 'mouse' && ctx.entered(),
+    pointerleave: (e, ctx) =>
+      (e as PointerEvent).pointerType === 'mouse' && ctx.left(),
+  },
+})
+
+class HoverIntent {
+  private timer?: ReturnType<typeof setTimeout>
+  private active = false
+
+  constructor(
+    private readonly el: Element,
+    private readonly delays: { enter: number; leave: number },
+  ) {}
+
+  entered(): void {
+    this.wait(this.delays.enter, true)
+  }
+
+  left(): void {
+    this.wait(this.delays.leave, false)
+  }
+
+  /** Each change waits its delay; a change back meanwhile calls it off. */
+  private wait(ms: number, active: boolean): void {
+    clearTimeout(this.timer)
+    if (this.active === active) return
+    this.timer = setTimeout(() => this.become(active), ms)
+  }
+
+  private become(active: boolean): void {
+    this.active = active
+    this.el.toggleAttribute('data-intent', active)
+    emit(this.el, active ? 'hover-intent:enter' : 'hover-intent:leave')
+  }
+}

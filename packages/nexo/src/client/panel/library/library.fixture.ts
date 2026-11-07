@@ -5,9 +5,13 @@ import {
   dialog,
   feed,
   focusgroup,
+  gesture,
+  hoverIntent,
+  keymap,
   pressHold,
   registry,
   requestCloseTop,
+  slider,
   tabs,
 } from '../index'
 
@@ -18,6 +22,10 @@ const panels = registry({
   tabs,
   'press-hold': pressHold,
   'confirm-on-hold': confirmOnHold,
+  gesture,
+  slider,
+  'hover-intent': hoverIntent,
+  keymap,
 })
 
 export function setup(html: string): void {
@@ -104,13 +112,23 @@ export function record(): void {
   w.events = []
   if (w.listening) return
   w.listening = true
-  for (const name of ['press-hold:press', 'confirm-on-hold:confirm', 'click'])
+  for (const name of [
+    'press-hold:press',
+    'confirm-on-hold:confirm',
+    'click',
+    'gesture:tap',
+    'gesture:swipe',
+    'hover-intent:enter',
+    'hover-intent:leave',
+    'keymap:action',
+  ])
     document.addEventListener(name, (e) => w.events.push(describeEvent(e)))
 }
 
 function describeEvent(e: Event): string {
-  const pointerType = (e as CustomEvent).detail?.pointerType
-  return pointerType ? `${e.type} ${pointerType}` : e.type
+  const detail = (e as CustomEvent).detail ?? {}
+  const extra = detail.pointerType ?? detail.direction ?? detail.action
+  return extra ? `${e.type} ${extra}` : e.type
 }
 
 export function events(): string[] {
@@ -119,4 +137,18 @@ export function events(): string[] {
 
 export function liveText(): string {
   return document.querySelector('[aria-live]')?.textContent ?? ''
+}
+
+export function styleOf(selector: string, name: string): string {
+  return (
+    document.querySelector(selector) as HTMLElement
+  ).style.getPropertyValue(name)
+}
+
+export function attributes(
+  selector: string,
+  names: string[],
+): Record<string, string | null> {
+  const el = document.querySelector(selector)!
+  return Object.fromEntries(names.map((n) => [n, el.getAttribute(n)]))
 }

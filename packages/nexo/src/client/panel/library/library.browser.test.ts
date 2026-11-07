@@ -500,3 +500,121 @@ for (const [name, engine] of engines) {
     })
   })
 }
+
+for (const [name, engine] of engines) {
+  describe(`gesture, slider, hover-intent, keymap in ${name}`, () => {
+    let browser: Browser
+    let page: Page
+    const call = (fn: string, ...args: unknown[]) =>
+      page.evaluate(
+        ([f, a]) => (window as any).library[f as string](...(a as unknown[])),
+        [fn, args] as const,
+      )
+    /** A drag of `steps` moves, `pause` ms apart: Playwright's own steps take no time. */
+    const drag = async (dx: number, dy: number, steps: number, pause = 0) => {
+      await page.mouse.move(100, 100)
+      await page.mouse.down()
+      for (let i = 1; i <= steps; i++) {
+        await page.mouse.move(100 + (dx * i) / steps, 100 + (dy * i) / steps)
+        if (pause) await page.waitForTimeout(pause)
+      }
+      await page.mouse.up()
+    }
+
+    beforeAll(async () => {
+      browser = await engine.launch()
+      page = await browser.newPage({ viewport: { width: 800, height: 600 } })
+      await page.setContent(
+        '<!doctype html><title>library</title><body style="margin:0"></body>',
+      )
+      await page.evaluate(async (code) => {
+        const url = URL.createObjectURL(
+          new Blob([code], { type: 'text/javascript' }),
+        )
+        ;(window as any).library = await import(url)
+      }, code)
+    }, LAUNCH)
+    afterAll(async () => {
+      await browser?.close()
+    })
+
+    test('gesture: a tap, a swipe right, nothing for a short slow drag', async () => {
+      await call(
+        'setup',
+        '<div data-panel="gesture" data-gesture-axis="x" style="width:400px;height:300px"></div>',
+      )
+      await call('record')
+      await page.mouse.click(100, 100)
+      await drag(150, 5, 5)
+      await drag(20, 0, 10, 30)
+      const events = (await call('events')) as string[]
+      expect(events.filter((e) => e.startsWith('gesture'))).toEqual([
+        'gesture:tap',
+        'gesture:swipe right',
+      ])
+      expect(await call('styleOf', 'div', 'touch-action')).toBe('pan-y')
+    })
+
+    test('slider: fill and valuetext; multi-thumb never crosses, bounds follow (APG)', async () => {
+      await call(
+        'setup',
+        `
+        <input id="one" type="range" min="0" max="10" value="5" data-panel="slider" data-slider-valuetext="{value} pts">
+        <div id="two" data-panel="slider"><input id="lo" type="range" value="20"><input id="hi" type="range" value="60"></div>`,
+      )
+      expect(await call('styleOf', '#one', '--slider-fill')).toBe('50%')
+      expect(await call('attributes', '#one', ['aria-valuetext'])).toEqual({
+        'aria-valuetext': '5 pts',
+      })
+      await page.focus('#lo')
+      await page.keyboard.press('End')
+      expect(
+        await page.evaluate(
+          () => (document.getElementById('lo') as HTMLInputElement).value,
+        ),
+      ).toBe('60')
+      expect(await call('attributes', '#lo', ['aria-valuemax'])).toEqual({
+        'aria-valuemax': '60',
+      })
+      expect(await call('styleOf', '#two', '--slider-from')).toBe('60%')
+    })
+
+    test('hover-intent: a mouse that stays, then leaves; one passing through means nothing', async () => {
+      await call(
+        'setup',
+        '<div id="card" data-panel="hover-intent" style="width:200px;height:200px"></div>',
+      )
+      await call('record')
+      await page.mouse.move(50, 50)
+      await page.waitForTimeout(350)
+      await page.mouse.move(500, 500)
+      await page.waitForTimeout(250)
+      await page.mouse.move(50, 50)
+      await page.waitForTimeout(60)
+      await page.mouse.move(500, 500)
+      await page.waitForTimeout(350)
+      const events = (await call('events')) as string[]
+      expect(events).toEqual(['hover-intent:enter', 'hover-intent:leave'])
+    })
+
+    test('keymap: keys to actions; typing in a field only counts with Ctrl', async () => {
+      await call(
+        'setup',
+        `<div data-panel="keymap" data-keymap-keys='{"j":"next","ctrl+k":"search","?":"help"}'><button id="b">b</button><input id="field"></div>`,
+      )
+      await call('record')
+      await page.focus('#b')
+      await page.keyboard.press('j')
+      await page.keyboard.press('Shift+?')
+      await page.focus('#field')
+      await page.keyboard.press('j')
+      await page.keyboard.press('Control+k')
+      const events = (await call('events')) as string[]
+      expect(events.filter((e) => e.startsWith('keymap'))).toEqual([
+        'keymap:action next',
+        'keymap:action help',
+        'keymap:action search',
+      ])
+    })
+  })
+}
