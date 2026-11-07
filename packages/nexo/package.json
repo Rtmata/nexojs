@@ -5,17 +5,71 @@
   "type": "module",
   "license": "MIT",
   "exports": {
-    "./boat": "./src/shared/boat/index.ts",
+    "./boat": {
+      "nexo-built": {
+        "types": "./src/shared/boat/index.ts",
+        "default": "./dist/shared/boat/index.js"
+      },
+      "default": "./src/shared/boat/index.ts"
+    },
     "./bridge": "./src/server/bridge/index.ts",
-    "./bridge/client": "./src/client/bridge/bridge.ts",
-    "./connector": "./src/shared/connector/index.ts",
+    "./bridge/client": {
+      "nexo-built": {
+        "types": "./src/client/bridge/bridge.ts",
+        "default": "./dist/client/bridge/bridge.js"
+      },
+      "default": "./src/client/bridge/bridge.ts"
+    },
+    "./connector": {
+      "nexo-built": {
+        "types": "./src/shared/connector/index.ts",
+        "default": "./dist/shared/connector/index.js"
+      },
+      "default": "./src/shared/connector/index.ts"
+    },
     "./keep": "./src/server/keep/index.ts",
-    "./omino": "./src/shared/omino/index.ts",
-    "./omino/client": "./src/client/omino/index.ts",
-    "./omino/jsx-runtime": "./src/shared/omino/jsx-runtime.ts",
-    "./omino/jsx-dev-runtime": "./src/shared/omino/jsx-dev-runtime.ts",
-    "./quarry": "./src/shared/quarry/index.ts",
-    "./voices": "./src/shared/voices/index.ts",
+    "./omino": {
+      "nexo-built": {
+        "types": "./src/shared/omino/index.ts",
+        "default": "./dist/shared/omino/index.js"
+      },
+      "default": "./src/shared/omino/index.ts"
+    },
+    "./omino/client": {
+      "nexo-built": {
+        "types": "./src/client/omino/index.ts",
+        "default": "./dist/client/omino/index.js"
+      },
+      "default": "./src/client/omino/index.ts"
+    },
+    "./omino/jsx-runtime": {
+      "nexo-built": {
+        "types": "./src/shared/omino/jsx-runtime.ts",
+        "default": "./dist/shared/omino/jsx-runtime.js"
+      },
+      "default": "./src/shared/omino/jsx-runtime.ts"
+    },
+    "./omino/jsx-dev-runtime": {
+      "nexo-built": {
+        "types": "./src/shared/omino/jsx-dev-runtime.ts",
+        "default": "./dist/shared/omino/jsx-dev-runtime.js"
+      },
+      "default": "./src/shared/omino/jsx-dev-runtime.ts"
+    },
+    "./quarry": {
+      "nexo-built": {
+        "types": "./src/shared/quarry/index.ts",
+        "default": "./dist/shared/quarry/index.js"
+      },
+      "default": "./src/shared/quarry/index.ts"
+    },
+    "./voices": {
+      "nexo-built": {
+        "types": "./src/shared/voices/index.ts",
+        "default": "./dist/shared/voices/index.js"
+      },
+      "default": "./src/shared/voices/index.ts"
+    },
     "./witness": "./src/server/witness/index.ts"
   },
   "files": [
