@@ -63,6 +63,13 @@
       },
       "default": "./src/shared/omino/jsx-dev-runtime.ts"
     },
+    "./panel": {
+      "nexo-built": {
+        "types": "./src/client/panel/index.ts",
+        "default": "./dist/client/panel/index.js"
+      },
+      "default": "./src/client/panel/index.ts"
+    },
     "./quarry": {
       "nexo-built": {
         "types": "./src/shared/quarry/index.ts",
