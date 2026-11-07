@@ -363,3 +363,47 @@ for (const [name, engine] of engines) {
     })
   })
 }
+
+for (const [name, engine] of engines) {
+  describe(`requestCloseTop in ${name}`, () => {
+    let browser: Browser
+    let page: Page
+    const call = (fn: string, ...args: unknown[]) =>
+      page.evaluate(
+        ([f, a]) => (window as any).library[f as string](...(a as unknown[])),
+        [fn, args] as const,
+      )
+
+    beforeAll(async () => {
+      browser = await engine.launch()
+      page = await browser.newPage()
+      await page.setContent(
+        '<!doctype html><title>library</title><body></body>',
+      )
+      await page.evaluate(async (code) => {
+        const url = URL.createObjectURL(
+          new Blob([code], { type: 'text/javascript' }),
+        )
+        ;(window as any).library = await import(url)
+      }, code)
+    }, LAUNCH)
+    afterAll(async () => {
+      await browser?.close()
+    })
+
+    test('the innermost first (a menu in a sheet), then the sheet, then nothing', async () => {
+      await call(
+        'plain',
+        `
+        <dialog id="sheet"><div id="menu" popover>menu</div></dialog>`,
+      )
+      await page.evaluate(() => {
+        ;(document.getElementById('sheet') as HTMLDialogElement).showModal()
+        document.getElementById('menu')!.showPopover()
+      })
+      expect(await call('closeTop')).toEqual({ result: true, open: ['sheet'] })
+      expect(await call('closeTop')).toEqual({ result: true, open: [] })
+      expect(await call('closeTop')).toEqual({ result: false, open: [] })
+    })
+  })
+}

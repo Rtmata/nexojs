@@ -1,5 +1,13 @@
 /** Scenarios for library.browser.test.ts: markup in, panels attached. */
-import { attach, dialog, feed, focusgroup, registry, tabs } from '../index'
+import {
+  attach,
+  dialog,
+  feed,
+  focusgroup,
+  registry,
+  requestCloseTop,
+  tabs,
+} from '../index'
 
 const panels = registry({ dialog, feed, focusgroup, tabs })
 
@@ -71,4 +79,12 @@ export async function moreArticles(): Promise<void> {
   const shelf = document.querySelector('[data-panel=feed]')!
   shelf.insertAdjacentHTML('beforeend', '<article id="g4"><h3>D</h3></article>')
   await new Promise((done) => setTimeout(done, 0))
+}
+
+export function closeTop() {
+  const result = requestCloseTop()
+  const open = [...document.querySelectorAll('dialog, [popover]')]
+    .filter((el) => (el as HTMLElement).matches(':modal, :popover-open'))
+    .map((el) => el.id)
+  return { result, open }
 }
