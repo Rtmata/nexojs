@@ -2,6 +2,8 @@
 import {
   activity,
   attach,
+  hasInterest,
+  tooltip,
   menu,
   combobox,
   listbox,
@@ -46,6 +48,7 @@ const panels = registry({
   listbox,
   combobox,
   menu,
+  tooltip,
 })
 
 export function setup(html: string): void {
@@ -149,10 +152,17 @@ export function record(): void {
     'listbox:change',
     'combobox:change',
     'menu:select',
+    'interest',
+    'loseinterest',
     'change',
   ])
-    document.addEventListener(name, (e) => w.events.push(describeEvent(e)))
+    document.addEventListener(name, (e) => w.events.push(describeEvent(e)), {
+      capture: NOT_BUBBLING.has(name),
+    })
 }
+
+/** The platform's interest events don't bubble: heard in the capture phase. */
+const NOT_BUBBLING = new Set(['interest', 'loseinterest'])
 
 function describeEvent(e: Event): string {
   const detail = (e as CustomEvent).detail ?? {}
@@ -338,4 +348,21 @@ export function rolesOf(selector: string): (string | null)[] {
 /** A frame or two: the popover `toggle` event is queued as a task. */
 export function settled(): Promise<void> {
   return new Promise((done) => setTimeout(done, 30))
+}
+
+/** Whether this engine has interest invokers (the panel then does nothing). */
+export function nativeInterest(): boolean {
+  return hasInterest()
+}
+
+export function tipState(tip = '#tip', invoker = '#info') {
+  const t = document.querySelector(tip)!
+  const i = document.querySelector(invoker)!
+  return {
+    open: t.matches(':popover-open'),
+    role: t.getAttribute('role'),
+    describedby: i.getAttribute('aria-describedby'),
+    details: i.getAttribute('aria-details'),
+    expanded: i.getAttribute('aria-expanded'),
+  }
 }

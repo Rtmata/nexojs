@@ -1246,3 +1246,92 @@ for (const [name, engine] of engines) {
     })
   })
 }
+
+for (const [name, engine] of engines) {
+  describe(`tooltip in ${name}`, () => {
+    let browser: Browser
+    let page: Page
+    const call = (fn: string, ...args: unknown[]) =>
+      page.evaluate(
+        ([f, a]) => (window as any).library[f as string](...(a as unknown[])),
+        [fn, args] as const,
+      )
+    const open = async () =>
+      ((await call('tipState')) as { open: boolean }).open
+    const tip = (content: string) => `
+      <button id="info" interestfor="tip" style="position:fixed;left:0;top:0;width:60px;height:30px">i</button>
+      <div id="tip" popover="hint" data-panel="tooltip" style="position:fixed;inset:auto;left:300px;top:300px;margin:0;width:100px;height:40px">${content}</div>
+      <button id="away" style="position:fixed;left:0;top:500px">away</button>`
+
+    beforeAll(async () => {
+      browser = await engine.launch()
+      page = await browser.newPage({ viewport: { width: 800, height: 600 } })
+      await page.setContent(
+        '<!doctype html><title>library</title><body></body>',
+      )
+      await page.evaluate(async (code) => {
+        const url = URL.createObjectURL(
+          new Blob([code], { type: 'text/javascript' }),
+        )
+        ;(window as any).library = await import(url)
+      }, code)
+    }, LAUNCH)
+    afterAll(async () => {
+      await browser?.close()
+    })
+
+    test('hover: after a moment; kept on the tooltip itself (WCAG 1.4.13); lost after leaving both', async () => {
+      await page.mouse.move(700, 100)
+      await call('record')
+      await call('setup', tip('Released in 1987'))
+      await page.mouse.move(30, 15)
+      await page.waitForTimeout(200)
+      expect(await open()).toBe(false)
+      await page.waitForTimeout(600)
+      expect(await open()).toBe(true)
+      await page.mouse.move(350, 320)
+      await page.waitForTimeout(600)
+      expect(await open()).toBe(true)
+      await page.mouse.move(700, 100)
+      await page.waitForTimeout(600)
+      expect(await open()).toBe(false)
+      expect(await call('events')).toEqual(['interest', 'loseinterest'])
+    })
+
+    test('focus shows it, Escape loses it at once', async () => {
+      await page.mouse.move(700, 100)
+      await call('setup', tip('Released in 1987'))
+      await page.focus('#info')
+      await page.waitForTimeout(800)
+      expect(await open()).toBe(true)
+      await page.keyboard.press('Escape')
+      await page.waitForTimeout(20)
+      expect(await open()).toBe(false)
+    })
+
+    test("the mapping: the platform's own, or the bridge's copy of it", async () => {
+      await call('setup', tip('Released in 1987'))
+      const plain = await call('tipState')
+      await call('setup', tip('Released in 1987. <a href="#more">More</a>'))
+      await page.focus('#info')
+      await page.waitForTimeout(800)
+      const rich = await call('tipState')
+      if (await call('nativeInterest')) {
+        expect(plain).toMatchObject({ describedby: null, role: null })
+        expect(rich).toMatchObject({ open: true, details: null })
+        return
+      }
+      expect(plain).toMatchObject({
+        describedby: 'tip',
+        role: null,
+        details: null,
+      })
+      expect(rich).toMatchObject({
+        open: true,
+        role: 'tooltip',
+        details: 'tip',
+        expanded: 'true',
+      })
+    })
+  })
+}

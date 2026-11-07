@@ -190,6 +190,23 @@ APG Menu and Menubar + Menu Button, in Open UI's shape (R.35). Layer 0 is the na
 
 On a popover it's a menu; on an in-page element (`<div data-panel="menu" aria-label="Main">`), a menubar with one tab stop. Buttons and links become `menuitem`; write `role="menuitemcheckbox"` or `"menuitemradio"` for checkable items (radios group by the nearest `role="group"`); an `<hr>` is a separator. The panel adds `aria-haspopup` / `aria-expanded` to the triggers and moves focus into a menu when it opens (the first item; ↑ on the menu button opens on the last). Keys: the arrows of the menu's axis move and wrap, the other axis opens a submenu or goes back to its item, and under a menubar it moves to the bar's next menu. Home / End, typeahead, Enter chooses and closes every menu, Space flips a checkable and keeps the menu open, Escape closes the menu it's in, and Tab leaves and closes them all. `menu:select` carries `{ value, checked }` (`data-value`, else the text). Placing the menus is CSS (anchor positioning). For a context menu, open the same popover from `press-hold:press` or the ContextMenu key. The `command` bridge is shared with `dialog`.
 
+## tooltip
+
+APG Tooltip written as the platform writes it: an interest invoker and a hint popover.
+
+```html
+<button interestfor="tip">ⓘ</button>
+<div id="tip" popover="hint" data-panel="tooltip">Released in 1987</div>
+```
+
+Where the engine has interest invokers (Chrome 142+), the panel does nothing. Elsewhere it is a gap bridge that copies the platform:
+
+- interest comes after `data-tooltip-start` ms (500) of hover or focus, stays while the pointer or focus is on the invoker or the tooltip, and is lost `data-tooltip-end` ms (250) after leaving both;
+- Escape loses it at once, and `interest` / `loseinterest` fire on the tooltip;
+- a plain-text tooltip describes its invoker (`aria-describedby`); a rich one (links, headings…) gets `role=tooltip`, and its invoker `aria-details` and `aria-expanded`.
+
+The defaults are what Chromium 156 does for `interest-delay: normal`. Place it with CSS anchor positioning. Where the platform lacks interest invokers, a tooltip stays hidden without JS, so never put anything essential only in a tooltip.
+
 ## Lazy media: markup, no panel
 
 `<img loading="lazy">` and `<iframe loading="lazy">` work in every engine. For `<video>`, `loading="lazy"` is Chrome-only (150+). Write `preload="none"` too: every engine then waits to fetch the video, though the `poster` still loads early where `loading` is missing. A script can't help here, because the poster is requested before any script runs.
