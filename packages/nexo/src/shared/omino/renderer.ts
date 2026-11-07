@@ -13,7 +13,14 @@ import type { RenderContext } from './render'
 import type { SegmentPicker } from './segment'
 import { For } from './for'
 import { isHole, readOnce } from './hole'
-import { childrenOf, isSkipped, SlotResolver, type Placed } from './slots'
+import {
+  childrenOf,
+  componentProps,
+  isSkipped,
+  SlotResolver,
+  type Placed,
+} from './slots'
+import { PageSheets, stylesOf, styledTree } from './styles'
 
 /**
  * Turns one page's tree into HTML text, one method per kind of node. One
@@ -37,6 +44,8 @@ export class Renderer {
     private readonly foreign = false,
     /** Set by `render(page, { only })`: collects the segments asked for. */
     private readonly picker?: SegmentPicker,
+    /** The page's component styles, each once (C.20a). */
+    readonly sheets = new PageSheets(),
   ) {
     this.rawText = new RawText(slots)
   }
@@ -126,6 +135,7 @@ export class Renderer {
       this.slots,
       true,
       this.picker,
+      this.sheets,
     ))
   }
 
@@ -135,6 +145,7 @@ export class Renderer {
       this.slots,
       false,
       this.picker,
+      this.sheets,
     ))
   }
 
@@ -151,16 +162,22 @@ export class Renderer {
     props: Record<string, unknown>,
     scope: Scope,
   ) {
-    const { children, if: _if, slot: _slot, ...rest } = props
-    if (children !== undefined)
-      rest.children = new Scoped(children as Child, scope)
-    const instance = new type(rest)
-    const tree = await instance.template(this.context, SERVER_RUN)
+    const instance = new type(componentProps(props, scope))
+    const made = await instance.template(this.context, SERVER_RUN)
+    const tree = this.styled(type, made)
     const html = await this.child(tree, {
       children: childrenOf(instance.props),
     })
     this.picker?.offer(instance, html)
     return html
+  }
+
+  /** Its root marked, and its CSS kept for the page's head (C.20a). */
+  private styled(type: ComponentClass, tree: Child): Child {
+    const styles = stylesOf(type)
+    if (!styles) return tree
+    if (styles.encapsulation !== 'shadow') this.sheets.add(styles)
+    return styledTree(tree, styles)
   }
 
   /** A <Slot> (or a subclass of it, defaults included) shows what its scope gives it. */

@@ -17,8 +17,14 @@ import { readerOf, isHole } from '../../shared/omino/hole'
 import { assertTag, VOID_ELEMENTS } from '../../shared/omino/html'
 import { isNothing, rawOf, textOf } from '../../shared/omino/leaf'
 import type { RenderContext } from '../../shared/omino/render'
-import { childrenOf, isSkipped, SlotResolver } from '../../shared/omino/slots'
+import {
+  childrenOf,
+  componentProps,
+  isSkipped,
+  SlotResolver,
+} from '../../shared/omino/slots'
 import { Swap, type SwapOrder } from '../../shared/omino/swap'
+import { ShadowContent, stylesOf, styledTree } from '../../shared/omino/styles'
 import { Holes } from './holes'
 import type { InsertedPhase, Life } from './life'
 import { ForList } from './for-list'
@@ -26,6 +32,7 @@ import { Motions } from './motions'
 import { ElementProps } from './props'
 import type { Reactivity } from './reactivity'
 import { Region } from './region'
+import { ensureSheet, shadowSheet } from './sheets'
 
 const HTML = 'http://www.w3.org/1999/xhtml'
 const SVG = 'http://www.w3.org/2000/svg'
@@ -160,7 +167,8 @@ export class DomBuilder {
     const { children, if: _if, slot: _slot, ref, ...rest } = props
     const inside = { ...place, ns: namespaceInside(tag, el.namespaceURI!) }
     if (el.localName === 'script') ensureInert(rest.type, children as Child)
-    this.children(el, children as Child, inside)
+    if (children instanceof ShadowContent) this.shadow(el, children, inside)
+    else this.children(el, children as Child, inside)
     this.props.apply(el, rest, this.where(place))
     if (ref !== undefined) this.ref(el, ref, place)
     return el
@@ -173,6 +181,13 @@ export class DomBuilder {
         `omino: <${el.localName}> can't have children: HTML has no closing tag for it. Put the content next to it instead`,
       )
     el.append(...nodes)
+  }
+
+  /** `shadow` (item 36): the content in the element's shadow root, the styles adopted. */
+  private shadow(el: Element, shadow: ShadowContent, place: Place): void {
+    const root = el.attachShadow({ mode: 'open' })
+    root.adoptedStyleSheets = [shadowSheet(shadow.styles)]
+    root.append(...this.build(shadow.content, { ...place, ns: HTML }))
   }
 
   /** `ref={(el, { signal }) => …}` (C.17a): once, when the element is in the document. */
@@ -191,7 +206,7 @@ export class DomBuilder {
   ): Node[] {
     const instance = new type(componentProps(props, place.scope))
     const life = place.life.child()
-    const tree = this.template(instance, life)
+    const tree = styled(type, this.template(instance, life))
     const scope = { children: childrenOf(instance.props) }
     const nodes = this.build(tree, { ...place, life, scope })
     this.whenMounted(instance, { ...place, life })
@@ -244,15 +259,12 @@ export class DomBuilder {
   }
 }
 
-/** A component's props: children remember the scope they were written in. */
-function componentProps(
-  props: Record<string, unknown>,
-  scope: Scope,
-): Record<string, unknown> {
-  const { children, if: _if, slot: _slot, ...rest } = props
-  if (children !== undefined)
-    rest.children = new Scoped(children as Child, scope)
-  return rest
+/** Its root marked and its CSS in the document (C.20a), or its shadow root (item 36). */
+function styled(type: ComponentClass, tree: Child): Child {
+  const styles = stylesOf(type)
+  if (!styles) return tree
+  if (styles.encapsulation !== 'shadow') ensureSheet(styles)
+  return styledTree(tree, styles)
 }
 
 function create(tag: string, ns: string): Element {

@@ -95,8 +95,8 @@ export async function renderToString(
   context: RenderContext = EMPTY_CONTEXT,
   only?: readonly string[],
 ): Promise<string> {
-  if (!only) return new Renderer(context).page(tree)
-  const picker = new SegmentPicker(only)
-  await new Renderer(context, undefined, false, picker).page(tree)
-  return picker.html()
+  const picker = only ? new SegmentPicker(only) : undefined
+  const renderer = new Renderer(context, undefined, false, picker)
+  const html = await renderer.page(tree)
+  return renderer.sheets.into(picker ? picker.html() : html)
 }

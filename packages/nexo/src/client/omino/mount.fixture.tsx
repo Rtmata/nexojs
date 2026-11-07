@@ -11,6 +11,7 @@ import {
 } from '../../shared/connector/index'
 import {
   Component,
+  css,
   For,
   raw,
   Slot,
@@ -821,4 +822,89 @@ export function bindErrors() {
     <input type="checkbox" bind:checked={signal(false)} bind-on="input" />
   ))
   return caught
+}
+
+class Tile extends Component {
+  static styles = css`
+    p {
+      color: rgb(255, 0, 0);
+    }
+    :scope {
+      padding: 3px;
+    }
+  `
+  template(): Child {
+    return (
+      <article>
+        <p class="tile">tile</p>
+        {this.props.children}
+      </article>
+    )
+  }
+}
+
+class Inner extends Component {
+  static styles = 'em { font-style: normal }'
+  template(): Child {
+    return (
+      <div>
+        <p class="inner">inner</p>
+      </div>
+    )
+  }
+}
+
+class Shadowed extends Component {
+  static styles = 'p { color: rgb(0, 0, 255) }'
+  static encapsulation = 'shadow' as const
+  template(): Child {
+    return (
+      <x-shadowed>
+        <p>in the shadow</p>
+      </x-shadowed>
+    )
+  }
+}
+
+export function scopedStyles() {
+  const { el } = run(
+    <div>
+      <p class="outside">outside</p>
+      <Tile>
+        <Inner />
+      </Tile>
+      <Tile />
+    </div>,
+  )
+  const color = (s: string) => getComputedStyle(el.querySelector(s)!).color
+  return {
+    tile: color('.tile'),
+    outside: color('.outside'),
+    inner: color('.inner'),
+    root: getComputedStyle(el.querySelector('article')!).paddingTop,
+    sheets: document.querySelectorAll('style[data-scope-for="Tile"]').length,
+    marked: el.querySelector('article')!.getAttribute('data-scope'),
+  }
+}
+
+export function shadowStyles() {
+  const { el } = run(
+    <div>
+      <Shadowed />
+      <Shadowed />
+      <p class="light">light</p>
+    </div>,
+  )
+  const [a, b] = el.querySelectorAll('x-shadowed')
+  const p = a!.shadowRoot!.querySelector('p')!
+  return {
+    inShadow: p.textContent,
+    color: getComputedStyle(p).color,
+    light: getComputedStyle(el.querySelector('.light')!).color,
+    shared:
+      a!.shadowRoot!.adoptedStyleSheets[0] ===
+      b!.shadowRoot!.adoptedStyleSheets[0],
+    headSheet:
+      document.querySelector('style[data-scope-for="Shadowed"]') !== null,
+  }
 }

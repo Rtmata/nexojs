@@ -1,5 +1,6 @@
 import type { Child } from './element'
 import type { RenderContext } from './render'
+import type { Encapsulation } from './styles'
 
 /**
  * Props every component receives besides its own. `children` is opaque:
@@ -34,6 +35,15 @@ export abstract class Component<P extends object = {}> {
    * subclasses can override just some of them.
    */
   static defaults: object = {}
+
+  /**
+   * The component's CSS (C.20a): `static styles = css\`…\``. It reaches only
+   * this component's markup: `:scope` is its root.
+   */
+  static styles?: string
+
+  /** How the styles stay inside (item 36): `@scope` by default. */
+  static encapsulation?: Encapsulation
 
   readonly props: ComponentProps<P>
 

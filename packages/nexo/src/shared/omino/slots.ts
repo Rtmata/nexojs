@@ -107,3 +107,14 @@ function withoutSlot(child: Child): Child {
   const { slot: _slot, ...props } = child.props
   return new Element(child.type, props)
 }
+
+/** A component's props: children remember the scope they were written in. */
+export function componentProps(
+  props: Record<string, unknown>,
+  scope: Scope,
+): Record<string, unknown> {
+  const { children, if: _if, slot: _slot, ...rest } = props
+  if (children !== undefined)
+    rest.children = new Scoped(children as Child, scope)
+  return rest
+}

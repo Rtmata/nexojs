@@ -314,6 +314,27 @@ for (const [name, engine] of engines) {
       expect(caught[2]).toContain('bind-on')
     })
 
+    test('styles with @scope: only the component, not outside, not inside a child', async () => {
+      expect(await play('scopedStyles')).toEqual({
+        tile: 'rgb(255, 0, 0)',
+        outside: 'rgb(0, 0, 0)',
+        inner: 'rgb(0, 0, 0)',
+        root: '3px',
+        sheets: 1,
+        marked: 'Tile',
+      })
+    })
+
+    test("encapsulation 'shadow': a shadow root, one shared adopted sheet", async () => {
+      expect(await play('shadowStyles')).toEqual({
+        inShadow: 'in the shadow',
+        color: 'rgb(0, 0, 255)',
+        light: 'rgb(0, 0, 0)',
+        shared: true,
+        headSheet: false,
+      })
+    })
+
     test('aborting the mount ends components and removes the content', async () => {
       expect(await play('abortEnds')).toEqual({
         log: ['ended'],
