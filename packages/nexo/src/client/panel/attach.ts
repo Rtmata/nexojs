@@ -1,9 +1,11 @@
 import type { Panel } from './panel'
+import { PanelRegistry } from './registry'
+import { PANEL_ATTRIBUTE } from './vocabulary'
+
+export { PANEL_ATTRIBUTE }
 
 /** Panels by the name markup uses: `data-panel="gallery tabs"` (F.1). A plain object (D.2). */
 export type Registry = Record<string, Panel<any, any>>
-
-export const PANEL_ATTRIBUTE = 'data-panel'
 
 /** Who is connected, so `attach` is idempotent per element (item 36) and `observe` can end them. */
 const connected = new WeakMap<Element, Map<string, AbortController>>()
@@ -16,11 +18,12 @@ const connected = new WeakMap<Element, Map<string, AbortController>>()
  */
 export function attach(
   root: Element,
-  registry: Registry,
+  registry: Registry | PanelRegistry<any>,
   { signal }: { signal: AbortSignal },
 ): void {
+  const panels = registry instanceof PanelRegistry ? registry.panels : registry
   for (const el of withPanels(root))
-    for (const name of namesOf(el)) connectOnce(el, name, registry, signal)
+    for (const name of namesOf(el)) connectOnce(el, name, panels, signal)
 }
 
 function withPanels(root: Element): Element[] {

@@ -1,4 +1,7 @@
 import { attach, detach, type Registry } from './attach'
+import type { PanelRegistry } from './registry'
+
+type Panels = Registry | PanelRegistry<any>
 
 /**
  * Opt-in (item 36): `attach` for DOM changed outside bridge. Started
@@ -7,7 +10,7 @@ import { attach, detach, type Registry } from './attach'
  */
 export function observe(
   root: Element,
-  registry: Registry,
+  registry: Panels,
   { signal }: { signal: AbortSignal },
 ): void {
   attach(root, registry, { signal })
@@ -20,7 +23,7 @@ export function observe(
 
 function changed(
   records: MutationRecord[],
-  registry: Registry,
+  registry: Panels,
   signal: AbortSignal,
 ): void {
   for (const record of records) {

@@ -1,7 +1,15 @@
 /** The scenarios of panel.browser.test.ts, run inside each browser. */
 import * as connector from '../../shared/connector/index'
 import { mount } from '../omino/index'
-import { attach, boolean, json, number, observe, panel } from './index'
+import {
+  attach,
+  boolean,
+  json,
+  number,
+  observe,
+  panel,
+  registry,
+} from './index'
 
 const log: string[] = []
 
@@ -109,5 +117,22 @@ export async function observing() {
   added.remove()
   await new Promise((done) => setTimeout(done, 20))
   controller.abort()
+  return [...log]
+}
+
+/** What the server writes with markup(), attach reads back the same. */
+export function roundTrip() {
+  log.length = 0
+  const panels = registry({ gallery })
+  const attributes = panels.markup('gallery', {
+    start: 4,
+    loop: true,
+    shots: ['a', 'b', 'c'],
+  })
+  const section = document.createElement('section')
+  for (const [name, value] of Object.entries(attributes))
+    section.setAttribute(name, value === true ? '' : value)
+  document.body.replaceChildren(section)
+  attach(document.body, panels, { signal: new AbortController().signal })
   return [...log]
 }

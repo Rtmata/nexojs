@@ -6,6 +6,8 @@
 export { attach, PANEL_ATTRIBUTE } from './attach'
 export type { Registry } from './attach'
 export { observe } from './observe'
+export { PanelRegistry, registry } from './registry'
+export type { Markup, PanelParams } from './registry'
 export { panel } from './panel'
 export type { EventHandler, Panel, PanelOptions } from './panel'
 export { boolean, json, number, oneOf, string } from './params'

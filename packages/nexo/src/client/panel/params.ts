@@ -6,6 +6,8 @@
 export interface Param<T> {
   /** The attribute's text, or `null` when it's missing. */
   parse(text: string | null, where: string): T
+  /** The other way, for server markup (R.23): the text, `true` for a bare attribute, `null` to leave it out. */
+  write(value: T): string | true | null
 }
 
 /** What a schema's params are, typed from its parsers. */
@@ -14,7 +16,7 @@ export type ParamsOf<S> = {
 }
 
 export function number(fallback: number): Param<number> {
-  return param(fallback, 'a number', (text) => {
+  return param(fallback, 'a number', String, (text) => {
     const n = Number(text)
     return text.trim() !== '' && Number.isFinite(n) ? { value: n } : undefined
   })
@@ -22,22 +24,27 @@ export function number(fallback: number): Param<number> {
 
 /** Presence is `true` (HTML's own rule for boolean attributes). */
 export function boolean(fallback = false): Param<boolean> {
-  return { parse: (text) => (text === null ? fallback : true) }
+  return {
+    parse: (text) => (text === null ? fallback : true),
+    write: (value) => (value ? true : null),
+  }
 }
 
 export function string(fallback = ''): Param<string> {
-  return { parse: (text) => text ?? fallback }
+  return { parse: (text) => text ?? fallback, write: (value) => value }
 }
 
 /** Arrays and objects, as JSON in the attribute. */
 export function json<T>(fallback: T): Param<T> {
-  return param(fallback, 'JSON', (text) => {
-    try {
-      return { value: JSON.parse(text) as T }
-    } catch {
-      return undefined
-    }
-  })
+  return param(fallback, 'JSON', (value) => JSON.stringify(value), parseJson<T>)
+}
+
+function parseJson<T>(text: string): { value: T } | undefined {
+  try {
+    return { value: JSON.parse(text) as T }
+  } catch {
+    return undefined
+  }
 }
 
 /** One of a fixed list of words. */
@@ -45,7 +52,7 @@ export function oneOf<const W extends string>(
   words: readonly W[],
   fallback: W,
 ): Param<W> {
-  return param(fallback, `one of ${words.join(', ')}`, (text) =>
+  return param(fallback, `one of ${words.join(', ')}`, String, (text) =>
     words.includes(text as W) ? { value: text as W } : undefined,
   )
 }
@@ -57,6 +64,7 @@ export function oneOf<const W extends string>(
 function param<T>(
   fallback: T,
   expected: string,
+  write: (value: T) => string,
   read: (text: string) => { value: T } | undefined,
 ): Param<T> {
   return {
@@ -67,6 +75,7 @@ function param<T>(
         throw new Error(`${where}: expected ${expected}, got "${text}"`)
       return parsed.value
     },
+    write,
   }
 }
 

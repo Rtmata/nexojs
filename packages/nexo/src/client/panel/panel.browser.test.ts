@@ -76,6 +76,10 @@ for (const [name, engine] of engines) {
       ])
     })
 
+    test('what markup() writes, attach() reads back the same (R.23)', async () => {
+      expect(await play('roundTrip')).toEqual(['connect 4 true 3'])
+    })
+
     test('observe: added connects, removed ends', async () => {
       expect(await play('observing')).toEqual(['connect 0 false 0', 'ended'])
     })
