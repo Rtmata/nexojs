@@ -18,9 +18,11 @@ import { assertTag, VOID_ELEMENTS } from '../../shared/omino/html'
 import { isNothing, rawOf, textOf } from '../../shared/omino/leaf'
 import type { RenderContext } from '../../shared/omino/render'
 import { childrenOf, isSkipped, SlotResolver } from '../../shared/omino/slots'
+import { Swap, type SwapOrder } from '../../shared/omino/swap'
 import { Holes } from './holes'
 import type { InsertedPhase, Life } from './life'
 import { ForList } from './for-list'
+import { Motions } from './motions'
 import { ElementProps } from './props'
 import type { Reactivity } from './reactivity'
 import { Region } from './region'
@@ -46,13 +48,14 @@ export class DomBuilder {
   private readonly slots = new SlotResolver()
   private readonly holes: Holes
   private readonly props: ElementProps
+  private readonly motions = new Motions()
 
   constructor(
     private readonly reactivity: Reactivity,
     private readonly context: RenderContext,
   ) {
     this.holes = new Holes(reactivity)
-    this.props = new ElementProps(this.holes)
+    this.props = new ElementProps(this.holes, this.motions)
   }
 
   build(child: Child, place: Place): Node[] {
@@ -80,23 +83,34 @@ export class DomBuilder {
       .flatMap(({ child, scope }) => this.build(child, { ...place, scope }))
   }
 
-  /** A hole as a child: a region the hole fills (C.12). */
-  private region(hole: Child, place: Place): Node[] {
-    const region = new Region(place.life, this.into(place), place.phase)
+  /** A hole as a child: a region the hole fills (C.12), `out-in` unless a `Swap` says. */
+  private region(hole: Child, place: Place, order?: SwapOrder): Node[] {
+    const region = this.regionAt(place, order)
+    const show = (value: unknown) => region.show(value as Child)
     const nodes = region.nodes()
-    this.holes.write(
-      hole,
-      (value) => region.show(value as Child),
-      place.life.signal,
-    )
+    this.holes.write(hole, show, place.life.signal)
     return nodes
+  }
+
+  private regionAt(place: Place, order?: SwapOrder): Region {
+    const { life, phase } = place
+    return new Region(life, this.into(place), this.motions, order, phase)
+  }
+
+  /** `<Swap order>` (C.15c): its child hole is a region with that order. */
+  private swap(props: Record<string, unknown>, place: Place): Node[] {
+    const order = props.order as SwapOrder | undefined
+    const child = props.children as Child
+    if (!isHole(child)) return this.build(child, place)
+    return this.region(child, place, order)
   }
 
   /** `<For>` (C.14): a keyed region, fed by `each`. */
   private keyed(props: ForProps<unknown>, place: Place): Node[] {
     const { life, phase } = place
     const into = this.into(place)
-    const list = new ForList(props, life, into, this.reactivity, phase)
+    const { reactivity, motions } = this
+    const list = new ForList(props, life, into, reactivity, motions, phase)
     const update = (items: unknown) => list.update(items as unknown[])
     const nodes = list.nodes()
     this.holes.write(readEach(props.each), update, life.signal)
@@ -118,6 +132,7 @@ export class DomBuilder {
   private byType({ type, props }: OminoElement, place: Place): Node[] {
     if (type === Fragment) return this.build(props.children as Child, place)
     if (type === For) return this.keyed(props as never, place)
+    if (type === Swap) return this.swap(props, place)
     if (isSlotClass(type)) return this.slot(type, props, place)
     if (typeof type === 'string') return [this.tag(type, props, place)]
     if (isComponentClass(type)) return this.component(type, props, place)

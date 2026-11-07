@@ -2,7 +2,8 @@ import type { Child } from '../../shared/omino/element'
 import type { ForProps } from '../../shared/omino/for'
 import { InsertedPhase, type Life } from './life'
 import type { ReactiveValue, Reactivity } from './reactivity'
-import type { BuildInto } from './region'
+import type { Motions } from './motions'
+import { rangeFragment, rangeOf, type BuildInto } from './region'
 
 /** One row: made once per key, its nodes between `first` and `last`. */
 interface Row<T> {
@@ -33,6 +34,7 @@ export class ForList<T> {
     private readonly owner: Life,
     private readonly build: BuildInto,
     private readonly reactivity: Reactivity,
+    private readonly motions: Motions,
     /** The phase of the tree being built: the first rows' refs wait on it. */
     private firstPhase?: InsertedPhase,
   ) {}
@@ -44,13 +46,25 @@ export class ForList<T> {
   }
 
   update(items: readonly T[]): void {
-    const phase = this.firstPhase ?? new InsertedPhase()
+    const first = this.firstPhase
+    this.firstPhase = undefined
+    const phase = first ?? new InsertedPhase()
     const next = this.reactivity.batch(() => this.rowsFor(items, phase))
+    const fresh = next.filter((row) => row.fresh)
+    this.reconcile(next)
+    if (!first) this.welcome(fresh, phase)
+  }
+
+  private reconcile(next: Row<T>[]): void {
     this.leave(next)
     this.place(next)
     this.order = next
-    if (this.firstPhase) this.firstPhase = undefined
-    else phase.release()
+  }
+
+  /** New rows after the first update: their refs run, then their entry. */
+  private welcome(fresh: Row<T>[], phase: InsertedPhase): void {
+    phase.release()
+    for (const row of fresh) this.motions.enter(rangeOf(row), row.life.signal)
   }
 
   /** Every item's row: the one it had, updated, or a new one. */
@@ -99,23 +113,21 @@ export class ForList<T> {
     const tree = this.reactivity.untrack(() =>
       this.props.children(view(item), view(index)),
     )
-    const nodes = this.build(tree, life, phase)
-    const fragment = document.createDocumentFragment()
-    fragment.append(
-      ...(nodes.length > 0 ? nodes : [document.createComment('')]),
-    )
-    return fragment
+    return rangeFragment(this.build(tree, life, phase))
   }
 
-  /** Rows whose key is gone end, and their nodes leave. */
+  /** Rows whose key is gone play their exit, then end and leave (C.15c). */
   private leave(next: Row<T>[]): void {
     const kept = new Set(next.map((row) => row.key))
-    for (const row of this.order) {
-      if (kept.has(row.key)) continue
-      row.life.end()
-      for (const node of range(row)) node.parentNode?.removeChild(node)
-    }
+    for (const row of this.order) if (!kept.has(row.key)) this.goes(row)
     this.rows = new Map(next.map((row) => [row.key, row]))
+  }
+
+  private goes(row: Row<T>): void {
+    const done = () => removeRow(row)
+    const leaving = this.motions.leave(rangeOf(row), row.life.signal)
+    if (leaving) leaving.then(done, reportError)
+    else done()
   }
 
   /** From the end: each row goes before the next one, unless it already stays. */
@@ -174,7 +186,7 @@ function walkBack(tails: number[], previous: number[]): number[] {
 /** A new row's nodes from its fragment; a kept one's, moved (`moveBefore` keeps their state). */
 function insert<T>(row: Row<T>, before: Node): void {
   if (row.fresh) before.parentNode!.insertBefore(row.fresh, before)
-  else for (const node of range(row)) move(node, before)
+  else for (const node of rangeOf(row)) move(node, before)
   row.fresh = undefined
 }
 
@@ -185,14 +197,9 @@ function move(node: Node, before: Node): void {
   else parent.insertBefore(node, before)
 }
 
-/** The row's nodes, first to last: inner regions' content included. */
-function range<T>(row: Row<T>): Node[] {
-  const nodes: Node[] = []
-  for (let node: Node | null = row.first; node; node = node.nextSibling) {
-    nodes.push(node)
-    if (node === row.last) break
-  }
-  return nodes
+function removeRow<T>(row: Row<T>): void {
+  row.life.end()
+  for (const node of rangeOf(row)) node.parentNode?.removeChild(node)
 }
 
 /** The row's signal, read-only for the row's code. */

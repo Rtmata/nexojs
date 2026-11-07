@@ -863,3 +863,22 @@ describe('segments', () => {
     expect(text).toContain('data-bridge-segment="shelf"')
   })
 })
+
+describe("Nexo's own props on the server", () => {
+  test('ref, enter, exit and prop: are left out, never called', async () => {
+    let called = false
+    const call = () => (called = true)
+    const page = (
+      <input
+        ref={call}
+        enter={call}
+        exit={call}
+        exit-timeout={10}
+        prop:items={[1]}
+      />
+    )
+    const html = await (await render(page)).text()
+    expect(html).toContain('<input>')
+    expect(called).toBe(false)
+  })
+})

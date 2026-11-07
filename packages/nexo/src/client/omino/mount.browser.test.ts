@@ -198,6 +198,44 @@ for (const [name, engine] of engines) {
       expect(await play('forDuplicate')).toContain('two items with the key 1')
     })
 
+    test('exit: marked, inert, focus out, awaited, then removed', async () => {
+      expect(await play('exitWithCss')).toEqual({
+        during: { present: true, marked: true, inert: true, focusOut: true },
+        after: true,
+      })
+    })
+
+    test('a region swaps out-in by default, and only the latest comes in', async () => {
+      expect(await play('swapOutIn')).toEqual({ during: 'a', after: 'c' })
+    })
+
+    test('Swap together: both while the old leaves', async () => {
+      expect(await play('swapTogether')).toEqual({ during: 'ab', after: 'b' })
+    })
+
+    test('Swap in-out: the new comes first, the old leaves after', async () => {
+      expect(await play('swapInOut')).toEqual({ during: 'ab', after: 'b' })
+    })
+
+    test('exit as a function is awaited, with signal and reducedMotion', async () => {
+      expect(await play('exitFunction')).toEqual({
+        seen: ['p', false, 'boolean'],
+        during: true,
+        after: true,
+      })
+    })
+
+    test('exit-timeout ends an exit that never finishes', async () => {
+      expect(await play('exitTimeout')).toEqual({ during: true, after: true })
+    })
+
+    test('For rows leave with their exit and come with their entry', async () => {
+      expect(await play('rowsComeAndGo')).toEqual({
+        during: ['1-', '2', '3+'],
+        after: ['2', '3'],
+      })
+    })
+
     test('aborting the mount ends components and removes the content', async () => {
       expect(await play('abortEnds')).toEqual({
         log: ['ended'],

@@ -1,4 +1,5 @@
 import { readOnce } from './hole'
+import { isOwnProp } from './own-props'
 import { escapeHtml } from './html'
 
 /**
@@ -49,6 +50,7 @@ const SCRIPT_URL = /^(javascript|vbscript):/i
 export class Attributes {
   render(tag: string, props: Record<string, unknown>): string {
     return Object.entries(props)
+      .filter(([name]) => !isOwnProp(name))
       .map(([name, value]) => this.one(tag, name, value))
       .join('')
   }

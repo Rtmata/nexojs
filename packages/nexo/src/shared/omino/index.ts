@@ -2,6 +2,8 @@ export { Component, Slot } from './component'
 export { For } from './for'
 export type { ForEach, ForProps } from './for'
 export { Segment } from './segment'
+export { Swap } from './swap'
+export type { SwapOrder } from './swap'
 export type { ComponentProps, ComponentRun } from './component'
 export { raw } from './element'
 // The compiler imports it for a `key` after a spread; it only explains.

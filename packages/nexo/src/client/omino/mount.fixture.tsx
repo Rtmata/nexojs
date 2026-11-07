@@ -9,7 +9,14 @@ import {
   signal,
   SignalArray,
 } from '../../shared/connector/index'
-import { Component, For, raw, Slot, type Child } from '../../shared/omino/index'
+import {
+  Component,
+  For,
+  raw,
+  Slot,
+  Swap,
+  type Child,
+} from '../../shared/omino/index'
 import type { ComponentRun } from '../../shared/omino/component'
 import { mount } from './index'
 
@@ -439,4 +446,150 @@ export function forDuplicate() {
 
 function texts(el: Element, tag = 'li'): string[] {
   return [...el.querySelectorAll(tag)].map((n) => n.textContent ?? '')
+}
+
+const wait = (ms: number) => new Promise((done) => setTimeout(done, ms))
+
+/** One stylesheet for the motion scenarios: exits and entries of 80 ms. */
+function motionStyles(): void {
+  if (document.getElementById('motions')) return
+  const style = document.createElement('style')
+  style.id = 'motions'
+  style.textContent = `
+    @keyframes fade { from { opacity: 1 } to { opacity: 0 } }
+    @keyframes spin { to { rotate: 1turn } }
+    .anim[data-exiting], .anim[data-entering] { animation: fade 80ms linear }
+    .forever[data-exiting] { animation: spin 1s linear infinite }
+  `
+  document.head.append(style)
+}
+
+export async function exitWithCss() {
+  motionStyles()
+  const open = signal(true)
+  const { el } = run(
+    <div>
+      <p class="anim" if={open}>
+        <input />
+      </p>
+    </div>,
+  )
+  el.querySelector('input')!.focus()
+  open.set(false)
+  flush()
+  const p = el.querySelector('p') as HTMLElement | null
+  const during = {
+    present: p !== null,
+    marked: p?.hasAttribute('data-exiting'),
+    inert: p?.inert,
+    focusOut: document.activeElement === document.body,
+  }
+  await wait(250)
+  return { during, after: el.querySelector('p') === null }
+}
+
+function swapScenario(order?: 'out-in' | 'in-out' | 'together') {
+  motionStyles()
+  const view = signal<'a' | 'b' | 'c'>('a')
+  const pick = () => <p class={`anim ${view.get()}`}>{view.get()}</p>
+  const tree = order ? <Swap order={order}>{pick}</Swap> : pick
+  const { el } = run(<div>{tree}</div>)
+  const shown = () =>
+    [...el.querySelectorAll('p')].map((p) => p.textContent).join('')
+  return { view, shown }
+}
+
+export async function swapOutIn() {
+  const { view, shown } = swapScenario()
+  view.set('b')
+  flush()
+  const during = shown()
+  await wait(60)
+  view.set('c')
+  flush()
+  await wait(300)
+  return { during, after: shown() }
+}
+
+export async function swapTogether() {
+  const { view, shown } = swapScenario('together')
+  view.set('b')
+  flush()
+  const during = shown()
+  await wait(300)
+  return { during, after: shown() }
+}
+
+export async function swapInOut() {
+  const { view, shown } = swapScenario('in-out')
+  view.set('b')
+  flush()
+  const during = shown()
+  await wait(300)
+  return { during, after: shown() }
+}
+
+export async function exitFunction() {
+  const seen: unknown[] = []
+  const open = signal(true)
+  const { el } = run(
+    <div>
+      <p
+        if={open}
+        exit={(
+          node: Element,
+          {
+            signal,
+            reducedMotion,
+          }: { signal: AbortSignal; reducedMotion: boolean },
+        ) => {
+          seen.push(node.localName, signal.aborted, typeof reducedMotion)
+          return wait(60)
+        }}
+      />
+    </div>,
+  )
+  open.set(false)
+  flush()
+  const during = el.querySelector('p') !== null
+  await wait(150)
+  return { seen, during, after: el.querySelector('p') === null }
+}
+
+export async function exitTimeout() {
+  motionStyles()
+  const open = signal(true)
+  const { el } = run(
+    <div>
+      <p class="forever" if={open} exit-timeout={60} />
+    </div>,
+  )
+  open.set(false)
+  flush()
+  await wait(30)
+  const during = el.querySelector('p') !== null
+  await wait(150)
+  return { during, after: el.querySelector('p') === null }
+}
+
+export async function rowsComeAndGo() {
+  motionStyles()
+  const items = signal([1, 2])
+  const { el } = run(
+    <ul>
+      <For each={items}>{(n) => <li class="anim">{n}</li>}</For>
+    </ul>,
+  )
+  items.set([2, 3])
+  flush()
+  const lis = [...el.querySelectorAll('li')]
+  const during = lis.map(
+    (li) =>
+      `${li.textContent}${li.hasAttribute('data-exiting') ? '-' : ''}${li.hasAttribute('data-entering') ? '+' : ''}`,
+  )
+  await wait(250)
+  const after = [...el.querySelectorAll('li')].map(
+    (li) => `${li.textContent}${li.hasAttribute('data-entering') ? '+' : ''}`,
+  )
+  return { during, after }
 }

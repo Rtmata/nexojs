@@ -7,6 +7,7 @@ import {
 import { isHole } from '../../shared/omino/hole'
 import type { Holes } from './holes'
 import { isEventName, listen } from './listeners'
+import type { Motions } from './motions'
 
 /**
  * The properties whose attribute is only the initial value (R.13): the
@@ -24,13 +25,19 @@ const LIVE = new Set([
 
 const SVG = 'http://www.w3.org/2000/svg'
 
+/** Nexo's own: how the element comes and goes (C.15c), never attributes. */
+const MOTION_PROPS = new Set(['enter', 'exit', 'exit-timeout'])
+
 /**
  * Writes an element's props: as attributes, as the server does, except the
  * live-state list and `prop:…` (R.13); `class` and `style` objects key by key
  * (C.20); `on…` as listeners (C.18a). Any value may be a hole.
  */
 export class ElementProps {
-  constructor(private readonly holes: Holes) {}
+  constructor(
+    private readonly holes: Holes,
+    private readonly motions: Motions,
+  ) {}
 
   apply(el: Element, props: Record<string, unknown>, signal: AbortSignal) {
     for (const [name, value] of Object.entries(props))
@@ -41,6 +48,7 @@ export class ElementProps {
     if (isEventName(name)) return listen(el, name, value, signal)
     if (name.startsWith('prop:')) return this.property(el, name, value, signal)
     if (name.startsWith('bind:')) throw notYet(el, name)
+    if (MOTION_PROPS.has(name)) return this.motions.set(el, name, value)
     ensureName(el.localName, name)
     if (name === 'class') return this.classes(el, value, signal)
     if (name === 'style') return this.styles(el, value, signal)
