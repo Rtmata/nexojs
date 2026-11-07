@@ -1,0 +1,249 @@
+import {
+  isComponentClass,
+  isSlotClass,
+  type Component,
+  type ComponentClass,
+} from '../../shared/omino/component'
+import {
+  Element as OminoElement,
+  Fragment,
+  Scoped,
+  type Child,
+  type Scope,
+} from '../../shared/omino/element'
+import { readerOf, isHole } from '../../shared/omino/hole'
+import { assertTag, VOID_ELEMENTS } from '../../shared/omino/html'
+import { isNothing, rawOf, textOf } from '../../shared/omino/leaf'
+import type { RenderContext } from '../../shared/omino/render'
+import { childrenOf, isSkipped, SlotResolver } from '../../shared/omino/slots'
+import { Holes } from './holes'
+import type { InsertedPhase, Life } from './life'
+import { ElementProps } from './props'
+import type { Reactivity } from './reactivity'
+import { Region } from './region'
+
+const HTML = 'http://www.w3.org/1999/xhtml'
+const SVG = 'http://www.w3.org/2000/svg'
+const MATHML = 'http://www.w3.org/1998/Math/MathML'
+
+/** Where a child is being built: its life, the phase its refs wait on, its slots, its namespace. */
+export interface Place {
+  life: Life
+  phase: InsertedPhase
+  scope: Scope
+  ns: string
+}
+
+/**
+ * Turns a tree into DOM nodes, outside-in (R.11): each component gets its
+ * parent's life, the context and its slots before its children are built.
+ * One method per kind of node, as the server's `Renderer`.
+ */
+export class DomBuilder {
+  private readonly slots = new SlotResolver()
+  private readonly holes: Holes
+  private readonly props: ElementProps
+
+  constructor(
+    private readonly reactivity: Reactivity,
+    private readonly context: RenderContext,
+  ) {
+    this.holes = new Holes(reactivity)
+    this.props = new ElementProps(this.holes)
+  }
+
+  build(child: Child, place: Place): Node[] {
+    if (isHole(child)) return this.region(child, place)
+    if (isNothing(child)) return []
+    const text = textOf(child)
+    if (text !== undefined) return [document.createTextNode(text)]
+    const html = rawOf(child)
+    if (html !== undefined) return parse(html)
+    return this.branch(child, place)
+  }
+
+  private branch(child: Child, place: Place): Node[] {
+    if (child instanceof Scoped || Array.isArray(child))
+      return this.list(child, place)
+    if (child instanceof OminoElement) return this.element(child, place)
+    throw new Error(
+      `omino: can't build ${Object.prototype.toString.call(child)}. Children are text, numbers, elements, raw(), holes or lists of them`,
+    )
+  }
+
+  private list(child: Child, place: Place): Node[] {
+    return this.slots
+      .flatten(child, place.scope)
+      .flatMap(({ child, scope }) => this.build(child, { ...place, scope }))
+  }
+
+  /** A hole as a child: a region the hole fills (C.12). */
+  private region(hole: Child, place: Place): Node[] {
+    const region = new Region(place.life, this.into(place), place.phase)
+    const nodes = region.nodes()
+    this.holes.write(
+      hole,
+      (value) => region.show(value as Child),
+      place.life.signal,
+    )
+    return nodes
+  }
+
+  /** How a region builds its content: in the same scope and namespace, on its own life. */
+  private into(place: Place) {
+    return (child: Child, life: Life, phase: InsertedPhase) =>
+      this.build(child, { ...place, life, phase })
+  }
+
+  private element(element: OminoElement, place: Place): Node[] {
+    if (isHole(element.props.if)) return this.presence(element, place)
+    if (isSkipped(element)) return []
+    const { type, props } = element
+    if (type === Fragment) return this.build(props.children as Child, place)
+    if (isSlotClass(type)) return this.slot(type, props, place)
+    if (typeof type === 'string') return [this.tag(type, props, place)]
+    if (isComponentClass(type)) return this.component(type, props, place)
+    throw new Error(
+      `omino: <${String((type as Function)?.name ?? type)}> is not a component. Components are classes that extend Component`,
+    )
+  }
+
+  /**
+   * `if={hole}` (C.15a): created when it turns true, removed when it turns
+   * false, never recreated while it stays true.
+   */
+  private presence(element: OminoElement, place: Place): Node[] {
+    const { if: condition, ...props } = element.props
+    const shown = new OminoElement(element.type, props)
+    const read = readerOf(condition as () => unknown)
+    return this.region(() => (read() ? shown : null), place)
+  }
+
+  private tag(
+    tag: string,
+    props: Record<string, unknown>,
+    place: Place,
+  ): Element {
+    assertTag(tag)
+    const el = create(tag, place.ns)
+    const { children, if: _if, slot: _slot, ref, ...rest } = props
+    const inside = { ...place, ns: namespaceInside(tag, el.namespaceURI!) }
+    if (el.localName === 'script') ensureInert(rest.type, children as Child)
+    this.children(el, children as Child, inside)
+    this.props.apply(el, rest, place.life.signal)
+    if (ref !== undefined) this.ref(el, ref, place)
+    return el
+  }
+
+  private children(el: Element, children: Child, place: Place): void {
+    const nodes = this.build(children, place)
+    if (nodes.length > 0 && VOID_ELEMENTS.has(el.localName))
+      throw new Error(
+        `omino: <${el.localName}> can't have children: HTML has no closing tag for it. Put the content next to it instead`,
+      )
+    el.append(...nodes)
+  }
+
+  /** `ref={(el, { signal }) => …}` (C.17a): once, when the element is in the document. */
+  private ref(el: Element, ref: unknown, place: Place): void {
+    if (typeof ref !== 'function')
+      throw new Error(
+        `omino: <${el.localName} ref> takes a function: (el, { signal }) => …`,
+      )
+    this.inserted(() => ref(el, { signal: place.life.signal }), place)
+  }
+
+  private component(
+    type: ComponentClass,
+    props: Record<string, unknown>,
+    place: Place,
+  ): Node[] {
+    const instance = new type(componentProps(props, place.scope))
+    const life = place.life.child()
+    const tree = this.template(instance, life)
+    const scope = { children: childrenOf(instance.props) }
+    const nodes = this.build(tree, { ...place, life, scope })
+    this.whenMounted(instance, { ...place, life })
+    return nodes
+  }
+
+  /** `mounted({ signal })` (C.15b): after its children's, on the inserted phase. */
+  private whenMounted(instance: Component<any>, place: Place): void {
+    if (!instance.mounted) return
+    const run = { signal: place.life.signal }
+    this.inserted(() => instance.mounted!(run), place)
+  }
+
+  /** Runs once, untracked (C.12); on the client it can't wait (R.16). */
+  private template(instance: Component<any>, life: Life): Child {
+    const run = { signal: life.signal }
+    const tree = this.reactivity.untrack(() =>
+      instance.template(this.context, run),
+    )
+    if (!(tree instanceof Promise)) return tree
+    throw new Error(
+      `omino: ${instance.constructor.name}.template() returned a promise. In the browser a template can't wait: load data with resource() and show its status (R.16)`,
+    )
+  }
+
+  private slot(
+    type: ComponentClass,
+    props: Record<string, unknown>,
+    place: Place,
+  ): Node[] {
+    const { children, if: _if, ...rest } = props
+    const own = new type({ ...rest, children }).props as Record<string, unknown>
+    return this.slots
+      .content(own, place.scope)
+      .flatMap(({ child, scope }) => this.build(child, { ...place, scope }))
+  }
+
+  /** An untracked effect on the inserted phase (C.15b): once, children first. */
+  private inserted(fn: () => unknown, place: Place): void {
+    const { effect, untrack } = this.reactivity
+    effect(() => untrack(fn), {
+      scheduler: place.phase,
+      signal: place.life.signal,
+    })
+  }
+}
+
+/** A component's props: children remember the scope they were written in. */
+function componentProps(
+  props: Record<string, unknown>,
+  scope: Scope,
+): Record<string, unknown> {
+  const { children, if: _if, slot: _slot, ...rest } = props
+  if (children !== undefined)
+    rest.children = new Scoped(children as Child, scope)
+  return rest
+}
+
+function create(tag: string, ns: string): Element {
+  const own = tag === 'svg' ? SVG : tag === 'math' ? MATHML : ns
+  return own === HTML
+    ? document.createElement(tag)
+    : document.createElementNS(own, tag)
+}
+
+/** Inside <svg>/<math> the children are theirs; <foreignObject> goes back to HTML. */
+function namespaceInside(tag: string, ns: string): string {
+  return tag === 'foreignObject' ? HTML : ns
+}
+
+/** Trusted markup from `raw()`, parsed as HTML. */
+function parse(html: string): Node[] {
+  const template = document.createElement('template')
+  template.innerHTML = html
+  return [...template.content.childNodes]
+}
+
+/** A <script> made in the browser runs: only data types are allowed (JSON). */
+function ensureInert(type: unknown, children: Child): void {
+  if (isNothing(children) || /json$/i.test(String(type ?? ''))) return
+  throw new Error(
+    `omino: a <script> made in the browser would run its text. Load code with import; for data, give it type="application/json"`,
+  )
+}
+
+export { HTML }

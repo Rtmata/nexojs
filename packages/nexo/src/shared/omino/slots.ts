@@ -1,5 +1,6 @@
 import { Slot } from './component'
 import { Element, Fragment, Scoped, type Child, type Scope } from './element'
+import { readOnce } from './hole'
 import { isNothing } from './leaf'
 
 /** One child, with the scope it was written in. */
@@ -74,7 +75,15 @@ export class SlotResolver {
 
 /** `if` works on every element and component: falsy means "not rendered". */
 export function isSkipped(element: Element): boolean {
-  return 'if' in element.props && !element.props.if
+  return 'if' in element.props && !readOnce(element.props.if)
+}
+
+/** A component's children as its slots see them, wherever they came from. */
+export function childrenOf(props: { children?: unknown }): Scoped | undefined {
+  const children = props.children as Child
+  if (children === undefined || children instanceof Scoped) return children
+  // From `static defaults`: no outer scope to remember.
+  return new Scoped(children, { children: undefined })
 }
 
 /** A <Slot>, or an element of a class that extends it. */

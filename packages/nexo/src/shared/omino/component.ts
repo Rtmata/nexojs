@@ -55,12 +55,33 @@ export abstract class Component<P extends object = {}> {
    * test with `new Badge(props).template(context)`. Props stay the main way
    * in; the context is for page-wide values like the language.
    *
+   * `run.signal` is the component's lifetime (R.14): pass it to the effects,
+   * listeners and fetches made here, and they end with the component.
+   *
    * Type the parameter as `RenderContext` (declare its fields once, see
    * `render`). TypeScript lets a method narrow its parameter to any other
    * type without complaint, and nothing would then check that `render()`
    * really passes it.
    */
-  abstract template(context: Readonly<RenderContext>): Child | Promise<Child>
+  abstract template(
+    context: Readonly<RenderContext>,
+    run: ComponentRun,
+  ): Child | Promise<Child>
+
+  /**
+   * In the browser: runs once, when the component's nodes are in the
+   * document, before paint (C.15b). Its children's run first. Clean up
+   * through `signal`, or return a function. Never called on the server.
+   */
+  mounted?(run: ComponentRun): unknown
+}
+
+/**
+ * What each component's `template()` and `mounted()` receive (R.14): its
+ * lifetime. Aborted when the component leaves; on the server it never is.
+ */
+export interface ComponentRun {
+  readonly signal: AbortSignal
 }
 
 export type ComponentClass = new (props: any) => Component<any>
@@ -99,4 +120,16 @@ function defaultsChain(ctor: Function): object[] {
     if (Object.hasOwn(c, 'defaults')) chain.unshift(c.defaults)
   }
   return chain
+}
+
+/** A <Slot>, or a class that extends it. */
+export function isSlotClass(type: unknown): type is ComponentClass {
+  return (
+    type === Slot ||
+    (typeof type === 'function' && type.prototype instanceof Slot)
+  )
+}
+
+export function isComponentClass(type: unknown): type is ComponentClass {
+  return typeof type === 'function' && type.prototype instanceof Component
 }

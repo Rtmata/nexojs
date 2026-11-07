@@ -33,7 +33,7 @@ interface LineEnd {
 
 const found: Long[] = []
 for await (const file of new Glob(`${ROOT}/**/*.{ts,tsx}`).scan()) {
-  if (/\.test\.tsx?$/.test(file)) continue
+  if (/\.(test|fixture)\.tsx?$/.test(file)) continue // test code
   const source = new SourceFile(file, await Bun.file(file).text())
   found.push(...source.longFunctions())
 }

@@ -11,6 +11,7 @@
     "./connector": "./src/shared/connector/index.ts",
     "./keep": "./src/server/keep/index.ts",
     "./omino": "./src/shared/omino/index.ts",
+    "./omino/client": "./src/client/omino/index.ts",
     "./omino/jsx-runtime": "./src/shared/omino/jsx-runtime.ts",
     "./omino/jsx-dev-runtime": "./src/shared/omino/jsx-dev-runtime.ts",
     "./quarry": "./src/shared/quarry/index.ts",
@@ -20,7 +21,8 @@
   "files": [
     "src",
     "!src/**/*.test.ts",
-    "!src/**/*.test.tsx"
+    "!src/**/*.test.tsx",
+    "!src/**/*.fixture.tsx"
   ],
   "repository": {
     "type": "git",

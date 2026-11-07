@@ -29,6 +29,19 @@ export type Child =
   | null
   | undefined
   | readonly Child[]
+  /** A value that can change (C.12): bound in the browser, read once on the server. */
+  | ChildReadable
+  | ChildFunction
+
+/** A `Readable` child: a hole (C.13). Interfaces, so `Child` can refer to itself. */
+export interface ChildReadable {
+  get(): Child
+}
+
+/** A function child: a hole too (C.13). */
+export interface ChildFunction {
+  (): Child
+}
 
 /** HTML inserted as is, without escaping. Create it with `raw()`. */
 export class RawHtml {

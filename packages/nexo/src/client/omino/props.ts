@@ -1,0 +1,158 @@
+import {
+  classNames,
+  ensureName,
+  ensureNoScriptUrl,
+  type ClassValue,
+} from '../../shared/omino/attributes'
+import { isHole } from '../../shared/omino/hole'
+import type { Holes } from './holes'
+import { isEventName, listen } from './listeners'
+
+/**
+ * The properties whose attribute is only the initial value (R.13): the
+ * standard's own list, written as properties so what shows is the live state.
+ */
+const LIVE = new Set([
+  'value',
+  'checked',
+  'selected',
+  'muted',
+  'indeterminate',
+  'defaultValue',
+  'defaultChecked',
+])
+
+const SVG = 'http://www.w3.org/2000/svg'
+
+/**
+ * Writes an element's props: as attributes, as the server does, except the
+ * live-state list and `prop:…` (R.13); `class` and `style` objects key by key
+ * (C.20); `on…` as listeners (C.18a). Any value may be a hole.
+ */
+export class ElementProps {
+  constructor(private readonly holes: Holes) {}
+
+  apply(el: Element, props: Record<string, unknown>, signal: AbortSignal) {
+    for (const [name, value] of Object.entries(props))
+      this.one(el, name, value, signal)
+  }
+
+  private one(el: Element, name: string, value: unknown, signal: AbortSignal) {
+    if (isEventName(name)) return listen(el, name, value, signal)
+    if (name.startsWith('prop:')) return this.property(el, name, value, signal)
+    if (name.startsWith('bind:')) throw notYet(el, name)
+    ensureName(el.localName, name)
+    if (name === 'class') return this.classes(el, value, signal)
+    if (name === 'style') return this.styles(el, value, signal)
+    if (LIVE.has(name) && el.namespaceURI !== SVG)
+      return this.holes.write(value, (v) => setLive(el, name, v), signal)
+    this.holes.write(value, (v) => setAttribute(el, name, v), signal)
+  }
+
+  private property(
+    el: Element,
+    name: string,
+    value: unknown,
+    signal: AbortSignal,
+  ) {
+    const key = name.slice('prop:'.length)
+    this.holes.write(value, (v) => ((el as any)[key] = v), signal)
+  }
+
+  /** An object: each class on its own, each value maybe a hole. Else the whole attribute (C.20c). */
+  private classes(el: Element, value: unknown, signal: AbortSignal) {
+    if (!isPlainObject(value))
+      return this.holes.write(
+        value,
+        (v) => setClass(el, v as ClassValue),
+        signal,
+      )
+    for (const [names, on] of Object.entries(value))
+      this.holes.write(on, (v) => toggle(el, names, Boolean(v)), signal)
+  }
+
+  /** An object: CSS's own property names, each value maybe a hole (C.20b). */
+  private styles(el: Element, value: unknown, signal: AbortSignal) {
+    if (!isPlainObject(value))
+      return this.holes.write(
+        value,
+        (v) => setAttribute(el, 'style', v),
+        signal,
+      )
+    for (const [property, given] of Object.entries(value))
+      this.style(el, property, given, signal)
+  }
+
+  private style(
+    el: Element,
+    property: string,
+    value: unknown,
+    signal: AbortSignal,
+  ) {
+    ensureCssName(el, property)
+    const style = (el as HTMLElement).style
+    this.holes.write(value, (v) => setStyle(style, property, v), signal)
+  }
+}
+
+function setAttribute(el: Element, name: string, value: unknown): void {
+  if (value === null || value === undefined || value === false)
+    return el.removeAttribute(name)
+  if (value === true) return el.setAttribute(name, '')
+  ensureText(el, name, value)
+  ensureNoScriptUrl(el.localName, name, value)
+  el.setAttribute(name, String(value))
+}
+
+function setLive(el: Element, name: string, value: unknown): void {
+  const isText = name === 'value' || name === 'defaultValue'
+  ;(el as any)[name] = isText ? String(value ?? '') : Boolean(value)
+}
+
+function setClass(el: Element, value: ClassValue): void {
+  const names = classNames(value)
+  if (names) el.setAttribute('class', names)
+  else el.removeAttribute('class')
+}
+
+function toggle(el: Element, names: string, on: boolean): void {
+  for (const name of names.split(/\s+/).filter(Boolean))
+    el.classList.toggle(name, on)
+}
+
+function setStyle(style: CSSStyleDeclaration, name: string, value: unknown) {
+  if (value === null || value === undefined || value === false)
+    style.removeProperty(name)
+  else style.setProperty(name, String(value))
+}
+
+function isPlainObject(value: unknown): value is Record<string, unknown> {
+  return (
+    typeof value === 'object' &&
+    value !== null &&
+    !Array.isArray(value) &&
+    !isHole(value)
+  )
+}
+
+function ensureText(el: Element, name: string, value: unknown): void {
+  if (typeof value !== 'object' && typeof value !== 'function') return
+  throw new Error(
+    `omino: <${el.localName} ${name}> must be a string, number or boolean. For an object on a web component, write prop:${name}`,
+  )
+}
+
+/** `fontSize` would be ignored without a word: CSS's names are kebab-case. */
+function ensureCssName(el: Element, name: string): void {
+  if (name.startsWith('--') || !/[A-Z]/.test(name)) return
+  const kebab = name.replace(/[A-Z]/g, (c) => `-${c.toLowerCase()}`)
+  throw new Error(
+    `omino: <${el.localName} style={{ ${name} }}> uses CSS's own names: write '${kebab}'`,
+  )
+}
+
+function notYet(el: Element, name: string): Error {
+  return new Error(
+    `omino: <${el.localName} ${name}> comes with two-way binding (C.16), not built yet`,
+  )
+}

@@ -1,12 +1,13 @@
 import { Attributes } from './attributes'
-import { Component, Slot, type ComponentClass } from './component'
+import { isComponentClass, isSlotClass, type ComponentClass } from './component'
 import { Element, Fragment, Scoped, type Child, type Scope } from './element'
 import { assertTag, escapeHtml, RAW_TEXT_ELEMENTS, VOID_ELEMENTS } from './html'
 import { isNothing, rawOf, textOf } from './leaf'
 import { RawText } from './raw-text'
 import type { RenderContext } from './render'
 import type { SegmentPicker } from './segment'
-import { isSkipped, SlotResolver, type Placed } from './slots'
+import { isHole, readOnce } from './hole'
+import { childrenOf, isSkipped, SlotResolver, type Placed } from './slots'
 
 /**
  * Turns one page's tree into HTML text, one method per kind of node. One
@@ -41,8 +42,12 @@ export class Renderer {
 
   /** Leaves answer at once; only elements and lists may wait. */
   private child(child: Child, scope: Scope): string | Promise<string> {
+    if (isHole(child)) return this.child(readOnce(child) as Child, scope) // C.12
     const html = leafHtml(child)
-    if (html !== undefined) return html
+    return html ?? this.branch(child, scope)
+  }
+
+  private branch(child: Child, scope: Scope): string | Promise<string> {
     // `this.props.children` rendered directly is the default slot.
     if (child instanceof Scoped)
       return this.all(this.slots.flatten(child, scope))
@@ -144,8 +149,10 @@ export class Renderer {
     if (children !== undefined)
       rest.children = new Scoped(children as Child, scope)
     const instance = new type(rest)
-    const tree = await instance.template(this.context)
-    const html = await this.child(tree, { children: this.childrenOf(instance) })
+    const tree = await instance.template(this.context, SERVER_RUN)
+    const html = await this.child(tree, {
+      children: childrenOf(instance.props),
+    })
     this.picker?.offer(instance, html)
     return html
   }
@@ -160,15 +167,10 @@ export class Renderer {
     const own = new type({ ...rest, children }).props as Record<string, unknown>
     return this.all(this.slots.content(own, scope))
   }
-
-  /** The component's children as its slots see them, wherever they came from. */
-  private childrenOf(instance: Component<any>): Scoped | undefined {
-    const children = instance.props.children as Child
-    if (children === undefined || children instanceof Scoped) return children
-    // From `static defaults`: no outer scope to remember.
-    return new Scoped(children, { children: undefined })
-  }
 }
+
+/** The server renders once: a component's lifetime never ends there (R.14). */
+const SERVER_RUN = { signal: new AbortController().signal }
 
 /** Where a browser takes over XML rules for the elements inside. */
 const FOREIGN_ROOTS = new Set(['svg', 'math'])
@@ -180,17 +182,6 @@ function keepFirstNewline(name: string, inner: string): string {
   return NEWLINE_EATERS.has(name) && inner.startsWith('\n')
     ? '\n' + inner
     : inner
-}
-
-function isSlotClass(type: unknown): type is ComponentClass {
-  return (
-    type === Slot ||
-    (typeof type === 'function' && type.prototype instanceof Slot)
-  )
-}
-
-function isComponentClass(type: unknown): type is ComponentClass {
-  return typeof type === 'function' && type.prototype instanceof Component
 }
 
 /** The HTML of a leaf: nothing, escaped text, or `raw()` as is. */

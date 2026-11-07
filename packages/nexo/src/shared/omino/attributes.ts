@@ -1,3 +1,4 @@
+import { readOnce } from './hole'
 import { escapeHtml } from './html'
 
 /**
@@ -52,8 +53,10 @@ export class Attributes {
       .join('')
   }
 
-  private one(tag: string, name: string, raw: unknown): string {
+  private one(tag: string, name: string, given: unknown): string {
     ensureName(tag, name)
+    ensureNoHandler(tag, name, given)
+    const raw = readOnce(given) // C.12: the server reads a hole once
     const value = name === 'class' ? classNames(raw as ClassValue) || null : raw
     if (value === null || value === undefined || value === false) return ''
     ensureNoCode(tag, name, value)
@@ -63,7 +66,8 @@ export class Attributes {
   }
 }
 
-function ensureName(tag: string, name: string): void {
+/** Shared with the client renderer: the same names are refused on both sides. */
+export function ensureName(tag: string, name: string): void {
   if (VALID_ATTRIBUTE.test(name)) return
   throw new Error(
     `omino: "${name}" on <${tag}> is not an attribute name. Leave out spaces, quotes, control characters, '<', '>', '/' and '='`,
@@ -72,10 +76,24 @@ function ensureName(tag: string, name: string): void {
 
 /** An attribute that would put code in the page: an event handler, or a URL that runs script. */
 function ensureNoCode(tag: string, name: string, value: unknown): void {
-  if (/^on/i.test(name))
-    throw new Error(
-      `omino: <${tag} ${name}> is not allowed. Server-rendered HTML carries no event handlers; attach behavior in the browser instead`,
-    )
+  ensureNoHandler(tag, name, value)
+  ensureNoScriptUrl(tag, name, value)
+}
+
+/** Before anything reads it: an `on…` function is a handler, never a hole. */
+function ensureNoHandler(tag: string, name: string, value: unknown): void {
+  if (!/^on/i.test(name) || isAbsent(value)) return
+  throw new Error(
+    `omino: <${tag} ${name}> is not allowed. Server-rendered HTML carries no event handlers; attach behavior in the browser instead`,
+  )
+}
+
+/** Shared with the client renderer: a URL that would run code is refused on both sides. */
+export function ensureNoScriptUrl(
+  tag: string,
+  name: string,
+  value: unknown,
+): void {
   if (!URL_ATTRIBUTES.has(name.toLowerCase())) return
   if (!SCRIPT_URL.test(String(value).replace(/[\s\x00-\x1f]/g, ''))) return
   throw new Error(
@@ -97,7 +115,12 @@ export function classNames(value: ClassValue): string {
   if (Array.isArray(value))
     return value.map(classNames).filter(Boolean).join(' ')
   return Object.entries(value)
-    .filter(([, on]) => on)
+    .filter(([, on]) => readOnce(on))
     .map(([name]) => name)
     .join(' ')
+}
+
+/** What leaves an attribute out: `null`, `undefined`, `false`. */
+function isAbsent(value: unknown): boolean {
+  return value === null || value === undefined || value === false
 }
