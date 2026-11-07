@@ -1,15 +1,24 @@
 /** Scenarios for library.browser.test.ts: markup in, panels attached. */
 import {
   attach,
+  confirmOnHold,
   dialog,
   feed,
   focusgroup,
+  pressHold,
   registry,
   requestCloseTop,
   tabs,
 } from '../index'
 
-const panels = registry({ dialog, feed, focusgroup, tabs })
+const panels = registry({
+  dialog,
+  feed,
+  focusgroup,
+  tabs,
+  'press-hold': pressHold,
+  'confirm-on-hold': confirmOnHold,
+})
 
 export function setup(html: string): void {
   document.body.innerHTML = html
@@ -87,4 +96,27 @@ export function closeTop() {
     .filter((el) => (el as HTMLElement).matches(':modal, :popover-open'))
     .map((el) => el.id)
   return { result, open }
+}
+
+/** Every panel event and click on the page, in order; listening starts once. */
+export function record(): void {
+  const w = window as any
+  w.events = []
+  if (w.listening) return
+  w.listening = true
+  for (const name of ['press-hold:press', 'confirm-on-hold:confirm', 'click'])
+    document.addEventListener(name, (e) => w.events.push(describeEvent(e)))
+}
+
+function describeEvent(e: Event): string {
+  const pointerType = (e as CustomEvent).detail?.pointerType
+  return pointerType ? `${e.type} ${pointerType}` : e.type
+}
+
+export function events(): string[] {
+  return (window as any).events
+}
+
+export function liveText(): string {
+  return document.querySelector('[aria-live]')?.textContent ?? ''
 }

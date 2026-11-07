@@ -407,3 +407,96 @@ for (const [name, engine] of engines) {
     })
   })
 }
+
+for (const [name, engine] of engines) {
+  describe(`press-hold and confirm-on-hold in ${name}`, () => {
+    let browser: Browser
+    let page: Page
+    const call = (fn: string, ...args: unknown[]) =>
+      page.evaluate(
+        ([f, a]) => (window as any).library[f as string](...(a as unknown[])),
+        [fn, args] as const,
+      )
+    const hold = async (selector: string, ms: number, drift = 0) => {
+      const box = (await page.locator(selector).boundingBox())!
+      await page.mouse.move(box.x + 10, box.y + 10)
+      await page.mouse.down()
+      if (drift) await page.mouse.move(box.x + 10 + drift, box.y + 10)
+      await page.waitForTimeout(ms)
+      await page.mouse.up()
+      await page.waitForTimeout(50)
+    }
+
+    beforeAll(async () => {
+      browser = await engine.launch()
+      page = await browser.newPage()
+      await page.setContent(
+        '<!doctype html><title>library</title><body></body>',
+      )
+      await page.evaluate(async (code) => {
+        const url = URL.createObjectURL(
+          new Blob([code], { type: 'text/javascript' }),
+        )
+        ;(window as any).library = await import(url)
+      }, code)
+    }, LAUNCH)
+    afterAll(async () => {
+      await browser?.close()
+    })
+
+    test('press-hold: a long press fires and swallows its click; short or wandering ones do not', async () => {
+      await call(
+        'setup',
+        '<button id="item" data-panel="press-hold" style="width:200px;height:60px">item</button>',
+      )
+      await call('record')
+      await hold('#item', 500)
+      expect(await call('events')).toEqual(['press-hold:press mouse'])
+      await call('record')
+      await hold('#item', 100)
+      expect(await call('events')).toEqual(['click'])
+      await call('record')
+      await hold('#item', 500, 40)
+      expect(await call('events')).toEqual(['click']) // no long press: a plain click
+      await call('record')
+      await page.focus('#item')
+      await page.keyboard.press('Shift+F10')
+      expect(await call('events')).toEqual(['press-hold:press keyboard'])
+    })
+
+    test('confirm-on-hold: hold confirms, letting go early or a click does nothing', async () => {
+      await call(
+        'setup',
+        '<button id="del" data-panel="confirm-on-hold" data-confirm-on-hold-duration="300" style="width:200px;height:60px">delete</button>',
+      )
+      await call('record')
+      await hold('#del', 400)
+      expect(await call('events')).toEqual(['confirm-on-hold:confirm'])
+      await call('record')
+      await hold('#del', 100)
+      await page.click('#del')
+      expect(await call('events')).toEqual([])
+    })
+
+    test('confirm-on-hold by keyboard: hold, or press to arm and press again (R.31)', async () => {
+      await call(
+        'setup',
+        '<button id="del" data-panel="confirm-on-hold" data-confirm-on-hold-duration="300">delete</button>',
+      )
+      await call('record')
+      await page.focus('#del')
+      await page.keyboard.down(' ')
+      await page.waitForTimeout(400)
+      await page.keyboard.up(' ')
+      expect(await call('events')).toEqual(['confirm-on-hold:confirm'])
+      await call('record')
+      await page.keyboard.press(' ')
+      expect(await call('liveText')).toBe('Press again to confirm')
+      await page.keyboard.press('Escape')
+      await page.keyboard.press(' ')
+      expect(await call('events')).toEqual([])
+      await page.keyboard.press('Enter')
+      expect(await call('events')).toEqual(['confirm-on-hold:confirm'])
+    })
+  })
+}
