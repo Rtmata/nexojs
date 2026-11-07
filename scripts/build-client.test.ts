@@ -36,7 +36,14 @@ describe('the client build (F.2)', () => {
     expect(defining).toHaveLength(1)
   })
 
-  test('the list is the exports map: nine client modules', async () => {
-    expect(await entries()).toHaveLength(9)
+  test('the list is the exports map: every nexo-built subpath', async () => {
+    const pkg = await Bun.file(
+      resolve(import.meta.dir, '../packages/nexo/package.json'),
+    ).json()
+    const marked = Object.values(pkg.exports).filter(
+      (target) => typeof target === 'object',
+    )
+    expect(await entries()).toHaveLength(marked.length)
+    expect(await entries()).toContain('./src/client/boat/index.ts')
   })
 })

@@ -12,6 +12,13 @@
       },
       "default": "./src/shared/boat/index.ts"
     },
+    "./boat/client": {
+      "nexo-built": {
+        "types": "./src/client/boat/index.ts",
+        "default": "./dist/client/boat/index.js"
+      },
+      "default": "./src/client/boat/index.ts"
+    },
     "./bridge": "./src/server/bridge/index.ts",
     "./bridge/client": {
       "nexo-built": {

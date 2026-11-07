@@ -10,6 +10,7 @@ export type {
   Router,
 } from './router'
 export type { LangFrom } from './language'
+export { notFound } from './not-found'
 export { redirect } from './redirect'
 export type { RedirectStatus } from './redirect'
 export { route } from './route'

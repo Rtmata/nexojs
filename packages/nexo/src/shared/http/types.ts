@@ -1,3 +1,4 @@
+import type { NotFound } from '../boat/not-found'
 /**
  * Internal, not a public module: the contract every server piece shares —
  * what a request handler receives and returns, and what a declared route
@@ -70,7 +71,7 @@ export type ErrorHandler = (ctx: ErrorContext) => Response | Promise<Response>
  * there and `page` never runs — that's how a loader says 404 or redirects.
  */
 export interface PageRoute<D, C> {
-  load(ctx: C): D | Response | Promise<D | Response>
+  load(ctx: C): D | Response | NotFound | Promise<D | Response | NotFound>
   page(data: D, ctx: C): Response | Promise<Response>
 }
 

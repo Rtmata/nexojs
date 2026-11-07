@@ -1,6 +1,7 @@
 import { Languages, type LangFrom } from './language'
 import { Links } from './links'
 import { NameBook } from './name-book'
+import { isNotFound } from './not-found'
 import type { Pattern } from './pattern'
 import { redirect, type RedirectStatus } from './redirect'
 import { RedirectSource, Redirects } from './redirects'
@@ -386,6 +387,7 @@ class BoatRouter<L extends string> implements Router<L> {
     }
     if (typeof handler === 'function') return handler(routeCtx)
     const data = await handler.load(routeCtx)
+    if (isNotFound(data)) return this.notFoundRoute(routeCtx)
     return data instanceof Response ? data : handler.page(data, routeCtx)
   }
 }

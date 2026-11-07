@@ -1,4 +1,5 @@
 import { describe, expect, test } from 'bun:test'
+import { notFound } from './not-found'
 import { route } from './route'
 import { boat } from './router'
 import type { Handler } from './types'
@@ -275,5 +276,24 @@ describe('redirects language by language, and paths no URL can match', () => {
       headers: { cookie: 'lang=es%2DMX' },
     })
     expect(byCookie.langOf(request)).toBe('es-MX')
+  })
+})
+
+describe('notFound() from a loader', () => {
+  test('the router answers with its notFound handler', async () => {
+    const router = boat()
+      .get('/book/:id', {
+        load: () => notFound(),
+        page: () => new Response('never'),
+      })
+      .notFound(() => new Response('no such book', { status: 404 }))
+    const match = router.match('GET', '/book/9')!
+    const response = await match.route.handler({
+      request: new Request('http://x/book/9'),
+      url: new URL('http://x/book/9'),
+      params: match.params,
+    } as any)
+    expect(response.status).toBe(404)
+    expect(await response.text()).toBe('no such book')
   })
 })
