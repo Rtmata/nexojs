@@ -77,6 +77,13 @@
       },
       "default": "./src/shared/quarry/index.ts"
     },
+    "./terminal": {
+      "nexo-built": {
+        "types": "./src/shared/terminal/index.ts",
+        "default": "./dist/shared/terminal/index.js"
+      },
+      "default": "./src/shared/terminal/index.ts"
+    },
     "./voices": {
       "nexo-built": {
         "types": "./src/shared/voices/index.ts",
