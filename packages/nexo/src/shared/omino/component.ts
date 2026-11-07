@@ -133,3 +133,10 @@ export function isSlotClass(type: unknown): type is ComponentClass {
 export function isComponentClass(type: unknown): type is ComponentClass {
   return typeof type === 'function' && type.prototype instanceof Component
 }
+
+export function notAComponent(type: unknown): Error {
+  const name = String((type as Function)?.name ?? type)
+  return new Error(
+    `omino: <${name}> is not a component. Components are classes that extend Component`,
+  )
+}

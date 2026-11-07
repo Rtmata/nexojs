@@ -1,4 +1,5 @@
 import type { ComponentClass } from './component'
+import type { For } from './for'
 
 /** The type of `<>...</>`: renders only its children. */
 export const Fragment = Symbol.for('omino.fragment')
@@ -12,7 +13,7 @@ export const Fragment = Symbol.for('omino.fragment')
  */
 export class Element {
   constructor(
-    readonly type: string | typeof Fragment | ComponentClass,
+    readonly type: string | typeof Fragment | ComponentClass | typeof For,
     readonly props: Record<string, unknown>,
   ) {}
 }

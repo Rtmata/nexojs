@@ -3,8 +3,13 @@
  * browser. Each one builds something, acts on it, and returns plain data.
  */
 import * as connector from '../../shared/connector/index'
-import { computed, flush, signal } from '../../shared/connector/index'
-import { Component, raw, Slot, type Child } from '../../shared/omino/index'
+import {
+  computed,
+  flush,
+  signal,
+  SignalArray,
+} from '../../shared/connector/index'
+import { Component, For, raw, Slot, type Child } from '../../shared/omino/index'
 import type { ComponentRun } from '../../shared/omino/component'
 import { mount } from './index'
 
@@ -304,4 +309,134 @@ export function abortEnds() {
   const { el, controller } = run(<Leaf />)
   controller.abort()
   return { log, empty: el.childNodes.length === 0, total: total.get() }
+}
+
+type Book = { id: number; title: string }
+
+function bookList(books: ReturnType<typeof signal<Book[]>>, made: number[]) {
+  return run(
+    <ul>
+      <For each={books} key={(book) => book.id}>
+        {(book, index) => {
+          made.push(book.get().id)
+          return <li>{() => `${index.get()}:${book.get().title}`}</li>
+        }}
+      </For>
+    </ul>,
+  )
+}
+
+export function forRows() {
+  const made: number[] = []
+  const books = signal<Book[]>([
+    { id: 1, title: 'Dune' },
+    { id: 2, title: 'Emma' },
+  ])
+  const { el } = bookList(books, made)
+  const first = el.querySelector('li')
+  books.set([...books.peek(), { id: 3, title: 'Kim' }])
+  flush()
+  const kept = el.querySelector('li') === first
+  books.set([{ id: 1, title: 'Dune II' }, ...books.peek().slice(1)])
+  flush()
+  return { text: texts(el), made, kept, same: el.querySelector('li') === first }
+}
+
+export function forReorder() {
+  const made: number[] = []
+  const books = signal<Book[]>(
+    [1, 2, 3, 4].map((id) => ({ id, title: `b${id}` })),
+  )
+  const { el } = bookList(books, made)
+  const [a, b, c, d] = el.querySelectorAll('li')
+  const removed: Node[] = []
+  const watcher = new MutationObserver((records) =>
+    records.forEach((r) => removed.push(...r.removedNodes)),
+  )
+  watcher.observe(el.querySelector('ul')!, { childList: true })
+  const [w, x, y, z] = books.peek()
+  books.set([z!, w!, x!, y!])
+  flush()
+  watcher.takeRecords().forEach((r) => removed.push(...r.removedNodes))
+  watcher.disconnect()
+  const now = [...el.querySelectorAll('li')]
+  return {
+    text: texts(el),
+    sameNodes: now[0] === d && now[1] === a && now[2] === b && now[3] === c,
+    moved: removed.filter((n) => n.nodeName === 'LI').length,
+    made,
+  }
+}
+
+export function forLeave() {
+  const ended: number[] = []
+  const books = signal<Book[]>([
+    { id: 1, title: 'a' },
+    { id: 2, title: 'b' },
+  ])
+  class Row extends Component<{ id: number }> {
+    template(_: object, { signal }: ComponentRun) {
+      signal.addEventListener('abort', () => ended.push(this.props.id))
+      return <li>{this.props.id}</li>
+    }
+  }
+  const { el } = run(
+    <ul>
+      <For each={books} key={(book) => book.id}>
+        {(book) => <Row id={book.get().id} />}
+      </For>
+    </ul>,
+  )
+  books.set([books.peek()[1]!])
+  flush()
+  return { ended, text: texts(el) }
+}
+
+export function forSignalArray() {
+  const log = new SignalArray(['saved'])
+  const { el } = run(
+    <ol>
+      <For each={log}>{(line) => <li>{line}</li>}</For>
+    </ol>,
+  )
+  log.push('sent')
+  flush()
+  log.shift()
+  flush()
+  return texts(el)
+}
+
+export function forByPosition() {
+  const made: string[] = []
+  const words = signal(['a', 'b'])
+  const { el } = run(
+    <p>
+      <For each={words} key={(_, i) => i}>
+        {(word) => {
+          made.push(word.get())
+          return <b>{word}</b>
+        }}
+      </For>
+    </p>,
+  )
+  words.set(['b', 'a'])
+  flush()
+  return { text: texts(el, 'b'), made }
+}
+
+export function forDuplicate() {
+  const reported: string[] = []
+  const listen = (e: ErrorEvent) => reported.push(e.error?.message)
+  window.addEventListener('error', listen)
+  run(
+    <ul>
+      <For each={[1, 1]}>{() => <li />}</For>
+    </ul>,
+  )
+  window.removeEventListener('error', listen)
+  return reported.join(' ')
+}
+
+function texts(el: Element, tag = 'li'): string[] {
+  return [...el.querySelectorAll(tag)].map((n) => n.textContent ?? '')
 }

@@ -1,4 +1,6 @@
 export { Component, Slot } from './component'
+export { For } from './for'
+export type { ForEach, ForProps } from './for'
 export { Segment } from './segment'
 export type { ComponentProps, ComponentRun } from './component'
 export { raw } from './element'

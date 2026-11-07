@@ -1,11 +1,17 @@
 import { Attributes } from './attributes'
-import { isComponentClass, isSlotClass, type ComponentClass } from './component'
+import {
+  isComponentClass,
+  isSlotClass,
+  notAComponent,
+  type ComponentClass,
+} from './component'
 import { Element, Fragment, Scoped, type Child, type Scope } from './element'
 import { assertTag, escapeHtml, RAW_TEXT_ELEMENTS, VOID_ELEMENTS } from './html'
 import { isNothing, rawOf, textOf } from './leaf'
 import { RawText } from './raw-text'
 import type { RenderContext } from './render'
 import type { SegmentPicker } from './segment'
+import { For } from './for'
 import { isHole, readOnce } from './hole'
 import { childrenOf, isSkipped, SlotResolver, type Placed } from './slots'
 
@@ -72,15 +78,15 @@ export class Renderer {
   }
 
   private element(element: Element, scope: Scope): Promise<string> | string {
-    const { type, props } = element
     if (isSkipped(element)) return ''
+    const { type, props } = element
     if (type === Fragment) return this.child(props.children as Child, scope)
+    if (type === For)
+      return this.child(new For(props as never).template(), scope)
     if (isSlotClass(type)) return this.slot(type, props, scope)
     if (typeof type === 'string') return this.tag(type, props, scope)
     if (isComponentClass(type)) return this.component(type, props, scope)
-    throw new Error(
-      `omino: <${String((type as Function)?.name ?? type)}> is not a component. Components are classes that extend Component`,
-    )
+    throw notAComponent(type)
   }
 
   private async tag(

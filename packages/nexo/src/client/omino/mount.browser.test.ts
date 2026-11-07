@@ -161,6 +161,43 @@ for (const [name, engine] of engines) {
       expect(await play('context')).toBe('es')
     })
 
+    test('For: a row per key, made once; a new object updates its row', async () => {
+      expect(await play('forRows')).toEqual({
+        text: ['0:Dune II', '1:Emma', '2:Kim'],
+        made: [1, 2, 3],
+        kept: true,
+        same: true,
+      })
+    })
+
+    test('For: a reorder moves the fewest nodes and keeps them', async () => {
+      expect(await play('forReorder')).toEqual({
+        text: ['0:b4', '1:b1', '2:b2', '3:b3'],
+        sameNodes: true,
+        moved: 1,
+        made: [1, 2, 3, 4],
+      })
+    })
+
+    test('For: a leaving row ends', async () => {
+      expect(await play('forLeave')).toEqual({ ended: [1], text: ['2'] })
+    })
+
+    test('For: a SignalArray, keyed by the items', async () => {
+      expect(await play('forSignalArray')).toEqual(['sent'])
+    })
+
+    test('For: by position, rows stay and their items change', async () => {
+      expect(await play('forByPosition')).toEqual({
+        text: ['b', 'a'],
+        made: ['a', 'b'],
+      })
+    })
+
+    test('For: two items with one key are an error', async () => {
+      expect(await play('forDuplicate')).toContain('two items with the key 1')
+    })
+
     test('aborting the mount ends components and removes the content', async () => {
       expect(await play('abortEnds')).toEqual({
         log: ['ended'],

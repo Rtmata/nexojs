@@ -11,6 +11,7 @@
  */
 import type { ComponentClass } from './component'
 import { Element as OminoElement, Fragment, type Child } from './element'
+import { For } from './for'
 import type { ClassValue } from './attributes'
 
 export { Fragment }
@@ -20,8 +21,17 @@ export function jsx(
   props: Record<string, unknown>,
   key?: unknown,
 ): OminoElement {
+  if (type === For) return new OminoElement(type, withKey(props, key))
   if (key !== undefined || (props !== null && 'key' in props)) noKey()
   return new OminoElement(type, props)
+}
+
+/**
+ * The compiler hands `key` apart from the props. Only `<For>` reconciles by
+ * key (C.14), so only there it goes back into them.
+ */
+function withKey(props: Record<string, unknown>, key: unknown) {
+  return key === undefined ? props : { ...props, key }
 }
 
 /**
@@ -34,7 +44,7 @@ export function createElement(): never {
 
 function noKey(): never {
   throw new Error(
-    'omino: `key` does nothing here (nothing is diffed). Remove it, also from objects spread into the element',
+    'omino: `key` does nothing here: only <For> lists by key. Remove it, also from objects spread into the element',
   )
 }
 
@@ -57,7 +67,7 @@ export interface HtmlAttributes {
 export declare namespace JSX {
   type Element = OminoElement
   /** What can be used as a tag: an HTML tag name or a component class. */
-  type ElementType = string | typeof Fragment | ComponentClass
+  type ElementType = string | typeof Fragment | ComponentClass | typeof For
   interface ElementClass {
     template(): Child | Promise<Child>
   }

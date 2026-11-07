@@ -1,6 +1,7 @@
 import {
   isComponentClass,
   isSlotClass,
+  notAComponent,
   type Component,
   type ComponentClass,
 } from '../../shared/omino/component'
@@ -11,6 +12,7 @@ import {
   type Child,
   type Scope,
 } from '../../shared/omino/element'
+import { For, readEach, type ForProps } from '../../shared/omino/for'
 import { readerOf, isHole } from '../../shared/omino/hole'
 import { assertTag, VOID_ELEMENTS } from '../../shared/omino/html'
 import { isNothing, rawOf, textOf } from '../../shared/omino/leaf'
@@ -18,6 +20,7 @@ import type { RenderContext } from '../../shared/omino/render'
 import { childrenOf, isSkipped, SlotResolver } from '../../shared/omino/slots'
 import { Holes } from './holes'
 import type { InsertedPhase, Life } from './life'
+import { ForList } from './for-list'
 import { ElementProps } from './props'
 import type { Reactivity } from './reactivity'
 import { Region } from './region'
@@ -89,6 +92,17 @@ export class DomBuilder {
     return nodes
   }
 
+  /** `<For>` (C.14): a keyed region, fed by `each`. */
+  private keyed(props: ForProps<unknown>, place: Place): Node[] {
+    const { life, phase } = place
+    const into = this.into(place)
+    const list = new ForList(props, life, into, this.reactivity, phase)
+    const update = (items: unknown) => list.update(items as unknown[])
+    const nodes = list.nodes()
+    this.holes.write(readEach(props.each), update, life.signal)
+    return nodes
+  }
+
   /** How a region builds its content: in the same scope and namespace, on its own life. */
   private into(place: Place) {
     return (child: Child, life: Life, phase: InsertedPhase) =>
@@ -98,14 +112,16 @@ export class DomBuilder {
   private element(element: OminoElement, place: Place): Node[] {
     if (isHole(element.props.if)) return this.presence(element, place)
     if (isSkipped(element)) return []
-    const { type, props } = element
+    return this.byType(element, place)
+  }
+
+  private byType({ type, props }: OminoElement, place: Place): Node[] {
     if (type === Fragment) return this.build(props.children as Child, place)
+    if (type === For) return this.keyed(props as never, place)
     if (isSlotClass(type)) return this.slot(type, props, place)
     if (typeof type === 'string') return [this.tag(type, props, place)]
     if (isComponentClass(type)) return this.component(type, props, place)
-    throw new Error(
-      `omino: <${String((type as Function)?.name ?? type)}> is not a component. Components are classes that extend Component`,
-    )
+    throw notAComponent(type)
   }
 
   /**
