@@ -69,23 +69,23 @@ describe('static files: the index while listening', () => {
   })
 })
 
-describe('static files: watching', () => {
-  /** inotify watches this process holds, counted the way the kernel reports them. */
-  const inotifyWatches = async () => {
-    const { readdir, readFile } = await import('node:fs/promises')
-    let count = 0
-    for (const fd of await readdir(`/proc/${process.pid}/fdinfo`)) {
-      const info = await readFile(
-        `/proc/${process.pid}/fdinfo/${fd}`,
-        'utf8',
-      ).catch(() => '')
-      count += (info.match(/^inotify wd:/gm) ?? []).length
-    }
-    return count
+/** inotify watches this process holds, counted the way the kernel reports them. */
+async function inotifyWatches(): Promise<number> {
+  const { readdir, readFile } = await import('node:fs/promises')
+  let count = 0
+  for (const fd of await readdir(`/proc/${process.pid}/fdinfo`)) {
+    const info = await readFile(
+      `/proc/${process.pid}/fdinfo/${fd}`,
+      'utf8',
+    ).catch(() => '')
+    count += (info.match(/^inotify wd:/gm) ?? []).length
   }
+  return count
+}
 
+describe('static files: watching', () => {
   test.if(process.platform === 'linux')(
-    'watching costs one inotify watch per file in Bun: why watch: false exists',
+    'watching costs one inotify watch per folder (Bun 1.4); watch: false costs none',
     async () => {
       const log = spyOn(console, 'log').mockImplementation(() => {})
       const big = await mkdtemp(join(root, 'big-'))
@@ -94,13 +94,10 @@ describe('static files: watching', () => {
         for (let i = 0; i < 40; i++)
           await writeFile(join(big, d, `${i}.png`), 'x')
       }
-      const before = await inotifyWatches()
-      const server = keep({ router: boat(), static: big })
-      await server.listen(0)
       try {
-        expect((await inotifyWatches()) - before).toBe(124) // 120 files, the root and its three folders
+        expect(await watchesFor(big, true)).toBe(4) // the root and its three folders, not the 120 files
+        expect(await watchesFor(big, false)).toBe(0)
       } finally {
-        await server.stop()
         log.mockRestore()
       }
     },
@@ -178,3 +175,15 @@ describe('static files: the index stays honest', () => {
     await expect(server.listen(0)).rejects.toThrow('does not exist. Create it')
   })
 })
+
+/** The inotify watches a server listening on `dir` adds. */
+async function watchesFor(dir: string, watch: boolean): Promise<number> {
+  const before = await inotifyWatches()
+  const server = keep({ router: boat(), static: { dir, at: '/', watch } })
+  await server.listen(0)
+  try {
+    return (await inotifyWatches()) - before
+  } finally {
+    await server.stop()
+  }
+}

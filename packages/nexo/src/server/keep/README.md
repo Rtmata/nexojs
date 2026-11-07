@@ -69,7 +69,7 @@ Every file comes with a weak `ETag` and `Last-Modified`, answers `304` to `If-No
 | a number      | `public, max-age=<seconds>`           | Files that may be a little old.                               |
 | `false`       | none                                  | The browser guesses from the date.                            |
 
-While listening, the files of each folder are known from memory and the folder is watched for changes. Watching costs the system one inotify watch per file in Bun (Linux allows 65,536 by default): a folder with tens of thousands of files that never change while the server runs sets `watch: false` — indexed once, a miss still asks the disk.
+While listening, the files of each folder are known from memory and the folder is watched for changes, at one inotify watch per folder (Bun 1.4; Bun 1.3 took one per file). A folder whose files never change while the server runs sets `watch: false`: no watcher and no rebuilds — indexed once, a miss still asks the disk.
 
 The same files on a route of your own: `router.get('/covers/*', files('./data/covers', { cache: 'immutable' }))`.
 

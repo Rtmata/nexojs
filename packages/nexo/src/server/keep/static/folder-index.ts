@@ -16,11 +16,12 @@ import { inside, isPublicName, isPublicPath } from './safe-file'
  * rebuild finds new folders, the watcher needs a moment to cover them, so
  * the index stays aside and confirms with one more rebuild.
  *
- * Watching costs the system one inotify watch per FILE in Bun (recursive
- * or not; Linux allows 65,536 by default), so a folder with tens of
- * thousands of files that never change while the server runs (pictures
- * named by their content) should skip it (`watch: false`): indexed once,
- * its index then only says what IS there — a miss asks the disk.
+ * Watching costs the system inotify watches: one per folder since Bun 1.4
+ * (Bun 1.3 took one per FILE; Linux allows 65,536 by default). A folder
+ * whose files never change while the server runs (pictures named by their
+ * content) can still skip it (`watch: false`): no watcher, no rebuilds;
+ * indexed once, its index then only says what IS there — a miss asks the
+ * disk.
  *
  * The watcher follows the folder the root pointed to when listening began:
  * re-pointing a symlinked root (an atomic deploy) needs a restart.

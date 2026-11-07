@@ -30,8 +30,8 @@ describe('the client build (F.2)', () => {
       const built = target['nexo-built'].default.replace('./dist/', '')
       expect(files(out)).toContain(join(out, built))
     }
-    const defining = files(out).filter((f) =>
-      /class Element\b/.test(readFileSync(f, 'utf8')),
+    const defining = files(out).filter(
+      (f) => /class Element\d*\s*\{/.test(readFileSync(f, 'utf8')), // Bun 1.4 names it Element2: the DOM has an Element
     )
     expect(defining).toHaveLength(1)
   })
