@@ -618,3 +618,175 @@ for (const [name, engine] of engines) {
     })
   })
 }
+
+for (const [name, engine] of engines) {
+  describe(`indicator, tokens, replay, activity, text effects, sequence in ${name}`, () => {
+    let browser: Browser
+    let page: Page
+    const call = (fn: string, ...args: unknown[]) =>
+      page.evaluate(
+        ([f, a]) => (window as any).library[f as string](...(a as unknown[])),
+        [fn, args] as const,
+      )
+    const frames = () =>
+      page.evaluate(
+        () =>
+          new Promise((done) =>
+            requestAnimationFrame(() => requestAnimationFrame(done)),
+          ),
+      )
+
+    beforeAll(async () => {
+      browser = await engine.launch()
+      page = await browser.newPage({ viewport: { width: 800, height: 600 } })
+      await page.setContent(
+        '<!doctype html><title>library</title><body style="margin:0"></body>',
+      )
+      await page.evaluate(async (code) => {
+        const url = URL.createObjectURL(
+          new Blob([code], { type: 'text/javascript' }),
+        )
+        ;(window as any).library = await import(url)
+      }, code)
+    }, LAUNCH)
+    afterAll(async () => {
+      await browser?.close()
+    })
+    beforeEach(async () => {
+      await page.emulateMedia({ reducedMotion: 'no-preference' })
+    })
+
+    test("indicator: the active item's box, again when another becomes active", async () => {
+      await call(
+        'setup',
+        `<div id="bar" data-panel="indicator" style="display:flex;margin-left:20px">
+          <button id="one" style="width:50px;padding:0;border:0">a</button>
+          <button id="two" aria-selected="true" style="width:80px;padding:0;border:0">b</button>
+        </div>`,
+      )
+      const box = () =>
+        ['x', 'width'].map((n) => call('styleOf', '#bar', `--indicator-${n}`))
+      expect(await Promise.all(box())).toEqual(['50px', '80px'])
+      await page.evaluate(() => {
+        document.querySelector('#two')!.setAttribute('aria-selected', 'false')
+        document.querySelector('#one')!.setAttribute('aria-selected', 'true')
+      })
+      await frames()
+      expect(await Promise.all(box())).toEqual(['0px', '50px'])
+    })
+
+    test('tokens: custom properties from params, removed when the panel ends', async () => {
+      const html = `<div id="t" data-panel="tokens" data-tokens-values='{"accent":"#e3b341","gap":"1rem"}'></div>`
+      await call('setup', html)
+      expect(await call('styleOf', '#t', '--accent')).toBe('#e3b341')
+      expect(await call('styleOf', '#t', '--gap')).toBe('1rem')
+      await call('setupAndEnd', html)
+      expect(await call('styleOf', '#t', '--accent')).toBe('')
+    })
+
+    test('replay: the animation starts over on its event', async () => {
+      await call(
+        'setup',
+        `<style>@keyframes grow { to { scale: 2 } }</style>
+         <button id="r" data-panel="replay" data-replay-on="click" style="animation: grow 2s">r</button>`,
+      )
+      await page.waitForTimeout(400)
+      expect(await call('animationTime', '#r')).toBeGreaterThan(300)
+      await page.click('#r')
+      expect(await call('animationTime', '#r')).toBeLessThan(150)
+    })
+
+    test('activity: active, idle after the timeout, active again on a stir', async () => {
+      await call('record')
+      await call(
+        'setup',
+        '<div id="here" data-panel="activity" data-activity-idle="150" style="width:300px;height:300px"></div>',
+      )
+      expect(await call('attributes', '#here', ['data-activity'])).toEqual({
+        'data-activity': 'active',
+      })
+      await page.waitForTimeout(300)
+      await page.mouse.move(50, 50)
+      await page.mouse.move(60, 60)
+      expect(await call('events')).toEqual([
+        'activity:change active',
+        'activity:change idle',
+        'activity:change active',
+      ])
+    })
+
+    test('typewriter: types for the eye, the whole text for assistive technology', async () => {
+      await call('record')
+      await call(
+        'setup',
+        '<p id="p" data-panel="typewriter" data-typewriter-speed="40">Hello there</p>',
+      )
+      await page.waitForTimeout(100)
+      const during = (await call('texts', '#p')) as {
+        spoken: string
+        shown: string
+      }
+      expect(during.spoken).toBe('Hello there')
+      expect(during.shown.length).toBeGreaterThan(0)
+      expect(during.shown.length).toBeLessThan(11)
+      await page.waitForTimeout(600)
+      expect(await call('texts', '#p')).toEqual({
+        spoken: 'Hello there',
+        shown: null,
+      })
+      expect(await call('events')).toEqual(['typewriter:done'])
+    })
+
+    test('decode: scrambled with spaces kept, then the text; reduced motion shows it at once', async () => {
+      await call('record')
+      await call(
+        'setup',
+        '<p id="p" data-panel="decode" data-decode-duration="300" data-decode-charset="#">ab cd</p>',
+      )
+      await page.waitForTimeout(30)
+      const during = (await call('texts', '#p')) as {
+        spoken: string
+        shown: string
+      }
+      expect(during.spoken).toBe('ab cd')
+      expect(during.shown).toMatch(/^[a-d#]{2} [a-d#]{2}$/)
+      expect(during.shown).toContain('#')
+      await page.waitForTimeout(500)
+      expect(await call('texts', '#p')).toEqual({
+        spoken: 'ab cd',
+        shown: null,
+      })
+      await page.emulateMedia({ reducedMotion: 'reduce' })
+      await call('setup', '<p id="q" data-panel="decode">ab cd</p>')
+      expect(await call('texts', '#q')).toEqual({
+        spoken: 'ab cd',
+        shown: null,
+      })
+      expect(await call('events')).toEqual(['decode:done', 'decode:done'])
+    })
+
+    test('sequence: each phase waits for its animation and for waitUntil', async () => {
+      await call('record')
+      await call(
+        'setup',
+        `<style>@keyframes fade { to { opacity: 0 } }
+           [data-phase=out], [data-phase=in] { animation: fade 120ms }</style>
+         <article id="s" data-panel="sequence" data-sequence-phases='["out","step","in"]'>page</article>`,
+      )
+      const started = Date.now()
+      await call('startSequence', '#s')
+      expect(await call('phaseOf', '#s')).toBe('out')
+      await page.waitForFunction(() =>
+        (window as any).events.includes('sequence:done'),
+      )
+      expect(Date.now() - started).toBeGreaterThan(300)
+      expect(await call('events')).toEqual([
+        'sequence:phase out',
+        'sequence:phase step',
+        'sequence:phase in',
+        'sequence:done',
+      ])
+      expect(await call('phaseOf', '#s')).toBe(null)
+    })
+  })
+}

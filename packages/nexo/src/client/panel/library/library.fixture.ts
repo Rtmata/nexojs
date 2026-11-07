@@ -1,7 +1,14 @@
 /** Scenarios for library.browser.test.ts: markup in, panels attached. */
 import {
+  activity,
   attach,
   confirmOnHold,
+  decode,
+  indicator,
+  replay,
+  sequence,
+  tokens,
+  typewriter,
   dialog,
   feed,
   focusgroup,
@@ -26,6 +33,13 @@ const panels = registry({
   slider,
   'hover-intent': hoverIntent,
   keymap,
+  indicator,
+  tokens,
+  replay,
+  activity,
+  typewriter,
+  decode,
+  sequence,
 })
 
 export function setup(html: string): void {
@@ -121,13 +135,23 @@ export function record(): void {
     'hover-intent:enter',
     'hover-intent:leave',
     'keymap:action',
+    'activity:change',
+    'typewriter:done',
+    'decode:done',
+    'sequence:phase',
+    'sequence:done',
   ])
     document.addEventListener(name, (e) => w.events.push(describeEvent(e)))
 }
 
 function describeEvent(e: Event): string {
   const detail = (e as CustomEvent).detail ?? {}
-  const extra = detail.pointerType ?? detail.direction ?? detail.action
+  const extra =
+    detail.pointerType ??
+    detail.direction ??
+    detail.action ??
+    detail.state ??
+    detail.phase
   return extra ? `${e.type} ${extra}` : e.type
 }
 
@@ -151,4 +175,42 @@ export function attributes(
 ): Record<string, string | null> {
   const el = document.querySelector(selector)!
   return Object.fromEntries(names.map((n) => [n, el.getAttribute(n)]))
+}
+
+/** Attach, then end the panels: what they leave behind. */
+export function setupAndEnd(html: string): void {
+  document.body.innerHTML = html
+  const controller = new AbortController()
+  attach(document.body, panels, { signal: controller.signal })
+  controller.abort()
+}
+
+export function animationTime(selector: string): number {
+  const [animation] = document.querySelector(selector)!.getAnimations()
+  return Number(animation?.currentTime ?? -1)
+}
+
+/** What a screen reader gets, and what the eye gets (the aria-hidden copy). */
+export function texts(selector: string) {
+  const el = document.querySelector(selector)!
+  const shown = el.querySelector('[aria-hidden=true]')
+  const spoken = [...el.childNodes].filter((n) => n !== shown)
+  return {
+    spoken: spoken.map((n) => n.textContent).join(''),
+    shown: shown?.textContent ?? null,
+  }
+}
+
+/** Starts a sequence that waits 80 ms more in its "step" phase, as a page load would. */
+export function startSequence(selector: string): void {
+  const el = document.querySelector(selector)!
+  el.addEventListener('sequence:phase', (e) => {
+    const { phase, waitUntil } = (e as CustomEvent).detail
+    if (phase === 'step') waitUntil(new Promise((done) => setTimeout(done, 80)))
+  })
+  el.dispatchEvent(new Event('sequence:start'))
+}
+
+export function phaseOf(selector: string): string | null {
+  return document.querySelector(selector)!.getAttribute('data-phase')
 }
