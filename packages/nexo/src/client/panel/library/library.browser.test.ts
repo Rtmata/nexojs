@@ -16,6 +16,9 @@ import {
   type Page,
 } from 'playwright'
 
+/** Starting a browser can take longer than a test's default 5 s (Firefox did). */
+const LAUNCH = 30_000
+
 const engines: [string, BrowserType][] = [
   ['chromium', chromium],
   ['webkit', webkit],
@@ -63,7 +66,7 @@ for (const [name, engine] of engines) {
         )
         ;(window as any).library = await import(url)
       }, code)
-    })
+    }, LAUNCH)
     afterAll(async () => {
       await browser?.close()
     })
@@ -169,7 +172,7 @@ for (const [name, engine] of engines) {
         )
         ;(window as any).library = await import(url)
       }, code)
-    })
+    }, LAUNCH)
     afterAll(async () => {
       await browser?.close()
     })
@@ -241,7 +244,7 @@ for (const [name, engine] of engines) {
 
     beforeAll(async () => {
       browser = await engine.launch()
-    })
+    }, LAUNCH)
     beforeEach(async () => {
       page = await browser.newPage({ viewport: { width: 800, height: 600 } })
       await page.setContent(
@@ -290,6 +293,73 @@ for (const [name, engine] of engines) {
       await page.click('#open')
       await page.keyboard.press('Escape')
       expect((await state()).open).toBe(true)
+    })
+  })
+}
+
+const feedMarkup = `
+  <button id="before">before</button>
+  <section data-panel="feed" data-feed-total="4" aria-label="Shelf">
+    <article id="g1"><h3>A</h3><a id="g1-link" href="#a">open</a></article>
+    <article id="g2"><h3>B</h3></article>
+    <article id="g3"><h3>C</h3></article>
+  </section>
+  <button id="after">after</button>`
+
+for (const [name, engine] of engines) {
+  describe(`feed in ${name}`, () => {
+    let browser: Browser
+    let page: Page
+    const call = (fn: string, ...args: unknown[]) =>
+      page.evaluate(
+        ([f, a]) => (window as any).library[f as string](...(a as unknown[])),
+        [fn, args] as const,
+      )
+
+    beforeAll(async () => {
+      browser = await engine.launch()
+      page = await browser.newPage()
+      await page.setContent(
+        '<!doctype html><title>library</title><body></body>',
+      )
+      await page.evaluate(async (code) => {
+        const url = URL.createObjectURL(
+          new Blob([code], { type: 'text/javascript' }),
+        )
+        ;(window as any).library = await import(url)
+      }, code)
+    }, LAUNCH)
+    afterAll(async () => {
+      await browser?.close()
+    })
+
+    test('APG feed: roles and numbers, renumbered when articles arrive', async () => {
+      await call('setup', feedMarkup)
+      expect(await call('feedState')).toMatchObject({
+        role: 'feed',
+        numbers: ['1/4', '2/4', '3/4'],
+      })
+      await call('moreArticles')
+      expect((await call('feedState')).numbers).toEqual([
+        '1/4',
+        '2/4',
+        '3/4',
+        '4/4',
+      ])
+    })
+
+    test('Page Down/Up between articles; Ctrl+End/Home out of the feed', async () => {
+      await call('setup', feedMarkup)
+      await page.focus('#g1-link')
+      await page.keyboard.press('PageDown')
+      expect((await call('feedState')).focused).toBe('g2')
+      await page.keyboard.press('PageUp')
+      expect((await call('feedState')).focused).toBe('g1')
+      await page.keyboard.press('Control+End')
+      expect((await call('feedState')).focused).toBe('after')
+      await page.focus('#g3')
+      await page.keyboard.press('Control+Home')
+      expect((await call('feedState')).focused).toBe('before')
     })
   })
 }

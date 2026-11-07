@@ -12,6 +12,9 @@ import {
   type Page,
 } from 'playwright'
 
+/** Starting a browser can take longer than a test's default 5 s (Firefox did). */
+const LAUNCH = 30_000
+
 const engines: [string, BrowserType][] = [
   ['chromium', chromium],
   ['webkit', webkit],
@@ -64,7 +67,7 @@ describe('boat client', () => {
           )
           ;(window as any).scenarios = await import(url)
         }, code)
-      })
+      }, LAUNCH)
       afterAll(async () => {
         await browser?.close()
       })

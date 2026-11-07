@@ -1,7 +1,7 @@
 /** Scenarios for library.browser.test.ts: markup in, panels attached. */
-import { attach, dialog, focusgroup, registry, tabs } from '../index'
+import { attach, dialog, feed, focusgroup, registry, tabs } from '../index'
 
-const panels = registry({ dialog, focusgroup, tabs })
+const panels = registry({ dialog, feed, focusgroup, tabs })
 
 export function setup(html: string): void {
   document.body.innerHTML = html
@@ -52,4 +52,23 @@ export function dialogState() {
     labelledby: d.getAttribute('aria-labelledby'),
     focused: document.activeElement?.id ?? null,
   }
+}
+
+export function feedState() {
+  const articles = [...document.querySelectorAll('article')]
+  return {
+    role: document.querySelector('[data-panel=feed]')!.getAttribute('role'),
+    numbers: articles.map(
+      (a) =>
+        `${a.getAttribute('aria-posinset')}/${a.getAttribute('aria-setsize')}`,
+    ),
+    focused: document.activeElement?.id ?? null,
+  }
+}
+
+/** What bridge's append swap does: more articles at the end. */
+export async function moreArticles(): Promise<void> {
+  const shelf = document.querySelector('[data-panel=feed]')!
+  shelf.insertAdjacentHTML('beforeend', '<article id="g4"><h3>D</h3></article>')
+  await new Promise((done) => setTimeout(done, 0))
 }
