@@ -79,15 +79,15 @@ export class ClientRouter {
     return this
   }
 
-  /** Go there from a script, through the source. */
-  go(url: string | URL, options?: { replace?: boolean }): void {
+  /** Go there from a script, through the source (bridge's verb too). */
+  visit(url: string | URL, options?: { replace?: boolean }): void {
     this.options.source.go(new URL(url, this.options.source.current()), options)
   }
 
   /** A clicked link: the router's when it claims the URL. */
   private take(url: URL): boolean {
     if (!this.claims(url)) return false
-    this.go(url)
+    this.visit(url)
     return true
   }
 

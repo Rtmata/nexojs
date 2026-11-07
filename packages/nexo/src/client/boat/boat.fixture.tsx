@@ -98,7 +98,7 @@ export async function memoryRoutes() {
   const { router, heading, host, controller } = start(source, log)
   await settle()
   const first = heading()
-  router.go('/book/2')
+  router.visit('/book/2')
   flush()
   await wait(5)
   const busy = host.querySelector('main')!.getAttribute('aria-busy')
@@ -123,9 +123,9 @@ export async function latestWins() {
     reactivity: connector,
     signal: controller.signal,
   })
-  router.go('/book/1')
+  router.visit('/book/1')
   await settle()
-  router.go('/book/2')
+  router.visit('/book/2')
   await wait(60)
   await settle()
   const status = router.data.status.get()
@@ -137,11 +137,11 @@ export async function latestWins() {
 
 export async function notFoundCases() {
   const { router, heading, controller } = start(memoryUrl('/'))
-  router.go('/book/404')
+  router.visit('/book/404')
   await wait(40)
   await settle()
   const fromLoad = heading()
-  router.go('/nowhere')
+  router.visit('/nowhere')
   await settle()
   const unmatched = heading()
   controller.abort()
