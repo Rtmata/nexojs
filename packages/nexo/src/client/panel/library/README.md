@@ -319,6 +319,73 @@ APG Tree View on plain nested lists (R.36). Without JS it's an outline with ever
 
 As APG's examples, the treeitem is the `<li>`, or the link that starts it (the `<li>` is then `none`); a list inside an item is its `group`. Parents get `aria-expanded` (closed unless you wrote `true`) and their groups hide while closed. One tab stop (the `aria-current` item, else the selected one, else the first). Keys: ↑ ↓ between visible items, → opens a parent or enters it, ← closes it or goes up, Home / End, `*` opens every sibling, typeahead. Enter on a link follows it; on another item Enter, Space or a click selects it (`aria-selected`, one at a time), and a click on a parent's own text toggles it. `tree:toggle` carries `{ id, expanded }`, `tree:select` `{ id, value }` (`data-value`, else the text). Not built: multiple selection, `aria-level` / `aria-setsize` for lazily loaded nodes.
 
+## carousel
+
+APG Carousel on a scroll-snap scroller. Layer 0 is native scrolling (touch, wheel, scrollbar) with CSS `scroll-snap-type`; the slides are the scroller's children.
+
+```html
+<section
+  data-panel="carousel"
+  aria-label="Screens"
+  data-carousel-interval="5000"
+>
+  <button data-carousel-toggle></button>
+  <button data-carousel-prev aria-label="Previous">‹</button>
+  <ul data-carousel-slides>
+    <li><img … /></li>
+    <li aria-label="Title screen"><img … /></li>
+  </ul>
+  <button data-carousel-next aria-label="Next">›</button>
+</section>
+```
+
+The panel names the parts as APG asks (`aria-roledescription` carousel / slide; "N of M" only for a slide without a name of its own), wires the buttons you wrote (they never take focus away, so they can be repeated), keeps `data-current` on the visible slide and scrolls instantly under `prefers-reduced-motion`. Rotation, with `data-carousel-interval` (ms): it stops while the carousel is hovered or focused and only the toggle restarts it; the toggle's label says what it will do (`data-carousel-play` / `-pause`), and the slides are `aria-live="off"` while rotating, `polite` once stopped. Without an interval the toggle hides. Put the toggle first in the tab order (APG). A slide picker is the `tabs` panel over the same slides, not built in. `carousel:change` carries `{ index }`.
+
+## splitter
+
+APG Window Splitter: a separator that resizes the pane its `aria-controls` names. Layer 0: the panes keep the sizes your CSS gave them.
+
+```html
+<div class="shell">
+  <nav id="side">…</nav>
+  <div
+    data-panel="splitter"
+    aria-controls="side"
+    aria-label="Sidebar width"
+  ></div>
+  <main>…</main>
+</div>
+```
+
+```css
+.shell {
+  display: flex;
+}
+#side {
+  inline-size: var(--splitter-size, 16rem);
+}
+```
+
+The panel writes `--splitter-size` (px) on the container and keeps `aria-valuenow` as the pane's share of it (0–100). Drag it, or: ← → (↑ ↓ with `data-splitter-orientation="horizontal"`, panes stacked) by `data-splitter-step` px (10; ×10 with Shift), Home / End to `data-splitter-min` / `-max` (px; max defaults to the container), Enter collapses the pane (`data-collapsed`) and restores it. `splitter:resize` carries `{ size, value }`.
+
+## Native already: markup and docs, no panel (R.33)
+
+These APG patterns are the platform's own; write the element and style it.
+
+| Pattern                                           | Write                                                                                                | Notes                                                                        |
+| ------------------------------------------------- | ---------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------- |
+| Checkbox, mixed state                             | `<input type="checkbox">`, `indeterminate` from script                                               | `bind:indeterminate` in omino                                                |
+| Radio group                                       | `<fieldset><legend>` + `<input type="radio" name>`                                                   | One tab stop and arrows are native. Prefer it over a listbox in forms (R.38) |
+| Spinbutton                                        | `<input type="number" min max step>`                                                                 |                                                                              |
+| Date picker                                       | `<input type="date">` (`month`, `time`, `datetime-local`)                                            | Open UI's datepicker has no native element yet (2026-11)                     |
+| Alert                                             | `<div role="alert">`, present from the first render                                                  | For messages that keep arriving, `toast` with `role="alert"`                 |
+| Toolbar                                           | `<div role="toolbar" data-panel="focusgroup" focusgroup="toolbar inline">`                           |                                                                              |
+| Disclosure                                        | `<details>` / `<summary>`                                                                            | Several with one `name` = `accordion`                                        |
+| Switch                                            | `<input type="checkbox" switch>` + `switch` panel where the attribute is missing                     |                                                                              |
+| Select, select-only combobox                      | `<select>`; `appearance: base-select` to style it (Chrome 135, Safari 27; a plain select elsewhere)  | A filterable one: `combobox` on the `<select>`                               |
+| Navigation bar                                    | `<nav>` + `<a aria-current="page">`; `indicator` for the moving mark                                 |                                                                              |
+| Button, link, table, meter, landmarks, breadcrumb | `<button>`, `<a href>`, `<table>`, `<meter>`, landmark elements, `<nav aria-label="Breadcrumb"><ol>` | Static APG patterns                                                          |
+
 ## Lazy media: markup, no panel
 
 `<img loading="lazy">` and `<iframe loading="lazy">` work in every engine. For `<video>`, `loading="lazy"` is Chrome-only (150+). Write `preload="none"` too: every engine then waits to fetch the video, though the `poster` still loads early where `loading` is missing. A script can't help here, because the poster is requested before any script runs.

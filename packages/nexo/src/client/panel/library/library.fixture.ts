@@ -3,6 +3,8 @@ import {
   activity,
   accordion,
   attach,
+  carousel,
+  splitter,
   tree,
   grid,
   hasSwitch,
@@ -61,6 +63,8 @@ const panels = registry({
   switch: switchControl,
   grid,
   tree,
+  carousel,
+  splitter,
 })
 
 /** The panels of the previous scenario end with it: no listener outlives its markup. */
@@ -176,6 +180,8 @@ export function record(): void {
     'grid:toggle',
     'tree:toggle',
     'tree:select',
+    'carousel:change',
+    'splitter:resize',
     'change',
   ])
     document.addEventListener(name, (e) => w.events.push(describeEvent(e)), {
@@ -197,6 +203,10 @@ function describeEvent(e: Event): string {
     detail.values?.join(',') ??
     (detail.reason ? `${detail.text} ${detail.reason}` : undefined) ??
     (detail.open !== undefined ? `${detail.id}=${detail.open}` : undefined) ??
+    (detail.index !== undefined ? String(detail.index) : undefined) ??
+    (detail.size !== undefined
+      ? `${detail.size}px ${detail.value}%`
+      : undefined) ??
     (detail.expanded !== undefined
       ? `${detail.id}=${detail.expanded}`
       : undefined) ??
@@ -487,4 +497,35 @@ export function visibleItems(): string[] {
         !i.closest('li')!.parentElement!.closest('li')?.hidden,
     )
     .map((i) => i.id)
+}
+
+export function carouselState() {
+  const slides = [
+    ...document.querySelectorAll<HTMLElement>('[data-carousel-slides] > *'),
+  ]
+  const toggle = document.querySelector('[data-carousel-toggle]')
+  return {
+    current: slides.findIndex((s) => s.hasAttribute('data-current')),
+    labels: slides.map((s) => s.getAttribute('aria-label')),
+    toggle: toggle?.getAttribute('aria-label') ?? null,
+    live: document
+      .querySelector('[data-carousel-slides]')!
+      .getAttribute('aria-live'),
+    scrollLeft: document.querySelector('[data-carousel-slides]')!.scrollLeft,
+  }
+}
+
+export function splitterState() {
+  const sep = document.querySelector<HTMLElement>('[data-panel=splitter]')!
+  return {
+    role: sep.getAttribute('role'),
+    now: sep.getAttribute('aria-valuenow'),
+    size: sep.parentElement!.style.getPropertyValue('--splitter-size'),
+    width: Math.round(
+      document
+        .getElementById(sep.getAttribute('aria-controls')!)!
+        .getBoundingClientRect().width,
+    ),
+    collapsed: sep.hasAttribute('data-collapsed'),
+  }
 }

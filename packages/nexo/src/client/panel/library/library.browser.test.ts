@@ -1903,3 +1903,204 @@ for (const [name, engine] of engines) {
     })
   })
 }
+
+for (const [name, engine] of engines) {
+  describe(`carousel and splitter in ${name}`, () => {
+    let browser: Browser
+    let page: Page
+    const call = (fn: string, ...args: unknown[]) =>
+      page.evaluate(
+        ([f, a]) => (window as any).library[f as string](...(a as unknown[])),
+        [fn, args] as const,
+      )
+    const screens = (attrs = '') => `
+      <style>
+        #shots { display: flex; overflow-x: auto; scroll-snap-type: x mandatory; width: 300px; margin: 0; padding: 0; list-style: none }
+        #shots > li { flex: 0 0 300px; height: 100px; scroll-snap-align: start }
+      </style>
+      <section id="c" data-panel="carousel" aria-label="Screens" ${attrs} style="width:300px">
+        <button data-carousel-toggle>⏯</button>
+        <button id="prev" data-carousel-prev aria-label="Previous">‹</button>
+        <ul id="shots" data-carousel-slides><li>A</li><li aria-label="Title screen">B</li><li>C</li></ul>
+        <button id="next" data-carousel-next aria-label="Next">›</button>
+      </section>`
+    const shell = (attrs = '') => `
+      <div id="shell" style="display:flex;width:600px;height:200px">
+        <nav id="side" style="inline-size:var(--splitter-size, 200px);flex:none">side</nav>
+        <div id="sep" data-panel="splitter" aria-controls="side" aria-label="Sidebar width" ${attrs} style="width:8px;flex:none;background:#999"></div>
+        <main style="flex:1">main</main>
+      </div>`
+
+    beforeAll(async () => {
+      browser = await engine.launch()
+      page = await browser.newPage({ viewport: { width: 800, height: 600 } })
+      await page.setContent(
+        '<!doctype html><title>library</title><body style="margin:0"></body>',
+      )
+      await page.evaluate(async (code) => {
+        const url = URL.createObjectURL(
+          new Blob([code], { type: 'text/javascript' }),
+        )
+        ;(window as any).library = await import(url)
+      }, code)
+    }, LAUNCH)
+    afterAll(async () => {
+      await browser?.close()
+    })
+    beforeEach(async () => {
+      await page.emulateMedia({ reducedMotion: 'reduce' })
+    })
+
+    test('carousel: APG names, next/prev move the scroller, the current slide follows; no toggle without rotation', async () => {
+      await call('record')
+      await call('setup', screens())
+      expect(
+        await call('attributes', '#c', ['role', 'aria-roledescription']),
+      ).toEqual({ role: 'region', 'aria-roledescription': 'carousel' })
+      expect(
+        await call('attributes', '#shots > li', [
+          'role',
+          'aria-roledescription',
+        ]),
+      ).toEqual({ role: 'group', 'aria-roledescription': 'slide' })
+      expect(await call('carouselState')).toMatchObject({
+        current: 0,
+        labels: ['1 of 3', 'Title screen', '3 of 3'],
+        live: null,
+      })
+      expect(
+        await call('attributes', '[data-carousel-toggle]', ['hidden']),
+      ).toEqual({ hidden: '' })
+      await page.click('#next')
+      await call('settled')
+      expect(await call('carouselState')).toMatchObject({
+        current: 1,
+        scrollLeft: 300,
+      })
+      await page.click('#prev')
+      await call('settled')
+      await page.click('#prev')
+      await call('settled')
+      expect(await call('carouselState')).toMatchObject({ current: 2 })
+      expect(
+        ((await call('events')) as string[]).filter((e) =>
+          e.startsWith('carousel'),
+        ),
+      ).toEqual([
+        'carousel:change 0',
+        'carousel:change 1',
+        'carousel:change 0',
+        'carousel:change 2',
+      ])
+    })
+
+    test('carousel: rotation advances, pauses under the pointer, the toggle stops it for good', async () => {
+      await page.mouse.move(700, 500)
+      await call('setup', screens('data-carousel-interval="150"'))
+      expect(await call('carouselState')).toMatchObject({
+        toggle: 'Stop slide rotation',
+        live: 'off',
+      })
+      await page.waitForTimeout(220)
+      expect(await call('carouselState')).toMatchObject({ current: 1 })
+      await page.mouse.move(150, 60)
+      await page.waitForTimeout(350)
+      expect(await call('carouselState')).toMatchObject({ current: 1 })
+      await page.mouse.move(700, 500)
+      await page.waitForTimeout(220)
+      expect(await call('carouselState')).toMatchObject({ current: 2 })
+      await page.click('[data-carousel-toggle]')
+      await page.mouse.move(700, 500)
+      await page.waitForTimeout(350)
+      expect(await call('carouselState')).toMatchObject({
+        current: 2,
+        toggle: 'Start slide rotation',
+        live: 'polite',
+      })
+    })
+
+    test('splitter: separator with a value; arrows, Shift, Home/End, Enter collapses and restores', async () => {
+      await call('record')
+      await call('setup', shell('data-splitter-min="50"'))
+      expect(await call('splitterState')).toEqual({
+        role: 'separator',
+        now: '33',
+        size: '',
+        width: 200,
+        collapsed: false,
+      })
+      await page.focus('#sep')
+      await page.keyboard.press('ArrowRight')
+      expect(await call('splitterState')).toMatchObject({
+        size: '210px',
+        width: 210,
+        now: '35',
+      })
+      await page.keyboard.press('Shift+ArrowLeft')
+      expect(await call('splitterState')).toMatchObject({
+        size: '110px',
+        width: 110,
+      })
+      await page.keyboard.press('Home')
+      expect(await call('splitterState')).toMatchObject({
+        size: '50px',
+        now: '8',
+      })
+      await page.keyboard.press('End')
+      expect(await call('splitterState')).toMatchObject({
+        size: '600px',
+        now: '100',
+      })
+      await page.keyboard.press('Enter')
+      expect(await call('splitterState')).toMatchObject({
+        size: '50px',
+        collapsed: false,
+      })
+      await call('setup', shell())
+      await page.focus('#sep')
+      await page.keyboard.press('Enter')
+      expect(await call('splitterState')).toMatchObject({
+        size: '0px',
+        width: 0,
+        collapsed: true,
+        now: '0',
+      })
+      await page.keyboard.press('Enter')
+      expect(await call('splitterState')).toMatchObject({
+        size: '200px',
+        collapsed: false,
+      })
+      expect(
+        ((await call('events')) as string[])
+          .filter((e) => e.startsWith('splitter'))
+          .slice(0, 2),
+      ).toEqual(['splitter:resize 210px 35%', 'splitter:resize 110px 18%'])
+    })
+
+    test('splitter: dragging resizes; ended, the panes keep their CSS', async () => {
+      await call('setup', shell())
+      await page.mouse.move(204, 100)
+      await page.mouse.down()
+      await page.mouse.move(304, 100, { steps: 4 })
+      await page.mouse.up()
+      expect(await call('splitterState')).toMatchObject({
+        width: 304,
+        size: '304px',
+      })
+      await call('setupAndEnd', shell())
+      expect(await call('splitterState')).toEqual({
+        role: null,
+        now: null,
+        size: '',
+        width: 200,
+        collapsed: false,
+      })
+      expect(
+        await call(
+          'setupError',
+          '<div data-panel="splitter" aria-controls="nope"></div>',
+        ),
+      ).toContain('names no element')
+    })
+  })
+}
