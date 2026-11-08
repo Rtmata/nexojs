@@ -168,8 +168,17 @@ async function argsOf(
   return reply(
     'invalidArgs',
     result.issues.map(describe).join('; '),
-    result.issues,
+    result.issues.map(bare), // message and path only: a third-party schema's issue may carry the rejected input (a password)
   )
+}
+
+function bare(issue: { message: string; path?: readonly unknown[] }) {
+  const path = issue.path?.map((p) =>
+    typeof p === 'object' && p !== null
+      ? String((p as { key: unknown }).key)
+      : String(p),
+  )
+  return path ? { message: issue.message, path } : { message: issue.message }
 }
 
 function noArgs(raw: unknown): unknown {

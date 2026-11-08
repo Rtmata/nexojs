@@ -16,6 +16,8 @@ export type ClassValue =
   | boolean
   | readonly ClassValue[]
   | { readonly [name: string]: unknown }
+  | (() => ClassValue)
+  | { readonly get: () => ClassValue }
 
 // No spaces, quotes, '<', '>', '/', '=' or control characters.
 const VALID_ATTRIBUTE = /^[^\s\x00-\x1f"'<>/=]+$/
@@ -179,8 +181,15 @@ export function classNames(value: ClassValue): string {
   if (!value || value === true) return ''
   if (typeof value === 'string' || typeof value === 'number')
     return String(value).trim()
+  if (typeof value === 'function' || 'get' in value)
+    return classNames(readOnce(value) as ClassValue) // a hole inside an array: read once here (the client keeps it live)
   if (Array.isArray(value))
     return value.map(classNames).filter(Boolean).join(' ')
+  return onNames(value as { readonly [name: string]: unknown })
+}
+
+/** `{ active: isActive }`: the names whose value holds. */
+function onNames(value: { readonly [name: string]: unknown }): string {
   return Object.entries(value)
     .filter(([, on]) => readOnce(on))
     .map(([name]) => name)

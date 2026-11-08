@@ -11,6 +11,8 @@ export interface UrlSource {
   current(): URL
   /** Go there, as a new entry or replacing this one. */
   go(url: URL, options?: { replace?: boolean }): void
+  /** Leave for a URL the router doesn't own: a real navigation (the Navigation API does it by itself). */
+  leave?(url: URL): void
   /**
    * Hear every URL change the router may own: `claims(url)` says whether
    * it does (a route matches), `arrived(url, how)` runs when it changed.
@@ -57,6 +59,7 @@ class NavigationUrl implements UrlSource {
   /** What the router claims is intercepted; the rest the browser keeps. */
   private navigated(event: any, listener: SourceListener): void {
     if (!event.canIntercept || event.downloadRequest || event.formData) return
+    if (event.hashChange) return // a jump within the page: the browser scrolls, nothing reloads
     const url = new URL(event.destination.url)
     if (!listener.claims(url)) return
     const how = arrivalOf(event.navigationType)
@@ -106,6 +109,10 @@ class PushStateUrl implements UrlSource {
 
   current(): URL {
     return this.address.read(location.href)
+  }
+
+  leave(url: URL): void {
+    location.assign(url.href)
   }
 
   /** `pushState` fires nothing: the router hears it from here. */

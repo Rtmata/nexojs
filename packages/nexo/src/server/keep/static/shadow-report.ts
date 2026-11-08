@@ -17,47 +17,49 @@ export class ShadowReport {
 
   async print(): Promise<void> {
     for (const mount of this.mounts) await this.read(mount)
-    const lines = this.mounts.flatMap((mount) => this.shadowedIn(mount))
-    if (lines.length === 0) return
-    const count =
-      lines.length === 1
-        ? '1 static file is'
-        : `${lines.length} static files are`
-    console.warn(
-      `⚠ keep: ${count} shadowed by a route or another static folder and will never be served:\n${lines.join('\n')}`,
-    )
+    const lines: string[] = []
+    for (const mount of this.mounts)
+      lines.push(...(await this.shadowedIn(mount)))
+    if (lines.length > 0) console.warn(warning(lines))
   }
 
   private async read(mount: Mount): Promise<void> {
     this.filesOf.set(mount, new Set(await filesIn(mount)))
   }
 
-  private shadowedIn(mount: Mount): string[] {
-    return [...this.filesOf.get(mount)!].flatMap((relative) => {
+  private async shadowedIn(mount: Mount): Promise<string[]> {
+    const lines: string[] = []
+    for (const relative of this.filesOf.get(mount)!) {
       const pathname = (mount.at === '/' ? '' : mount.at) + '/' + relative
-      const cause = this.ownerOf(pathname, mount)
-      const url = encoded(pathname)
-      return cause
-        ? [`    ${join(mount.dir, relative)}  →  ${url}  (${cause})`]
-        : []
-    })
+      const cause = await this.ownerOf(pathname, mount)
+      if (cause)
+        lines.push(
+          `    ${join(mount.dir, relative)}  →  ${encoded(pathname)}  (${cause})`,
+        )
+    }
+    return lines
   }
 
   /**
    * What answers this (decoded) pathname before `mount` does, if anything.
    * The router reads URLs, so it gets the encoded one.
    */
-  private ownerOf(pathname: string, mount: Mount): string | undefined {
+  private async ownerOf(
+    pathname: string,
+    mount: Mount,
+  ): Promise<string | undefined> {
     const route = this.router.match('GET', encoded(pathname))
     if (route) return `route: GET ${route.route.pattern?.path ?? '?'}`
-    const first = this.mounts
-      .slice(0, this.mounts.indexOf(mount))
-      .find((m) => m.covers(pathname) && this.has(m, m.relativeOf(pathname)))
-    return first ? `static: ${first.dir} at ${first.at}` : undefined
+    for (const m of this.mounts.slice(0, this.mounts.indexOf(mount)))
+      if (m.covers(pathname) && (await this.has(m, m.relativeOf(pathname))))
+        return `static: ${m.dir} at ${m.at}`
+    return undefined
   }
 
-  private has(mount: Mount, relative: string): boolean {
-    return this.filesOf.get(mount)!.has(relative)
+  /** From the index, or, for an unindexed mount, from the disk itself. */
+  private async has(mount: Mount, relative: string): Promise<boolean> {
+    if (mount.index.watched) return this.filesOf.get(mount)!.has(relative)
+    return Bun.file(join(mount.dir, relative)).exists()
   }
 }
 
@@ -76,4 +78,10 @@ async function filesIn(mount: Mount): Promise<readonly string[]> {
   if (mount.index.known.length > 0) return mount.index.known
   const walk = await new FolderWalker(mount.dir).walk()
   return walk ? [...walk.files.values()] : []
+}
+
+function warning(lines: string[]): string {
+  const count =
+    lines.length === 1 ? '1 static file is' : `${lines.length} static files are`
+  return `⚠ keep: ${count} shadowed by a route or another static folder and will never be served:\n${lines.join('\n')}`
 }

@@ -79,7 +79,13 @@ export class ElementProps {
   }
 
   /** An object: each class on its own, each value maybe a hole. Else the whole attribute (C.20c). */
+  /**
+   * A string, function or readable: one hole for the whole attribute. An
+   * object: a hole per key. An array: each entry its own way (`['btn',
+   * { active: isActive }, () => size.get()]`), so nested holes stay live.
+   */
   private classes(el: Element, value: unknown, signal: AbortSignal) {
+    if (Array.isArray(value)) return this.classList(el, value, signal)
     if (!isPlainObject(value))
       return this.holes.write(
         value,
@@ -88,6 +94,14 @@ export class ElementProps {
       )
     for (const [names, on] of Object.entries(value))
       this.holes.write(on, (v) => toggle(el, names, Boolean(v)), signal)
+  }
+
+  /** Each array entry toggles the names it yields, as they change. */
+  private classList(el: Element, entries: unknown[], signal: AbortSignal) {
+    for (const entry of entries) {
+      if (isPlainObject(entry)) this.classes(el, entry, signal)
+      else this.holes.write(entry, swapper(el), signal)
+    }
   }
 
   /** An object: CSS's own property names, each value maybe a hole (C.20b). */
@@ -126,6 +140,16 @@ function setAttribute(el: Element, name: string, value: unknown): void {
 function setLive(el: Element, name: string, value: unknown): void {
   const isText = name === 'value' || name === 'defaultValue'
   ;(el as any)[name] = isText ? String(value ?? '') : Boolean(value)
+}
+
+/** Writes the names an entry yields now, taking back the ones it yielded before. */
+function swapper(el: Element): (value: unknown) => void {
+  let before = ''
+  return (value) => {
+    toggle(el, before, false)
+    before = classNames(value as ClassValue)
+    toggle(el, before, true)
+  }
 }
 
 function setClass(el: Element, value: ClassValue): void {

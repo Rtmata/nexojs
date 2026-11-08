@@ -358,6 +358,23 @@ for (const [name, engine] of engines) {
       })
     })
 
+    test('round 4: live class arrays, number radio groups, late select options, a throwing view keeps the old one', async () => {
+      expect(await play('classArrayLive')).toEqual({
+        before: 'btn size-s',
+        after: 'btn active size-l',
+      })
+      expect(await play('groupAndSelect')).toEqual({
+        radios: [true, false],
+        selected: 'md',
+      })
+      const region = (await play('regionKeepsOld')) as {
+        during: string
+        after: string
+      }
+      expect(region.during).toBe('a')
+      expect(region.after).toBe('b')
+    })
+
     test('aborting the mount ends components and removes the content', async () => {
       expect(await play('abortEnds')).toEqual({
         log: ['ended'],

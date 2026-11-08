@@ -11,21 +11,32 @@ import {
  */
 export function ensureSheet(styles: ComponentStyles): void {
   const selector = `style[${STYLE_MARKER}="${CSS.escape(styles.name)}"]`
-  if (document.head.querySelector(selector)) return
+  const css = pageCss(styles)
+  const existing = document.head.querySelector(selector)
+  if (existing) return sameOrThrow(styles.name, existing.textContent ?? '', css)
   const style = document.createElement('style')
   style.setAttribute(STYLE_MARKER, styles.name)
-  style.textContent = pageCss(styles)
+  style.textContent = css
   document.head.append(style)
 }
 
-const shared = new Map<string, CSSStyleSheet>()
+const shared = new Map<string, { sheet: CSSStyleSheet; css: string }>()
 
 /** `shadow` (item 36): one constructed sheet per component, adopted by every instance. */
 export function shadowSheet(styles: ComponentStyles): CSSStyleSheet {
-  let sheet = shared.get(styles.name)
-  if (sheet) return sheet
-  sheet = new CSSStyleSheet()
+  const known = shared.get(styles.name)
+  if (known)
+    return (sameOrThrow(styles.name, known.css, styles.css), known.sheet)
+  const sheet = new CSSStyleSheet()
   sheet.replaceSync(styles.css)
-  shared.set(styles.name, sheet)
+  shared.set(styles.name, { sheet, css: styles.css })
   return sheet
+}
+
+/** Two components with one name and different styles would share a sheet: an error here as on the server. */
+function sameOrThrow(name: string, known: string, css: string): void {
+  if (known.trim() === css.trim()) return
+  throw new Error(
+    `omino: two components named "${name}" have different styles; the scope is the class name, so give one another name`,
+  )
 }

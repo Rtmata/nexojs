@@ -23,6 +23,8 @@ interface Kind {
   write?(el: Element, value: unknown): void
   /** The first write waits for the element to be in the document (`showModal()` needs that). */
   afterInsertion?: boolean
+  /** Options that arrive later (a For over a resource) get the signal's value applied again. */
+  watchOptions?: boolean
 }
 
 type Picker = (el: Element) => Kind | undefined
@@ -79,6 +81,7 @@ const SELECT: Kind = {
   events: ['change'],
   read: (el) => (el as HTMLSelectElement).value,
   write: (el, v) => ((el as HTMLSelectElement).value = String(v ?? '')),
+  watchOptions: true,
 }
 
 const MULTI_SELECT: Kind = {
@@ -87,6 +90,7 @@ const MULTI_SELECT: Kind = {
     [...(el as HTMLSelectElement).selectedOptions].map((o) => o.value),
   write: (el, v) =>
     selectAll(el as HTMLSelectElement, (v as string[] | null) ?? []),
+  watchOptions: true,
 }
 
 const CHECKED: Kind = {
@@ -226,11 +230,22 @@ export class Bindings {
     const kind = PICKERS[name]?.(el)
     if (!kind) throw notBindable(el, name)
     this.listen(el, kind, writable, eventsOf(el, kind, on), at.signal)
-    if (!kind.write) return
+    if (kind.write) this.writeBack(el, kind, writable, at)
+  }
+
+  /** Signal → DOM: now, or once inserted; and again when a select's options change. */
+  private writeBack(
+    el: Element,
+    kind: Kind,
+    writable: WritableLike,
+    at: Where,
+  ): void {
     const write = () =>
       this.holes.write(writable, (v) => kind.write!(el, v), at.signal)
     if (kind.afterInsertion) at.inserted(write)
     else write()
+    if (kind.watchOptions)
+      watchOptions(el, () => kind.write!(el, writable.get()), at.signal)
   }
 
   /** Sizes are layout: observed once the element is in the document. */
@@ -267,16 +282,17 @@ const GROUP_CHECKBOX: Kind = {
   events: ['change'],
   read: (el) => (el as HTMLInputElement).value,
   write: (el, v) =>
-    ((el as HTMLInputElement).checked = ((v as string[] | null) ?? []).includes(
-      (el as HTMLInputElement).value,
-    )),
+    ((el as HTMLInputElement).checked = ((v as unknown[] | null) ?? [])
+      .map(String)
+      .includes((el as HTMLInputElement).value)),
 }
 
 const GROUP_RADIO: Kind = {
   events: ['change'],
   read: (el) => (el as HTMLInputElement).value,
   write: (el, v) =>
-    ((el as HTMLInputElement).checked = v === (el as HTMLInputElement).value),
+    ((el as HTMLInputElement).checked =
+      v != null && String(v) === (el as HTMLInputElement).value), // the server compared the JSX value (maybe a number) the same way
 }
 
 PICKERS.group = (el) =>
@@ -454,4 +470,15 @@ function notBindable(el: Element, name: string): Error {
 function playFailed(error: unknown): void {
   const name = (error as DOMException)?.name
   if (name !== 'AbortError' && name !== 'NotAllowedError') reportError(error)
+}
+
+/** A select whose options come and go: the chosen value is applied again when they do. */
+function watchOptions(
+  el: Element,
+  apply: () => void,
+  signal: AbortSignal,
+): void {
+  const observer = new MutationObserver(apply)
+  observer.observe(el, { childList: true, subtree: true })
+  signal.addEventListener('abort', () => observer.disconnect(), { once: true })
 }

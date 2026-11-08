@@ -71,14 +71,27 @@ export class ForList<T> {
   private rowsFor(items: readonly T[], phase: InsertedPhase): Row<T>[] {
     const seen = new Set<unknown>()
     const keys = items.map((item, index) => this.keyOf(item, index, seen)) // all checked first: a duplicate builds nothing
-    return items.map((item, index) => {
-      const key = keys[index]
-      const row = this.rows.get(key)
-      if (!row) return this.row(key, item, index, phase)
-      row.item.set(item)
-      row.index.set(index)
-      return row
-    })
+    const built: Row<T>[] = []
+    try {
+      return items.map((item, i) => this.rowFor(keys[i], item, i, phase, built))
+    } catch (error) {
+      for (const row of built) row.life.end() // a template that threw: what was built for this pass ends with it
+      throw error
+    }
+  }
+
+  private rowFor(
+    key: unknown,
+    item: T,
+    index: number,
+    phase: InsertedPhase,
+    built: Row<T>[],
+  ): Row<T> {
+    const row = this.rows.get(key)
+    if (row) return (row.item.set(item), row.index.set(index), row)
+    const made = this.row(key, item, index, phase)
+    built.push(made)
+    return made
   }
 
   private keyOf(item: T, index: number, seen: Set<unknown>): unknown {

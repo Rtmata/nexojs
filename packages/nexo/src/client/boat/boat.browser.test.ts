@@ -115,6 +115,14 @@ describe('boat client', () => {
         })
       })
 
+      test('round 4: a route written as a class keeps `this`; the failure page gives way to the next good page', async () => {
+        expect(await play('receiversAndRecovery')).toEqual({
+          loaded: 'Dune',
+          failed: 'Dune not missing',
+          recovered: 'shelf',
+        })
+      })
+
       test('review: a foreign-host hash is no route; fragments survive; SVG links and odd hashes never throw', async () => {
         expect(await play('hashSafety')).toEqual({
           foreignHost: new URL(server.url.href).host,

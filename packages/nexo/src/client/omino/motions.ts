@@ -129,7 +129,7 @@ function fallbackFor(animations: Animation[]): number {
     if (!Number.isFinite(end)) return FIXED_WAIT
     longest = Math.max(longest, end - Number(animation.currentTime ?? 0))
   }
-  return longest + MARGIN
+  return Math.min(longest + MARGIN, FIXED_WAIT) // a 30 s decoration never holds the next page 30 s
 }
 
 /** Live: read when each motion starts. */

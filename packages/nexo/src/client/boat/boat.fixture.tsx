@@ -350,3 +350,61 @@ export async function oddHash() {
   history.replaceState(null, '', '/')
   return { errors, path }
 }
+
+/** Round 4: `load` and `failed` keep their receiver; a failure page never outlives its route. */
+export async function receiversAndRecovery() {
+  class Books {
+    readonly titles: Record<string, string> = { '1': 'Dune' }
+    async load({ params }: { params: { id: string } }) {
+      if (!(params.id in this.titles)) throw new Error('missing')
+      return { title: this.titles[params.id] }
+    }
+    page(book: { title: string }) {
+      return <h1>{book.title}</h1>
+    }
+    failed({ error }: { error: unknown }) {
+      return (
+        <h1>
+          {this.titles['1']} not {(error as Error).message}
+        </h1>
+      )
+    }
+  }
+  const match = routes({
+    '/': { page: () => <h1>shelf</h1> },
+    '/book/:id': new Books(),
+  })
+  const controller = new AbortController()
+  const source = memoryUrl('/')
+  const router = boat({
+    match,
+    source,
+    reactivity: connector,
+    signal: controller.signal,
+  })
+  const host = document.createElement('div')
+  document.body.replaceChildren(host)
+  mount(<main>{router.page}</main>, host, {
+    signal: controller.signal,
+    reactivity: connector,
+  })
+  const heading = () => host.querySelector('h1')?.textContent ?? null
+  const onError = (e: PromiseRejectionEvent) => e.preventDefault()
+  window.addEventListener('unhandledrejection', onError)
+  await settle()
+  router.visit('/book/1')
+  await wait(20)
+  await settle()
+  const loaded = heading()
+  router.visit('/book/9')
+  await wait(20)
+  await settle()
+  const failed = heading()
+  router.visit('/')
+  await wait(20)
+  await settle()
+  const recovered = heading()
+  window.removeEventListener('unhandledrejection', onError)
+  controller.abort()
+  return { loaded, failed, recovered }
+}

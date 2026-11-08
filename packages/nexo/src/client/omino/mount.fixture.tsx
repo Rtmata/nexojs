@@ -1019,3 +1019,87 @@ export function mountAlreadyAborted() {
   mount(<p>gone</p>, el, { signal: controller.signal, reactivity })
   return el.childNodes.length
 }
+
+/** Round 4: a class array with an object inside stays live; a function inside counts. */
+export async function classArrayLive() {
+  const active = signal(false)
+  const size = signal('s')
+  const el = host()
+  const controller = new AbortController()
+  mount(
+    <button class={['btn', { active }, () => `size-${size.get()}`]}>x</button>,
+    el,
+    {
+      signal: controller.signal,
+      reactivity,
+    },
+  )
+  const before = el.querySelector('button')!.className
+  active.set(true)
+  size.set('l')
+  flush()
+  await new Promise((done) => setTimeout(done, 0))
+  const after = el.querySelector('button')!.className
+  controller.abort()
+  return { before, after }
+}
+
+/** Round 4: radios bound to a number group; a select whose options arrive after its value. */
+export async function groupAndSelect() {
+  const choice = signal<number>(1)
+  const platform = signal('md')
+  const options = signal<string[]>([])
+  const el = host()
+  const controller = new AbortController()
+  mount(
+    <form>
+      <input type="radio" name="n" value={1} bind:group={choice} />
+      <input type="radio" name="n" value={2} bind:group={choice} />
+      <select bind:value={platform}>
+        <For each={options}>{(o) => <option value={o}>{o}</option>}</For>
+      </select>
+    </form>,
+    el,
+    { signal: controller.signal, reactivity },
+  )
+  const radios = [...el.querySelectorAll<HTMLInputElement>('input')].map(
+    (r) => r.checked,
+  )
+  options.set(['snes', 'md', 'pce'])
+  flush()
+  await new Promise((done) => setTimeout(done, 20))
+  const selected = el.querySelector('select')!.value
+  controller.abort()
+  return { radios, selected }
+}
+
+/** Round 4: a region whose next view throws keeps the old one; the second attempt works. */
+export async function regionKeepsOld() {
+  const view = signal<'a' | 'boom' | 'b'>('a')
+  const el = host()
+  const controller = new AbortController()
+  const errors: string[] = []
+  const page = () => {
+    const v = view.get()
+    if (v === 'boom') throw new Error('template boom')
+    return <p>{v}</p>
+  }
+  mount(<section>{page}</section>, el, {
+    signal: controller.signal,
+    reactivity,
+  })
+  view.set('boom')
+  try {
+    flush()
+  } catch (error) {
+    errors.push((error as Error).message)
+  }
+  await new Promise((done) => setTimeout(done, 0))
+  const during = el.textContent
+  view.set('b')
+  flush()
+  await new Promise((done) => setTimeout(done, 0))
+  const after = el.textContent
+  controller.abort()
+  return { during, after, threw: errors.length > 0 }
+}

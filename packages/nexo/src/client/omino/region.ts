@@ -55,8 +55,23 @@ export class Region {
     this.firstPhase = undefined
     if (phase) return void this.insert(child, phase)
     const old = this.current
+    const text = this.text
     this.current = this.text = undefined
-    this.swap(child, old, ++this.version)
+    this.swapOrKeep(child, old, text)
+  }
+
+  /** The swap; if building the new content throws, the old stays in charge. */
+  private swapOrKeep(
+    child: Child,
+    old: Content | undefined,
+    text?: Text,
+  ): void {
+    try {
+      this.swap(child, old, ++this.version)
+    } catch (error) {
+      ;((this.current = old), (this.text = text))
+      throw error
+    }
   }
 
   private swap(child: Child, old: Content | undefined, version: number): void {

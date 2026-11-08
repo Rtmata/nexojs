@@ -20,7 +20,7 @@ export function tauri(options: { invoke: Invoke }): Transport {
       const args = (call.args ?? undefined) as
         Record<string, unknown> | undefined
       return untilAborted(
-        options.invoke(call.name, args).catch(toCommandError),
+        invoked(options.invoke, call.name, args).catch(toCommandError),
         signal,
       )
     },
@@ -51,4 +51,17 @@ function untilAborted<T>(
     const done = () => signal.removeEventListener('abort', abort)
     promise.then(resolve, reject).finally(done)
   })
+}
+
+/** `invoke` as a promise even when it throws synchronously (no Tauri runtime, a bad arg type). */
+function invoked(
+  invoke: Invoke,
+  name: string,
+  args: Record<string, unknown> | undefined,
+): Promise<unknown> {
+  try {
+    return Promise.resolve(invoke(name, args))
+  } catch (error) {
+    return Promise.reject(error)
+  }
 }

@@ -97,6 +97,14 @@ function visit(root: Element, fn: Arrival): void {
   const inside = [...root.querySelectorAll(OWNER)]
     .reverse()
     .filter((element) => !again || !lives.has(element))
-  for (const element of [...inside, root])
+  for (const element of [...inside, root]) arrive(fn, element)
+}
+
+/** One segment's error is reported; the rest still arrive. */
+function arrive(fn: Arrival, element: Element): void {
+  try {
     fn(element, { signal: lives.of(element) })
+  } catch (error) {
+    reportError(error)
+  }
 }

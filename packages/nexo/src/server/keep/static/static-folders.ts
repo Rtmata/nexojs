@@ -21,6 +21,7 @@ export class Mount {
   /** Normalized: '/', or '/covers' (no trailing slash). */
   readonly at: string
   readonly index: FolderIndex
+  private warned = false
   private readonly files: SafeFile
 
   constructor(
@@ -56,7 +57,18 @@ export class Mount {
     const relative = this.relativeOf(pathname)
     const onDisk = this.index.find(relative)
     if (onDisk === undefined) return null
-    return this.files.serve(onDisk ?? relative, headers)
+    const response = await this.files.serve(onDisk ?? relative, headers)
+    if (!response && !this.index.watched) await this.stillThere()
+    return response
+  }
+
+  /** A miss on an unindexed folder: the folder itself may be gone or unreadable; said once. */
+  private async stillThere(): Promise<void> {
+    if (this.warned || (await isFolder(this.dir))) return
+    this.warned = true
+    console.warn(
+      `keep: ${this.dir} (static at ${this.at}) can't be read any more: every request there is a 404`,
+    )
   }
 }
 

@@ -20,7 +20,9 @@ export function http(options: HttpOptions = {}): Transport {
   const fetch_ = options.fetch ?? ((url, init) => fetch(url, init))
   return {
     async send(call, signal) {
-      const response = await fetch_(...request(base, call, signal))
+      const response = await fetch_(...request(base, call, signal)).catch(
+        unreachable,
+      )
       return answer(response)
     },
   }
@@ -80,4 +82,11 @@ function parsed(text: string): unknown {
   } catch {
     return NOT_JSON
   }
+}
+
+/** No reply at all (offline, DNS, CORS): still a `CommandError`, so `isCommandError` holds everywhere. An abort keeps its reason. */
+function unreachable(error: unknown): never {
+  if ((error as DOMException)?.name === 'AbortError') throw error
+  const message = error instanceof Error ? error.message : String(error)
+  throw new CommandError('unreachable', `no reply: ${message}`, error)
 }

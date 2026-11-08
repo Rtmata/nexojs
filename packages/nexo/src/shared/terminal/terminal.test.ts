@@ -238,6 +238,33 @@ describe('replies that are not the contract (review)', () => {
     ])
   })
 
+  test('an invalid-args reply carries messages and paths, never the rejected input', async () => {
+    const response = await viaKeep(
+      '/_nexo/terminal/save',
+      post({ title: 'hunter2-as-a-number'.length }),
+    )
+    const body = (await response.json()) as { data: unknown[] }
+    expect(response.status).toBe(400)
+    expect(body.data).toEqual([
+      { message: 'expected a string', path: ['title'] },
+    ])
+  })
+
+  test('no reply at all (offline) is a CommandError too', async () => {
+    const offline = async () => {
+      throw new TypeError('Failed to fetch')
+    }
+    const error = await api
+      .client(http({ fetch: offline }))
+      .exec('book', { id: 1 })
+      .catch((e) => e)
+    expect(isCommandError(error)).toBe(true)
+    expect([error.code, error.message]).toEqual([
+      'unreachable',
+      'no reply: Failed to fetch',
+    ])
+  })
+
   test('issue paths with { key } segments (Valibot, Zod) read as keys', () => {
     expect(
       describeIssue({ message: 'expected a string', path: [{ key: 'id' }, 0] }),

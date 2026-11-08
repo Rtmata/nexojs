@@ -40,6 +40,10 @@ export class ClientRouter {
   private readonly scroll = new Scroll()
   private notFoundPage?: (ctx: PageContext) => unknown
   private failedPage?: (ctx: FailedContext) => unknown
+  /** The place the resource is loading (or loaded) for: what `show` pairs the data with. */
+  private loading?: Place
+  /** The last page that wasn't a failure: what shows when a later load fails with no page for it. */
+  private lastGood: unknown = null
 
   constructor(private readonly options: BoatClientOptions) {
     const { reactivity, source, signal } = options
@@ -91,9 +95,16 @@ export class ClientRouter {
     return this
   }
 
-  /** Go there from a script, through the source (bridge's verb too). */
+  /**
+   * Go there from a script, through the source (bridge's verb too). A URL
+   * no route claims leaves the app for real (`source.leave`): the server
+   * answers it, as it would a plain link.
+   */
   visit(url: string | URL, options?: { replace?: boolean }): void {
-    this.options.source.go(new URL(url, this.options.source.current()), options)
+    const { source } = this.options
+    const target = new URL(url, source.current())
+    if (!this.claims(target) && source.leave) return source.leave(target)
+    source.go(target, options)
   }
 
   /** A clicked link: the router's when it claims the URL. */
@@ -125,10 +136,12 @@ export class ClientRouter {
     return { url, match: this.options.match(url) }
   }
 
+  /** The route's `load`, called on the route (a route may be a class instance using `this`). */
   private load(place: Place, run: { signal: AbortSignal }): unknown {
-    const load = place.match?.route.load
-    if (!load) return undefined
-    return load({
+    this.loading = place
+    const route = place.match?.route
+    if (!route?.load) return undefined
+    return route.load({
       params: place.match!.params,
       url: place.url,
       signal: run.signal,
@@ -141,22 +154,23 @@ export class ClientRouter {
     if (status === 'error') return this.showFailure()
     if (status !== 'ready' && status !== 'local') return
     const value = this.data.value.get()
-    const place = this.options.reactivity.untrack(() => this.place.get())
-    this.options.reactivity.untrack(() =>
-      this.shown.set(this.pageOf(place, value)),
-    )
+    const place =
+      this.loading ?? this.options.reactivity.untrack(() => this.place.get())
+    const page = this.pageOf(place, value)
+    this.lastGood = page
+    this.options.reactivity.untrack(() => this.shown.set(page))
   }
 
-  /** The route's `failed`, else the router's; neither: the page before stays, the resource reported it. */
+  /** The route's `failed`, else the router's; neither: the last good page stays (never a stale failure page), the resource reported it. */
   private showFailure(): void {
     const { untrack } = this.options.reactivity
-    const place = untrack(() => this.place.get())
-    const page = place.match?.route.failed ?? this.failedPage
-    if (!page) return
+    const place = this.loading ?? untrack(() => this.place.get())
+    const route = place.match?.route
+    const page = route?.failed ? route.failed.bind(route) : this.failedPage
     const ctx = { ...this.contextOf(place), error: this.data.error.get() }
-    untrack(() =>
-      this.shown.set(page({ ...ctx, retry: () => this.data.reload() })),
-    )
+    const retry = () => this.data.reload()
+    const shown = page ? page({ ...ctx, retry }) : this.lastGood
+    untrack(() => this.shown.set(shown))
   }
 
   private contextOf(place: Place): PageContext {

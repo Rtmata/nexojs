@@ -16,8 +16,9 @@ export function claimClicks(
   document.addEventListener('click', onClick, { capture: true, signal })
 }
 
+/** The link clicked, inside a shadow root too (`event.target` is retargeted to the host at the document). */
 function linkOf(event: MouseEvent): HTMLAnchorElement | null {
-  const target = event.target as Element | null
+  const target = (event.composedPath()[0] ?? event.target) as Element | null
   const link = target?.closest?.('a[href]') ?? null
   return link instanceof HTMLAnchorElement ? link : null
 }
