@@ -39,3 +39,15 @@ describe('param parsers (D.3)', () => {
     )
   })
 })
+
+describe('boolean round trip (a fallback of true)', () => {
+  test('"false" is the one text that turns it off; write() omits the fallback', () => {
+    expect(boolean(true).parse(null, 'g.open')).toBe(true)
+    expect(boolean(true).parse('false', 'g.open')).toBe(false)
+    expect(boolean(true).parse('', 'g.open')).toBe(true)
+    expect(boolean(true).write(false)).toBe('false')
+    expect(boolean(true).write(true)).toBe(null)
+    expect(boolean().write(true)).toBe(true)
+    expect(boolean().write(false)).toBe(null)
+  })
+})

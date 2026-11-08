@@ -17,6 +17,7 @@ const gallery = panel({
   params: { start: number(0), loop: boolean(), shots: json<string[]>([]) },
   connect: (el, params, { signal }) => {
     log.push(`connect ${params.start} ${params.loop} ${params.shots.length}`)
+    el.setAttribute('data-connected', '')
     signal.addEventListener('abort', () => log.push('ended'))
     return { index: params.start, el }
   },
@@ -70,22 +71,23 @@ export function laterChildren() {
   return [...log]
 }
 
+/** `attach` reports a panel's error as an uncaught error (naming it) and goes on with the rest. */
 export function errors() {
   const caught: string[] = []
-  const tryIt = (markup: string) => {
-    try {
-      attach(
-        html(markup),
-        { gallery },
-        { signal: new AbortController().signal },
-      )
-    } catch (e) {
-      caught.push((e as Error).message)
-    }
+  const onError = (e: ErrorEvent) => {
+    caught.push(e.error?.message ?? e.message)
+    e.preventDefault()
   }
-  tryIt('<div data-panel="nope"></div>')
-  tryIt('<div data-panel="gallery" data-gallery-start="two"></div>')
-  return caught
+  window.addEventListener('error', onError)
+  const root = html(
+    '<div data-panel="nope"></div><div data-panel="gallery" data-gallery-start="two"></div><div data-panel="gallery" data-gallery-start="4"></div>',
+  )
+  attach(root, { gallery }, { signal: new AbortController().signal })
+  window.removeEventListener('error', onError)
+  return [
+    ...caught,
+    `connected ${root.querySelectorAll('[data-connected]').length}`,
+  ]
 }
 
 export function asRef() {

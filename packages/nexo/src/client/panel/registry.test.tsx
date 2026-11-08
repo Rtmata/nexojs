@@ -69,3 +69,14 @@ describe('typed server markup (R.23)', () => {
     expect(typeof check).toBe('function')
   })
 })
+
+describe('values that are not given', () => {
+  test('an undefined value writes nothing, never the text "undefined"', () => {
+    const panels = registry({
+      gallery: panel({ params: { start: number(0) } }),
+    })
+    expect(panels.markup('gallery', { start: undefined })).toEqual({
+      'data-panel': 'gallery',
+    })
+  })
+})

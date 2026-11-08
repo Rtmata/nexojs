@@ -1,4 +1,4 @@
-import type { Panel } from './panel'
+import { defined, type Panel } from './panel'
 import { attributeOf, type Param, type ParamsOf } from './params'
 import { PANEL_ATTRIBUTE } from './vocabulary'
 
@@ -46,7 +46,7 @@ export class PanelRegistry<R extends Record<string, AnyPanel>> {
   private params(name: string, values: object): Markup {
     const schema = (this.panels[name]?.options.params ?? {}) as Schema
     const attributes: Markup = {}
-    for (const [key, value] of Object.entries(values))
+    for (const [key, value] of Object.entries(defined(values)))
       write(attributes, attributeOf(name, key), schema[key]?.write(value))
     return attributes
   }

@@ -2010,10 +2010,11 @@ for (const [name, engine] of engines) {
       await page.waitForTimeout(220)
       expect(await call('carouselState')).toMatchObject({ current: 2 })
       await page.click('[data-carousel-toggle]')
+      const stopped = (await call('carouselState')) as { current: number }
       await page.mouse.move(700, 500)
       await page.waitForTimeout(350)
       expect(await call('carouselState')).toMatchObject({
-        current: 2,
+        current: stopped.current, // a tick may have landed before the click; none after it
         toggle: 'Start slide rotation',
         live: 'polite',
       })

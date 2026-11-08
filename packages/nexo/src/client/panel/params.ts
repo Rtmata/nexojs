@@ -22,11 +22,16 @@ export function number(fallback: number): Param<number> {
   })
 }
 
-/** Presence is `true` (HTML's own rule for boolean attributes). */
+/**
+ * Presence is `true` (HTML's own rule for boolean attributes), and the one
+ * text that means `false` is `"false"`: how a param whose fallback is
+ * `true` is turned off in markup (`data-x-open="false"`), so `markup()` and
+ * `attach` agree whatever the fallback.
+ */
 export function boolean(fallback = false): Param<boolean> {
   return {
-    parse: (text) => (text === null ? fallback : true),
-    write: (value) => (value ? true : null),
+    parse: (text) => (text === null ? fallback : text !== 'false'),
+    write: (value) => (value === fallback ? null : value ? true : 'false'),
   }
 }
 

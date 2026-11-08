@@ -76,10 +76,17 @@ class Definition<S extends Schema, C> {
     return readParams(this.schema, name, el)
   }
 
+  /** Given params over the defaults; an `undefined` value is "not given". */
   withParams(given: Partial<ParamsOf<S>>) {
     return (el: Element, { signal }: { signal: AbortSignal }) =>
-      this.connect(el, { ...this.defaults(), ...given }, signal)
+      this.connect(el, { ...this.defaults(), ...defined(given) }, signal)
   }
+}
+
+export function defined<T extends object>(values: T): Partial<T> {
+  return Object.fromEntries(
+    Object.entries(values).filter(([, v]) => v !== undefined),
+  ) as Partial<T>
 }
 
 /** Every param's fallback: a parser given no attribute. */
@@ -102,7 +109,34 @@ const NON_BUBBLING = new Set([
   'scroll',
   'invalid',
   'toggle',
+  'abort',
+  'cancel',
+  'close',
+  'resize',
+  // media
+  'play',
+  'playing',
+  'pause',
+  'ended',
+  'timeupdate',
+  'durationchange',
+  'volumechange',
+  'ratechange',
+  'seeking',
+  'seeked',
+  'waiting',
+  'stalled',
+  'suspend',
+  'emptied',
+  'loadstart',
+  'loadedmetadata',
+  'loadeddata',
+  'canplay',
+  'canplaythrough',
 ])
+
+/** `'click .next'` → type and selector. */
+type Entry<C> = { selector: string; handler: EventHandler<C> }
 
 /** One panel on one element: `connect` runs, then one listener per event type on `el` (D.2 b). */
 class Connection<S extends Schema, C> {
@@ -117,32 +151,47 @@ class Connection<S extends Schema, C> {
     this.ctx = options.connect
       ? options.connect(el, params, { signal })
       : (undefined as C)
-    for (const [key, handler] of Object.entries(options.events ?? {}))
-      this.listen(key, handler)
+    for (const [type, entries] of byType(options.events ?? {}))
+      this.listen(type, entries)
   }
 
-  /** `'click .next'`: on `el`, for targets inside it that match; no selector: `el` itself. */
-  private listen(key: string, handler: EventHandler<C>): void {
-    const [type, ...rest] = key.trim().split(/\s+/)
-    const selector = rest.join(' ')
-    const listener = (event: Event) => this.dispatch(event, selector, handler)
-    const capture = NON_BUBBLING.has(type!)
-    this.el.addEventListener(TWIN[type!] ?? type!, listener, {
+  /** One listener for the type; each entry matches its own selector (no selector: `el` itself). */
+  private listen(type: string, entries: Entry<C>[]): void {
+    const capture = NON_BUBBLING.has(type)
+    const listener = (event: Event) => {
+      for (const entry of entries) this.dispatch(event, type, entry)
+    }
+    this.el.addEventListener(TWIN[type] ?? type, listener, {
       capture,
       signal: this.signal,
     })
   }
 
-  private dispatch(
-    event: Event,
-    selector: string,
-    handler: EventHandler<C>,
-  ): void {
-    const matched = selector
-      ? closestInside(event.target, selector, this.el)
+  /**
+   * Bubbling events delegate: the closest match from the target. An event
+   * that doesn't bubble is heard in capture, so a descendant's own copy
+   * passes by too; only the one whose target is the match counts.
+   */
+  private dispatch(event: Event, type: string, entry: Entry<C>): void {
+    const matched = entry.selector
+      ? closestInside(event.target, entry.selector, this.el)
       : this.el
-    if (matched) handler(event, this.ctx, matched)
+    if (!matched) return
+    if (NON_BUBBLING.has(type) && event.target !== matched) return
+    entry.handler(event, this.ctx, matched)
   }
+}
+
+function byType<C>(
+  events: Record<string, EventHandler<C>>,
+): Map<string, Entry<C>[]> {
+  const types = new Map<string, Entry<C>[]>()
+  for (const [key, handler] of Object.entries(events)) {
+    const [type, ...rest] = key.trim().split(/\s+/)
+    const entries = types.get(type!) ?? []
+    types.set(type!, [...entries, { selector: rest.join(' '), handler }])
+  }
+  return types
 }
 
 /** The closest match from the event's target up to `root`, never past it. */

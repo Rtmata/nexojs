@@ -14,7 +14,8 @@ const connected = new WeakMap<Element, Map<string, AbortController>>()
  * Connect every `data-panel` in `root` (itself included), each with a child
  * of `signal` (B.8). Explicit, no observer (D.2): call it on load and for
  * each arrival (`arrivals` from bridge, R.17). An element already connected
- * to a panel isn't connected again while that connection lives.
+ * to a panel isn't connected again while that connection lives. A panel
+ * that throws is reported (`reportError`) and skipped: the rest connect.
  */
 export function attach(
   root: Element,
@@ -44,10 +45,30 @@ function connectOnce(
   const live = connected.get(el) ?? new Map<string, AbortController>()
   if (live.get(name)?.signal.aborted === false) return
   const controller = childOf(signal)
-  panelNamed(registry, name, el).fromMarkup(el, name, {
-    signal: controller.signal,
-  })
+  if (!tryConnect(el, name, registry, controller)) return
   connected.set(el, live.set(name, controller))
+}
+
+/**
+ * A panel that throws (a bad param, the wrong element) is reported as an
+ * uncaught error naming it, what it had already added ends with its
+ * controller, and the other panels of the page still connect.
+ */
+function tryConnect(
+  el: Element,
+  name: string,
+  registry: Registry,
+  controller: AbortController,
+): boolean {
+  try {
+    const run = { signal: controller.signal }
+    panelNamed(registry, name, el).fromMarkup(el, name, run)
+    return true
+  } catch (error) {
+    controller.abort(error)
+    reportError(error)
+    return false
+  }
 }
 
 function panelNamed(registry: Registry, name: string, el: Element) {

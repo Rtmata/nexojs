@@ -296,14 +296,17 @@ export function listboxState(selector = '[data-panel=listbox]') {
   }
 }
 
-/** The message a panel refuses some markup with. */
+/** The message a panel refuses some markup with: `attach` reports it as an uncaught error. */
 export function setupError(html: string): string {
-  try {
-    setup(html)
-    return 'no error'
-  } catch (error) {
-    return (error as Error).message
+  let message = 'no error'
+  const caught = (event: ErrorEvent) => {
+    message = event.error?.message ?? event.message
+    event.preventDefault()
   }
+  window.addEventListener('error', caught)
+  setup(html)
+  window.removeEventListener('error', caught)
+  return message
 }
 
 /** What the server would send back as the visitor types: titles containing the text. */
