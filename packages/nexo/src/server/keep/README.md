@@ -69,7 +69,7 @@ Every file comes with a weak `ETag` and `Last-Modified`, answers `304` to `If-No
 | a number      | `public, max-age=<seconds>`           | Files that may be a little old.                               |
 | `false`       | none                                  | The browser guesses from the date.                            |
 
-While listening, the files of each folder are known from memory and the folder is watched for changes, at one inotify watch per folder (Bun 1.4; Bun 1.3 took one per file). A folder whose files never change while the server runs sets `watch: false`: no watcher and no rebuilds — indexed once, a miss still asks the disk.
+While listening, the files of each folder are known from memory and the folder is watched for changes, at one inotify watch per folder (Bun 1.4; Bun 1.3 took one per file): a miss answers 404 from memory, and the startup report says which files a route shadows. A folder whose files never change while the server runs sets `watch: false`: no index and no watcher at all, every request asks the disk (as Express's serve-static and Caddy's file_server always do), the server starts as fast with 70 files as with 70,000, and the shadow report leaves that folder out.
 
 The same files on a route of your own: `router.get('/covers/*', files('./data/covers', { cache: 'immutable' }))`.
 

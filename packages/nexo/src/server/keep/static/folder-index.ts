@@ -19,9 +19,9 @@ import { inside, isPublicName, isPublicPath } from './safe-file'
  * Watching costs the system inotify watches: one per folder since Bun 1.4
  * (Bun 1.3 took one per FILE; Linux allows 65,536 by default). A folder
  * whose files never change while the server runs (pictures named by their
- * content) can still skip it (`watch: false`): no watcher, no rebuilds;
- * indexed once, its index then only says what IS there — a miss asks the
- * disk.
+ * content) skips all of it (`watch: false`, R.42): no index, no watcher;
+ * every request asks the disk, as Express's serve-static and Caddy's
+ * file_server always do, and the startup report leaves it out.
  *
  * The watcher follows the folder the root pointed to when listening began:
  * re-pointing a symlinked root (an atomic deploy) needs a restart.
@@ -38,7 +38,8 @@ export class FolderIndex {
 
   constructor(
     readonly dir: string,
-    private readonly watched = true,
+    /** `false`: no index at all (R.42) — every request asks the disk, nothing is walked or watched. */
+    readonly watched = true,
   ) {
     this.walker = new FolderWalker(dir)
     this.watcher = new FolderWatcher(dir, {
@@ -66,9 +67,10 @@ export class FolderIndex {
   }
 
   async start(): Promise<void> {
+    if (!this.watched) return // served from disk, as Express's serve-static and Caddy's file_server do
     if (!(await isFolder(this.dir))) return // gone since keep checked it
-    if (this.watched) this.watcher.start()
-    if (this.watcher.watching || !this.watched) await this.rebuild()
+    this.watcher.start()
+    if (this.watcher.watching) await this.rebuild()
   }
 
   stop(): void {
@@ -98,9 +100,9 @@ export class FolderIndex {
     this.stale = this.settle.pending
   }
 
-  /** Meant to watch, but can't any more: a walk that lands would claim too much. */
+  /** Can't watch any more: a walk that lands would claim too much. */
   private lostWatch(): boolean {
-    return this.watched && !this.watcher.watching
+    return !this.watcher.watching
   }
 
   /** Whether a walk found folders the last one didn't (the first walk adds none). */

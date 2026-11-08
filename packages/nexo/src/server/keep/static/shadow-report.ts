@@ -66,8 +66,13 @@ function encoded(relative: string): string {
   return relative.split('/').map(encodeURIComponent).join('/')
 }
 
-/** The files the mount's index knows, or a fresh walk when it knows none. */
+/**
+ * The files the mount's index knows, or a fresh walk when it knows none.
+ * An unindexed mount (`watch: false`, R.42) is not walked: its files are
+ * never read as a list, so nothing is said about them.
+ */
 async function filesIn(mount: Mount): Promise<readonly string[]> {
+  if (!mount.index.watched) return []
   if (mount.index.known.length > 0) return mount.index.known
   const walk = await new FolderWalker(mount.dir).walk()
   return walk ? [...walk.files.values()] : []

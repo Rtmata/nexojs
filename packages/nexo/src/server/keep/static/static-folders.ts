@@ -9,7 +9,7 @@ export interface StaticMount {
   at: string
   /** Unset: ask every time (a 304 when unchanged). `'immutable'` for content-hashed names. See `CacheOption`. */
   cache?: CacheOption
-  /** `false` for a folder whose files never change while the server runs: indexed once, never watched — a must above tens of thousands of files (see `FolderIndex`). */
+  /** `false` for a folder whose files never change while the server runs: no index, no watcher, every request asks the disk (R.42) — a must above tens of thousands of files. The shadow report skips it. */
   watch?: boolean
 }
 

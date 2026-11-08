@@ -103,7 +103,7 @@ describe('static files: watching', () => {
     },
   )
 
-  test('watch: false indexes once; what comes later is still served, from disk', async () => {
+  test('watch: false: no index at all; every file comes from disk, those written later too', async () => {
     const log = spyOn(console, 'log').mockImplementation(() => {})
     const still = await mkdtemp(join(root, 'still-'))
     await writeFile(join(still, 'a.png'), 'a')
