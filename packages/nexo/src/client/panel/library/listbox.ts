@@ -51,6 +51,7 @@ const MULTI: Keys = {
 
 export class Listbox {
   readonly multiple: boolean
+  private readonly explicit: boolean
   private readonly marks = new Marks()
   private readonly options: Options
   private readonly typeahead = new Typeahead()
@@ -64,8 +65,32 @@ export class Listbox {
     this.multiple =
       multiple || el.getAttribute('aria-multiselectable') === 'true'
     this.options = new Options(el, el, this.marks)
+    this.explicit = el.querySelector('[role=option]') !== null
     this.prepare()
+    this.watch(signal)
     signal.addEventListener('abort', () => this.marks.restore(), { once: true })
+  }
+
+  /** Options that arrive later (bridge appending) get their roles; a gone active one is forgotten. */
+  private watch(signal: AbortSignal): void {
+    const observer = new MutationObserver(() => {
+      this.prepare()
+      if (this.options.active === undefined) this.options.clear()
+    })
+    observer.observe(this.el, { childList: true })
+    signal.addEventListener('abort', () => observer.disconnect(), {
+      once: true,
+    })
+  }
+
+  /**
+   * Children to make options: every one without a role, unless the author
+   * marked options by hand at the start (then the others, a heading say,
+   * are theirs to leave alone).
+   */
+  private roleless(): Element[] {
+    if (this.explicit) return []
+    return [...this.el.children].filter((c) => !c.hasAttribute('role'))
   }
 
   /** Roles and states on layer 0's plain list. */
@@ -73,10 +98,7 @@ export class Listbox {
     this.marks.set(this.el, 'role', 'listbox')
     this.marks.default(this.el, 'tabindex', '0')
     if (this.multiple) this.marks.set(this.el, 'aria-multiselectable', 'true')
-    const children = this.el.querySelector('[role=option]')
-      ? []
-      : [...this.el.children]
-    for (const child of children) this.marks.set(child, 'role', 'option')
+    for (const child of this.roleless()) this.marks.set(child, 'role', 'option')
     for (const option of this.options.all())
       this.marks.default(option, 'aria-selected', 'false')
   }
@@ -113,6 +135,7 @@ export class Listbox {
     const from = this.options.active
     const to = this.options.step(by)
     if (!to) return false
+    if (to === from) return true // the edge: the key is ours, nothing changes
     this.options.activate(to)
     if (!this.multiple) this.choose([to], to)
     else if (event.shiftKey) this.extend(from, to, event)

@@ -89,6 +89,7 @@ const KEYS: Keys = {
 class Combobox {
   private readonly options: Options
   private readonly marks: Marks
+  private chosen?: string
 
   constructor(
     private readonly input: HTMLInputElement,
@@ -98,6 +99,7 @@ class Combobox {
   ) {
     this.marks = setup.marks
     this.options = new Options(list, input, this.marks)
+    this.chosen = setup.source?.select.value
     this.prepare()
     this.listen(signal)
   }
@@ -125,6 +127,7 @@ class Combobox {
 
   private listen(signal: AbortSignal): void {
     const on = { signal }
+    this.setup.source?.onChanged(() => this.synced(), signal)
     this.input.addEventListener('input', (e) => this.typed(e as InputEvent), on)
     this.input.addEventListener('keydown', (e) => this.key(e), on)
     this.input.addEventListener('focusout', (e) => this.left(e), on)
@@ -139,9 +142,10 @@ class Combobox {
     if (KEYS[event.key]?.(this, event)) event.preventDefault()
   }
 
-  /** ↓ opens and moves into the list; Alt+↓ only opens (APG). */
+  /** ↓ opens (every option, whatever was typed) and moves into the list; Alt+↓ only opens (APG). */
   down(altKey: boolean): boolean {
     const wasOpen = this.isOpen()
+    if (!wasOpen) this.unfilter()
     this.open()
     if (!altKey)
       this.options.activate(wasOpen ? this.options.step(1) : this.firstActive())
@@ -149,6 +153,7 @@ class Combobox {
   }
 
   up(): boolean {
+    if (!this.isOpen()) this.unfilter()
     this.open()
     this.options.activate(
       this.options.step(this.options.active ? -1 : Infinity),
@@ -178,6 +183,15 @@ class Combobox {
       this.complete()
   }
 
+  /** The select changed on its own (a form reset, the app, new options): the input follows. */
+  private synced(): void {
+    const source = this.setup.source!
+    source.rebuild()
+    this.roles()
+    this.chosen = source.select.value
+    this.input.value = source.shown()
+  }
+
   /** The list was filled (by the app, or bridge): roles, then shown if it has any. */
   private arrived(): void {
     this.roles()
@@ -200,6 +214,11 @@ class Combobox {
       this.marks.toggle(option, 'hidden', !matches(option, text, filter))
   }
 
+  private unfilter(): void {
+    for (const option of this.options.all())
+      this.marks.toggle(option, 'hidden', false)
+  }
+
   /** `both`: the rest of the first suggestion, written in and selected (APG). */
   private complete(): void {
     const typed = this.input.value
@@ -220,14 +239,15 @@ class Combobox {
       this.accept(option)
   }
 
+  /** The option is the value now; `combobox:change` only when it's a different one. */
   private accept(option: HTMLElement): void {
+    const value = Options.valueOf(option)
     this.input.value = textOf(option)
-    this.setup.source?.choose(Options.valueOf(option))
+    this.setup.source?.choose(value)
     this.close()
-    emit(this.setup.el, 'combobox:change', {
-      value: Options.valueOf(option),
-      text: this.input.value,
-    })
+    if (value === this.chosen) return
+    this.chosen = value
+    emit(this.setup.el, 'combobox:change', { value, text: this.input.value })
   }
 
   /** Leaving: closed; `both` takes the highlighted suggestion; a select never keeps a stray text. */

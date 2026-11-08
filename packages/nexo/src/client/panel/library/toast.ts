@@ -3,6 +3,7 @@ import { number, string } from '../params'
 import { emit } from './hold'
 import { Marks } from './marks'
 import { animationsDone } from './motion'
+import { topModal } from './close-top'
 
 /**
  * Toast (R.40): a messages region that exists from the first render
@@ -38,15 +39,6 @@ export function toastRegion(): HTMLElement | null {
   const top = topModal()
   if (top) return regions.find((r) => r.closest('dialog') === top) ?? null
   return regions.find((r) => !r.closest('dialog')) ?? null
-}
-
-function topModal(): HTMLDialogElement | undefined {
-  const modals = [...document.querySelectorAll('dialog')].filter((d) =>
-    d.matches(':modal'),
-  )
-  return modals
-    .filter((d) => !modals.some((o) => o !== d && d.contains(o)))
-    .at(-1)
 }
 
 const CONTROLS = 'a[href], button, input, select, textarea, [tabindex]'

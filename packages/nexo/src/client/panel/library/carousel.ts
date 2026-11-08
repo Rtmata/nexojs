@@ -121,13 +121,14 @@ class Carousel {
     this.go(this.current + (button.hasAttribute('data-carousel-next') ? 1 : -1))
   }
 
-  /** The slide nearest the scroller's start is the current one. */
+  /** The slide whose start is nearest the scroller's is the current one (any direction). */
   private arrived(): void {
     const slides = this.slides()
-    const at = slides.findIndex(
-      (s) => s.offsetLeft + s.offsetWidth / 2 > this.scroller.scrollLeft,
+    const start = this.scroller.getBoundingClientRect().left
+    const gaps = slides.map((s) =>
+      Math.abs(s.getBoundingClientRect().left - start),
     )
-    const index = Math.max(0, at)
+    const index = gaps.indexOf(Math.min(...gaps))
     if (index === this.current) return
     this.current = index
     slides.forEach((s, i) => s.toggleAttribute('data-current', i === index))
@@ -140,10 +141,14 @@ class Carousel {
     const slide = slides[(index + slides.length) % slides.length]
     if (!slide) return
     const behavior = reducedMotion() ? 'instant' : 'smooth'
-    this.scroller.scrollTo({
-      left: slide.offsetLeft - this.scroller.offsetLeft,
-      behavior,
-    })
+    const left = this.scroller.scrollLeft + this.offsetOf(slide)
+    this.scroller.scrollTo({ left, behavior })
+  }
+
+  /** Where the slide starts, from the scroller's start (any positioning, any direction). */
+  private offsetOf(slide: HTMLElement): number {
+    const start = this.scroller.getBoundingClientRect().left
+    return slide.getBoundingClientRect().left - start
   }
 
   // ---- rotation (APG): the toggle is the only thing that restarts it
@@ -168,13 +173,11 @@ class Carousel {
     this.timer = undefined
   }
 
-  /** The pointer or focus left: rotation goes on only if it was never stopped. */
+  /** The pointer or focus left: rotation goes on only if it was never stopped, and nothing else holds it. */
   private resume(): void {
-    if (this.rotating && this.timer === undefined)
-      this.timer = setInterval(
-        () => this.go(this.current + 1),
-        this.params.interval,
-      )
+    if (!this.rotating || this.timer !== undefined) return
+    if (this.el.matches(':hover, :focus-within')) return
+    this.timer = this.ticking()
   }
 
   private end(): void {

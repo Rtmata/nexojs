@@ -141,7 +141,7 @@ APG Listbox over a plain list, for choices that aren't a form's. In a form, writ
 </ul>
 ```
 
-Focus stays on the list (`aria-activedescendant`); style the active option with `[data-active]` and the chosen ones with `[aria-selected=true]`. One choice: the arrows select. `data-listbox-multiple`: Space toggles, Shift+arrows select on the way, Shift+Space selects from the last toggled one, Ctrl+Shift+Home/End to the ends, Ctrl+A all (again: none). Typeahead in both. `listbox:change` carries `{ value, values }`, from `data-value` or the text. When the panel ends, the list is plain again.
+Focus stays on the list (`aria-activedescendant`); style the active option with `[data-active]` and the chosen ones with `[aria-selected=true]`. Items that arrive later (bridge appending) become options too, unless you marked options by hand. One choice: the arrows select. `data-listbox-multiple`: Space toggles, Shift+arrows select on the way, Shift+Space selects from the last toggled one, Ctrl+Shift+Home/End to the ends, Ctrl+A all (again: none). Typeahead in both. `listbox:change` carries `{ value, values }`, from `data-value` or the text. When the panel ends, the list is plain again.
 
 ## combobox
 
@@ -165,7 +165,7 @@ APG Combobox (R.39). The element you'd write without Nexo decides what it is:
 </select>
 ```
 
-On an `<input type="text">`, the list its `aria-controls` names holds the suggestions. Fill it as the visitor types (from your own `input` listener, or a bridge swap) and set `data-combobox-filter="none"`, or leave a fixed list for the panel to filter (`contains`, the default, or `starts`). `type="search"` is refused: ARIA lets it be only a searchbox. On a `<select>`, the panel adds an input and a list made from the options, hides the select and writes every choice back to it, firing its `input` and `change`. A typed text that names no option goes back to the select's own when focus leaves. `aria-autocomplete` picks APG's variant: `none`, `list` (default) or `both` (the rest of the first match written in and selected, taken when focus leaves). Keys: ↓ opens and moves in, Alt+↓ only opens, ↑, Enter takes the active suggestion (with none, the form submits), Escape closes, and when closed it clears free text. Focus stays in the input; style the active suggestion with `[data-active]`. `combobox:change` carries `{ value, text }`.
+On an `<input type="text">`, the list its `aria-controls` names holds the suggestions. Fill it as the visitor types (from your own `input` listener, or a bridge swap) and set `data-combobox-filter="none"`, or leave a fixed list for the panel to filter (`contains`, the default, or `starts`). `type="search"` is refused: ARIA lets it be only a searchbox. On a `<select>`, the panel adds an input and a list made from the options, hides the select and writes every choice back to it, firing its `input` and `change`. A typed text that names no option goes back to the select's own when focus leaves. The select stays the source: a form reset, options added or re-selected, or the app setting `select.value` and firing `change` (as the platform asks) all reach the input. ↓ on a closed list shows every option again, whatever was typed. `aria-autocomplete` picks APG's variant: `none`, `list` (default) or `both` (the rest of the first match written in and selected, taken when focus leaves). Keys: ↓ opens and moves in, Alt+↓ only opens, ↑, Enter takes the active suggestion (with none, the form submits), Escape closes, and when closed it clears free text. Focus stays in the input; style the active suggestion with `[data-active]`. `combobox:change` carries `{ value, text }`.
 
 ## menu
 
@@ -188,7 +188,7 @@ APG Menu and Menubar + Menu Button, in Open UI's shape (R.35). Layer 0 is the na
 </div>
 ```
 
-On a popover it's a menu; on an in-page element (`<div data-panel="menu" aria-label="Main">`), a menubar with one tab stop. Buttons and links become `menuitem`; write `role="menuitemcheckbox"` or `"menuitemradio"` for checkable items (radios group by the nearest `role="group"`); an `<hr>` is a separator. The panel adds `aria-haspopup` / `aria-expanded` to the triggers and moves focus into a menu when it opens (the first item; ↑ on the menu button opens on the last). Keys: the arrows of the menu's axis move and wrap, the other axis opens a submenu or goes back to its item, and under a menubar it moves to the bar's next menu. Home / End, typeahead, Enter chooses and closes every menu, Space flips a checkable and keeps the menu open, Escape closes the menu it's in, and Tab leaves and closes them all. `menu:select` carries `{ value, checked }` (`data-value`, else the text). Placing the menus is CSS (anchor positioning). For a context menu, open the same popover from `press-hold:press` or the ContextMenu key. The `command` bridge is shared with `dialog`.
+On a popover it's a menu; on an in-page element (`<div data-panel="menu" aria-label="Main">`), a menubar with one tab stop. Buttons and links become `menuitem`; write `role="menuitemcheckbox"` or `"menuitemradio"` for checkable items (radios group by the nearest `role="group"`); an `<hr>` is a separator. The panel adds `aria-haspopup` / `aria-expanded` to every trigger of a menu (several buttons may open one; focus returns to the one that did) and moves focus into a menu when it opens (the first item; ↑ on the menu button opens on the last). Keys: the arrows of the menu's axis move and wrap, the other axis opens a submenu or goes back to its item, and under a menubar it moves to the bar's next menu. Home / End, typeahead, Enter chooses and closes every menu, Space flips a checkable and keeps the menu open, Escape closes the menu it's in, and Tab leaves and closes them all. `menu:select` carries `{ value, checked }` (`data-value`, else the text). Placing the menus is CSS (anchor positioning). For a context menu, open the same popover from `press-hold:press` or the ContextMenu key. The `command` bridge is shared with `dialog`.
 
 ## tooltip
 
@@ -199,10 +199,10 @@ APG Tooltip written as the platform writes it: an interest invoker and a hint po
 <div id="tip" popover="hint" data-panel="tooltip">Released in 1987</div>
 ```
 
-Where the engine has interest invokers (Chrome 142+), the panel does nothing. Elsewhere it is a gap bridge that copies the platform:
+A tooltip nothing points at (no `id`, or no `interestfor` naming it) is an error. Where the engine has interest invokers (Chrome 142+), the panel does nothing. Elsewhere it is a gap bridge that copies the platform:
 
 - interest comes after `data-tooltip-start` ms (500) of hover or focus, stays while the pointer or focus is on the invoker or the tooltip, and is lost `data-tooltip-end` ms (250) after leaving both;
-- Escape loses it at once, and `interest` / `loseinterest` fire on the tooltip;
+- Escape loses it at once, so does the platform's own light dismiss, and `interest` / `loseinterest` fire on the tooltip;
 - a plain-text tooltip describes its invoker (`aria-describedby`); a rich one (links, headings…) gets `role=tooltip`, and its invoker `aria-details` and `aria-expanded`.
 
 The defaults are what Chromium 156 does for `interest-delay: normal`. Place it with CSS anchor positioning. Where the platform lacks interest invokers, a tooltip stays hidden without JS, so never put anything essential only in a tooltip.
@@ -234,7 +234,7 @@ toastRegion()!.insertAdjacentHTML(
 - **Roles:** `role="log"` is the default, for ordered, polite messages; use a separate `role="alert"` region for urgent ones.
 - **Leaving:** a closing message gets `[data-leaving]` for its exit animation, and focus stays in the region.
 - **Reaching it:** F8 (`data-toast-key`) moves focus to the region in use.
-- **Modal dialogs:** everything outside an open modal `<dialog>` is inert, so a dialog that sends messages holds its own region. `toastRegion()` returns the one of the top-most modal, else the page's.
+- **Modal dialogs:** everything outside an open modal `<dialog>` is inert, so a dialog that sends messages holds its own region. `toastRegion()` returns the one of the top-most modal (the one holding focus: everything under it is inert), else the page's.
 - **Placing it:** CSS (`position: fixed; z-index`). Never `display: none` the region.
 - **Event:** `toast:dismiss` carries `{ text, reason }` (`close` or `timeout`).
 
@@ -292,7 +292,7 @@ APG Grid on a native `<table>`, the table itself being layer 0 (every row shown)
 </table>
 ```
 
-One tab stop, and APG's keys: the arrows move between cells and stop at the edges (a data grid never wraps), Home / End within the row, Ctrl+Home / End across the grid, Page Up / Down by `data-grid-page` rows (5). A cell with one simple widget (a link, a button, a checkbox) focuses the widget itself; a cell with several takes Enter or F2 to go in (Tab moves among them) and Escape to come out. Header cells become `columnheader` (in `<thead>` or `scope="col"`) or `rowheader`.
+One tab stop, and APG's keys: the arrows move between cells and stop at the edges (a data grid never wraps), Home / End within the row, Ctrl+Home / End across the grid, Page Up / Down by `data-grid-page` rows (5). A cell with one simple widget (a link, a button, a checkbox) focuses the widget itself, and Enter there is the widget's own; a cell with several, or with a field that takes the arrows (a text input, a select), takes Enter or F2 to go in (Tab moves among them) and Escape, or leaving the cell, to come out. Header cells become `columnheader` (in `<thead>` or `scope="col"`) or `rowheader`.
 
 **Treegrid (R.36):** rows with `aria-level` make the table a `treegrid`. A row followed by deeper rows is a parent: it gets `aria-expanded` (closed unless you wrote `aria-expanded="true"`), its children hide while it's closed, and it takes focus as a row: → opens it (or enters its first cell), ← closes it (or, from the first cell, goes back to the row), ↑ ↓ Home End move between rows. `grid:toggle` carries `{ id, expanded }`. Not built (APG "if supported"): selection, `aria-rowcount` for virtual rows, sorting.
 

@@ -8,9 +8,17 @@ let made = 0
  * option's value without JS. The panel puts a text input and a list made
  * from its options after it, hides it, and writes every choice back to it.
  */
+const OPTION_CHANGES: MutationObserverInit = {
+  childList: true,
+  subtree: true,
+  attributes: true,
+  attributeFilter: ['selected', 'disabled', 'value'],
+}
+
 export class SelectSource {
   readonly input: HTMLInputElement
   readonly list: HTMLUListElement
+  private ours = false
 
   constructor(
     readonly select: HTMLSelectElement,
@@ -32,9 +40,32 @@ export class SelectSource {
   /** A choice made in the combobox becomes the select's, with its events. */
   choose(value: string): void {
     if (this.select.value === value) return
+    this.ours = true
     this.select.value = value
     this.select.dispatchEvent(new Event('input', { bubbles: true }))
     this.select.dispatchEvent(new Event('change', { bubbles: true }))
+    this.ours = false
+  }
+
+  /**
+   * The select changing by other hands: its own `change` (the app's, after
+   * a programmatic `select.value = …` as the platform asks), a form reset,
+   * or options added, removed or re-selected.
+   */
+  onChanged(fn: () => void, signal: AbortSignal): void {
+    const theirs = () => this.ours || fn()
+    this.select.addEventListener('change', theirs, { signal })
+    this.select.form?.addEventListener('reset', () => setTimeout(fn), {
+      signal,
+    })
+    const options = new MutationObserver(fn)
+    options.observe(this.select, OPTION_CHANGES)
+    signal.addEventListener('abort', () => options.disconnect(), { once: true })
+  }
+
+  /** The list again from the options as they are now. */
+  rebuild(): void {
+    this.list.replaceChildren(...[...this.select.options].map(itemFor))
   }
 
   private remove(): void {

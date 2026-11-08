@@ -576,3 +576,25 @@ export function wasClicked(): boolean {
 export function endPanels(): void {
   current.abort()
 }
+
+/** A select changed by other hands (the app sets a value and fires change, as the platform asks). */
+export function setSelect(selector: string, value: string): void {
+  const select = document.querySelector<HTMLSelectElement>(selector)!
+  select.value = value
+  select.dispatchEvent(new Event('change', { bubbles: true }))
+}
+
+export function hiddenFlags(selector: string): boolean[] {
+  const options = [...document.querySelectorAll<HTMLElement>(selector)]
+  return options.map((o) => o.hidden === true)
+}
+
+export function appendOption(selector: string, text: string): void {
+  document
+    .querySelector(selector)!
+    .insertAdjacentHTML('beforeend', `<li>${text}</li>`)
+}
+
+export function focusedId(): string | null {
+  return document.activeElement?.id ?? null
+}

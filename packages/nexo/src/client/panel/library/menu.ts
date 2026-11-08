@@ -36,6 +36,8 @@ type Where = 'first' | 'last'
 class Menu {
   private readonly marks = new Marks()
   private readonly typeahead = new Typeahead()
+  /** Which invoker opened each menu: where focus returns. */
+  private readonly openers = new Map<HTMLElement, HTMLElement>()
   private opening: Where = 'first'
 
   constructor(
@@ -67,15 +69,26 @@ class Menu {
 
   private prepareMenu(popover: HTMLElement, signal: AbortSignal): void {
     this.marks.set(popover, 'role', 'menu')
-    const trigger = triggerOf(popover)
-    if (trigger) this.marks.default(trigger, 'aria-haspopup', 'menu')
-    if (trigger) this.marks.set(trigger, 'aria-expanded', 'false')
+    for (const trigger of triggersOf(popover))
+      this.prepareTrigger(popover, trigger, signal)
     popover.addEventListener(
       'toggle',
       (e) => this.toggled(popover, e as ToggleEvent),
       { signal },
     )
     bridgeCommands(popover, signal)
+  }
+
+  /** An invoker says it opens a menu; a click on it is remembered as the opener (focus returns there). */
+  private prepareTrigger(
+    popover: HTMLElement,
+    trigger: HTMLElement,
+    signal: AbortSignal,
+  ): void {
+    this.marks.default(trigger, 'aria-haspopup', 'menu')
+    this.marks.set(trigger, 'aria-expanded', 'false')
+    const remember = () => this.openers.set(popover, trigger)
+    trigger.addEventListener('click', remember, { signal })
   }
 
   private prepareItem(item: Element): void {
@@ -115,14 +128,14 @@ class Menu {
 
   /** Opened: its trigger says so and focus moves in; closed: focus back to the trigger. */
   private toggled(popover: HTMLElement, event: ToggleEvent): void {
-    const trigger = triggerOf(popover)
     const open = event.newState === 'open'
-    trigger?.setAttribute('aria-expanded', String(open))
+    for (const trigger of triggersOf(popover))
+      trigger.setAttribute('aria-expanded', String(open))
     if (open) return this.focusIn(popover)
     const lost =
       document.activeElement === document.body ||
       popover.contains(document.activeElement)
-    if (lost) trigger?.focus()
+    if (lost) (this.openers.get(popover) ?? triggerOf(popover))?.focus()
   }
 
   private focusIn(popover: HTMLElement): void {
@@ -132,6 +145,7 @@ class Menu {
   }
 
   private open(popover: HTMLElement, where: Where, source: HTMLElement): void {
+    this.openers.set(popover, source)
     this.opening = where
     if (popover.matches(':popover-open')) return this.focusIn(popover)
     ;(popover.showPopover as (o?: { source: Element }) => void)({ source })
@@ -336,11 +350,18 @@ class MenuKey {
 }
 
 /** The button whose `commandfor` names this popover. */
+/** Every button whose `commandfor` names this popover. */
+function triggersOf(popover: HTMLElement): HTMLElement[] {
+  if (!popover.id) return []
+  return [
+    ...document.querySelectorAll<HTMLElement>(
+      `[commandfor="${CSS.escape(popover.id)}"]`,
+    ),
+  ]
+}
+
 function triggerOf(popover: HTMLElement): HTMLElement | null {
-  if (!popover.id) return null
-  return document.querySelector<HTMLElement>(
-    `[commandfor="${CSS.escape(popover.id)}"]`,
-  )
+  return triggersOf(popover)[0] ?? null
 }
 
 function isDisabled(item: Element): boolean {

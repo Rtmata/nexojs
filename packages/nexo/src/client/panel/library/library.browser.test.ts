@@ -2440,3 +2440,214 @@ for (const [name, engine] of engines) {
     })
   })
 }
+
+for (const [name, engine] of engines) {
+  describe(`review fixes, batch 3 in ${name}`, () => {
+    let browser: Browser
+    let page: Page
+    const call = (fn: string, ...args: unknown[]) =>
+      page.evaluate(
+        ([f, a]) => (window as any).library[f as string](...(a as unknown[])),
+        [fn, args] as const,
+      )
+    const press = async (key: string) => {
+      await page.keyboard.press(key)
+      await call('settled')
+    }
+
+    beforeAll(async () => {
+      browser = await engine.launch()
+      page = await browser.newPage({ viewport: { width: 800, height: 600 } })
+      await page.setContent(
+        '<!doctype html><title>library</title><body style="margin:0"></body>',
+      )
+      await page.evaluate(async (code) => {
+        const url = URL.createObjectURL(
+          new Blob([code], { type: 'text/javascript' }),
+        )
+        ;(window as any).library = await import(url)
+      }, code)
+    }, LAUNCH)
+    afterAll(async () => {
+      await browser?.close()
+    })
+
+    test('grid: a select in a cell keeps its arrows; editing ends when focus leaves; Enter on a link follows it', async () => {
+      await call(
+        'setup',
+        `<table data-panel="grid" aria-label="g"><tbody>
+          <tr aria-level="1"><td><a id="lnk" href="#frag">a</a></td><td><select id="sel"><option>a</option><option>b</option></select></td></tr>
+          <tr aria-level="2"><td>child</td><td><a id="l1" href="#1">1</a> <a id="l2" href="#2">2</a></td></tr>
+          <tr aria-level="1"><td id="plain">p</td><td>q</td></tr>
+        </tbody></table>`,
+      )
+      await page.evaluate(() =>
+        (document.querySelector('#sel') as HTMLElement).closest('td')!.focus(),
+      )
+      expect(await call('gridFocus')).toBe('0:1')
+      await page.keyboard.press('Enter')
+      expect(await call('focusedId')).toBe('sel')
+      await page.keyboard.press('Escape')
+      expect(await call('gridFocus')).toBe('0:1')
+      await page.evaluate(() =>
+        (document.querySelector('#plain') as HTMLElement).focus(),
+      )
+      await page.keyboard.press('ArrowUp')
+      expect(await call('gridFocus')).toBe('0:0 a') // the grid's keys work again (editing ended on blur); the closed child row is skipped
+      expect(await call('attributes', '#l1', ['tabindex'])).toEqual({
+        tabindex: '-1',
+      })
+      await page.focus('#lnk')
+      await page.keyboard.press('Enter')
+      await call('settled')
+      expect(await page.evaluate(() => location.hash)).toBe('#frag')
+      expect(await call('attributes', 'tbody tr', ['aria-expanded'])).toEqual({
+        'aria-expanded': 'false',
+      })
+    })
+
+    test('combobox: one change per real change; reopening shows every option; the select stays the source', async () => {
+      await call('record')
+      await call(
+        'setup',
+        `<form><select id="plat" data-panel="combobox"><option value="snes">SNES</option><option value="md">Mega Drive</option></select><button id="away" type="button">away</button></form>`,
+      )
+      await page.click('[role=combobox]', { clickCount: 3 })
+      await page.keyboard.type('mega')
+      await page.keyboard.press('ArrowDown')
+      await page.keyboard.press('Enter')
+      await page.focus('#away')
+      await page.focus('[role=combobox]')
+      await page.focus('#away')
+      expect(
+        ((await call('events')) as string[]).filter((e) =>
+          e.startsWith('combobox'),
+        ),
+      ).toEqual(['combobox:change Mega Drive'])
+      await page.focus('[role=combobox]')
+      await page.keyboard.press('ArrowDown')
+      expect(await call('hiddenFlags', '[role=option]')).toEqual([false, false])
+      await page.keyboard.press('Escape')
+      await call('setSelect', '#plat', 'snes')
+      expect(await call('comboState')).toMatchObject({ value: 'SNES' })
+      await page.evaluate(() =>
+        (document.querySelector('form') as HTMLFormElement).reset(),
+      )
+      await call('settled')
+      expect(await call('comboState')).toMatchObject({ value: 'SNES' })
+      await page.evaluate(() =>
+        document
+          .querySelector('#plat')!
+          .insertAdjacentHTML(
+            'beforeend',
+            '<option value="pce">PC Engine</option>',
+          ),
+      )
+      await call('settled')
+      expect(await call('rolesOf', '[role=option]')).toHaveLength(3)
+    })
+
+    test('toast: the region of the modal on top, even when it comes first in the DOM', async () => {
+      await call(
+        'setup',
+        `<ol id="page" data-panel="toast" aria-label="n"></ol>
+         <dialog id="b"><button id="bb">b</button><ol id="rb" data-panel="toast" aria-label="n"></ol></dialog>
+         <dialog id="a"><button id="ab">open b</button><ol id="ra" data-panel="toast" aria-label="n"></ol></dialog>`,
+      )
+      await call('openModal', 'a')
+      expect(await call('regionInUse')).toBe('ra')
+      await call('openModal', 'b')
+      expect(await call('regionInUse')).toBe('rb')
+    })
+
+    test('listbox: Shift+arrow at the edge changes nothing; options added later join in', async () => {
+      await call('record')
+      await call(
+        'setup',
+        '<ul id="lb" data-panel="listbox" data-listbox-multiple aria-label="l"><li>a</li><li>b</li></ul>',
+      )
+      await page.focus('#lb')
+      await page.keyboard.press('End')
+      await page.keyboard.press('Space')
+      await page.keyboard.press('Shift+ArrowDown')
+      await page.keyboard.press('Shift+ArrowDown')
+      expect((await call('listboxState')).selected).toEqual(['b'])
+      await call('appendOption', '#lb', 'c')
+      await call('settled')
+      await page.keyboard.press('ArrowDown')
+      expect(await call('listboxState')).toMatchObject({ active: 'c' })
+    })
+
+    test('tooltip: a native dismissal is a loss of interest too; a tooltip nobody points at is an error', async () => {
+      await call('record')
+      await call(
+        'setup',
+        `<button id="info" interestfor="tip" style="position:fixed;left:0;top:0;width:60px;height:30px">i</button>
+         <div id="tip" popover="hint" data-panel="tooltip" style="position:fixed;inset:auto;left:300px;top:300px;margin:0">Rich <a href="#r">more</a></div>`,
+      )
+      await page.focus('#info')
+      await page.waitForTimeout(800)
+      expect(await call('tipState')).toMatchObject({ open: true })
+      await page.evaluate(() =>
+        (document.querySelector('#tip') as HTMLElement).hidePopover(),
+      )
+      await call('settled')
+      expect(await call('tipState')).toMatchObject({
+        open: false,
+        expanded: (await call('nativeInterest')) ? null : 'false',
+      })
+      if (!(await call('nativeInterest')))
+        expect(await call('events')).toEqual(['interest', 'loseinterest'])
+      expect(
+        await call(
+          'setupError',
+          '<div popover="hint" data-panel="tooltip">lonely</div>',
+        ),
+      ).toContain('no <button interestfor')
+    })
+
+    test('menu: two invokers both say they open it; focus returns to the one that did', async () => {
+      await call(
+        'setup',
+        `<button id="t1" commandfor="acts" command="toggle-popover">one</button>
+         <button id="t2" commandfor="acts" command="toggle-popover">two</button>
+         <div id="acts" data-panel="menu" popover><button>Favorite</button></div>`,
+      )
+      expect(
+        await call('attributes', '#t2', ['aria-haspopup', 'aria-expanded']),
+      ).toEqual({ 'aria-haspopup': 'menu', 'aria-expanded': 'false' })
+      await page.click('#t2')
+      await call('settled')
+      expect(await call('attributes', '#t1', ['aria-expanded'])).toEqual({
+        'aria-expanded': 'true',
+      })
+      await press('Escape')
+      expect(await call('focusedId')).toBe('t2')
+    })
+
+    test('carousel: a scroller that is not at the page edge still knows its current slide', async () => {
+      await page.emulateMedia({ reducedMotion: 'reduce' })
+      await call(
+        'setup',
+        `<style>#sh { display:flex; overflow-x:auto; scroll-snap-type:x mandatory; width:300px; margin:0; padding:0; list-style:none } #sh > li { flex:0 0 300px; height:60px; scroll-snap-align:start }</style>
+         <section data-panel="carousel" aria-label="s" style="display:flex;margin-left:200px">
+           <button id="prev" data-carousel-prev aria-label="p" style="width:180px">‹</button>
+           <ul id="sh" data-carousel-slides><li>A</li><li>B</li><li>C</li></ul>
+           <button id="next" data-carousel-next aria-label="n">›</button>
+         </section>`,
+      )
+      await page.click('#next')
+      await call('settled')
+      expect(await call('carouselState')).toMatchObject({
+        current: 1,
+        scrollLeft: 300,
+      })
+      await page.click('#next')
+      await call('settled')
+      expect(await call('carouselState')).toMatchObject({
+        current: 2,
+        scrollLeft: 600,
+      })
+    })
+  })
+}

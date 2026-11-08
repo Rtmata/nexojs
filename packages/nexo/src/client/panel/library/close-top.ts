@@ -24,10 +24,27 @@ function topMost(): HTMLElement | undefined {
   const open = [
     ...document.querySelectorAll<HTMLElement>('dialog, [popover]'),
   ].filter(isOnTop)
+  return topOf(open)
+}
+
+/**
+ * The top-most of some open top-layer elements: one inside another is
+ * above it; among the rest, the one with focus (everything under a modal
+ * is inert, so focus can only be in the top one), else the last in the
+ * document.
+ */
+export function topOf<T extends HTMLElement>(open: T[]): T | undefined {
   const innermost = open.filter(
     (el) => !open.some((other) => other !== el && el.contains(other)),
   )
-  return innermost.at(-1)
+  const focused = innermost.find((el) => el.contains(document.activeElement))
+  return focused ?? innermost.at(-1)
+}
+
+/** The top-most open modal `<dialog>`, if any. */
+export function topModal(): HTMLDialogElement | undefined {
+  const modals = [...document.querySelectorAll('dialog')]
+  return topOf(modals.filter((d) => d.matches(':modal')))
 }
 
 function isOnTop(el: HTMLElement): boolean {

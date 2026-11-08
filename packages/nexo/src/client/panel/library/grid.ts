@@ -38,8 +38,11 @@ export const grid = panel({
   },
 })
 
-const SIMPLE_WIDGET =
-  'a[href], button, input, select, textarea, summary, [tabindex]'
+const WIDGET = 'a[href], button, input, select, textarea, summary, [tabindex]'
+
+/** Widgets that take the arrow keys themselves: the cell stays the stop and Enter goes in. */
+const TYPING =
+  'input:not([type=button],[type=submit],[type=reset],[type=checkbox],[type=radio]), select, textarea, [contenteditable="true"]'
 
 class Grid {
   private readonly marks = new Marks()
@@ -84,13 +87,16 @@ class Grid {
     for (const cell of row.cells) {
       this.marks.set(cell, 'role', cellRole(cell))
       this.marks.set(this.stopOf(cell), 'tabindex', '-1')
+      for (const widget of widgetsOf(cell))
+        this.marks.set(widget, 'tabindex', '-1')
     }
   }
 
-  /** What takes focus for a cell: its one simple widget, else the cell. */
+  /** What takes focus for a cell: its one simple widget (a link, a button, a checkbox), else the cell. */
   private stopOf(cell: HTMLTableCellElement): HTMLElement {
-    const widgets = cell.querySelectorAll<HTMLElement>(SIMPLE_WIDGET)
-    return widgets.length === 1 ? widgets[0]! : cell
+    const widgets = widgetsOf(cell)
+    const simple = widgets.length === 1 && !widgets[0]!.matches(TYPING)
+    return simple ? widgets[0]! : cell
   }
 
   private stops(): HTMLElement[] {
@@ -116,11 +122,22 @@ class Grid {
     this.table.addEventListener('focusin', (e) => this.focused(e), on)
   }
 
+  /** Focus landing outside the cell being edited ends the editing. */
   private focused(event: FocusEvent): void {
     const target = event.target as HTMLElement
     const stop = target.closest<HTMLElement>('td, th, tr')
-    if (this.editing && this.editing.contains(target)) return
+    if (this.editing?.contains(target)) return
+    this.edit(undefined)
     this.settle(this.stopFor(target) ?? stop ?? undefined)
+  }
+
+  /** Editing a cell: its widgets join the Tab order (APG: Tab moves among them); out, they leave it. */
+  private edit(cell: HTMLTableCellElement | undefined): void {
+    const was = this.editing
+    this.editing = cell
+    if (was) for (const w of widgetsOf(was)) this.marks.set(w, 'tabindex', '-1')
+    if (cell)
+      for (const w of widgetsOf(cell)) this.marks.set(w, 'tabindex', '0')
   }
 
   private stopFor(target: HTMLElement): HTMLElement | undefined {
@@ -141,7 +158,7 @@ class Grid {
     if (event.key !== 'Escape') return
     event.preventDefault()
     const cell = this.editing!
-    this.editing = undefined
+    this.edit(undefined)
     this.go(cell)
   }
 
@@ -234,14 +251,23 @@ class Grid {
     return row.hasAttribute('tabindex')
   }
 
-  /** Enter / F2 on a cell with several widgets: focus goes to the first; the grid's keys pause. */
+  /** Enter / F2 on a cell whose widgets take keys (several, or a field): focus goes in; the grid's keys pause. */
   enter(cell: HTMLTableCellElement): boolean {
-    const widgets = cell.querySelectorAll<HTMLElement>(SIMPLE_WIDGET)
-    if (widgets.length < 2) return false
-    this.editing = cell
+    const widgets = widgetsOf(cell)
+    if (this.stopOf(cell) !== cell || widgets.length === 0) return false
+    this.edit(cell)
     widgets[0]!.focus()
     return true
   }
+
+  /** Focus is on a widget inside the cell, not the cell: Enter is the widget's. */
+  onWidget(cell: HTMLTableCellElement): boolean {
+    return document.activeElement !== cell
+  }
+}
+
+function widgetsOf(cell: HTMLTableCellElement): HTMLElement[] {
+  return [...cell.querySelectorAll<HTMLElement>(WIDGET)]
 }
 
 /** One key, APG Grid + Treegrid, resolved against where focus is. */
@@ -272,8 +298,7 @@ class GridKey {
     if (move) return this.moveFrom(cell, move)
     if (key === 'Home' || key === 'End')
       return this.edgeFrom(cell, key === 'End')
-    if (key === 'Enter' || key === 'F2')
-      return this.grid.enter(cell) || this.toggleFromCell(cell, row)
+    if (key === 'Enter' || key === 'F2') return this.enterOrToggle(cell, row)
     const by = this.pageBy()
     return by ? this.grid.go(this.grid.cellAt(cell, 0, by)) : false
   }
@@ -303,6 +328,15 @@ class GridKey {
       : (cell.parentElement as HTMLTableRowElement)
     const target = last ? row?.cells[row.cells.length - 1] : row?.cells[0]
     return this.grid.go(target)
+  }
+
+  /** Enter on a widget is the widget's own; on a cell it goes in, or toggles a parent row. */
+  private enterOrToggle(
+    cell: HTMLTableCellElement,
+    row: HTMLTableRowElement,
+  ): boolean {
+    if (this.grid.onWidget(cell)) return false
+    return this.grid.enter(cell) || this.toggleFromCell(cell, row)
   }
 
   /** Enter on a parent row's first cell toggles its children (cell-only focus, APG). */

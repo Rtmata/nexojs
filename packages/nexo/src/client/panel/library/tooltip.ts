@@ -28,6 +28,10 @@ import { Marks } from './marks'
 export const tooltip = panel({
   params: { start: number(500), end: number(250) },
   connect(el, delays, { signal }) {
+    if (invokersOf(el).length === 0)
+      throw new Error(
+        `tooltip: <${el.localName} id="${el.id}" data-panel="tooltip"> has no <button interestfor="${el.id || '…'}"> pointing at it`,
+      )
     if (hasInterest()) return
     new Interest(el as HTMLElement, delays, signal)
   },
@@ -57,8 +61,7 @@ class Interest {
   }
 
   private invokers(): HTMLElement[] {
-    const id = CSS.escape(this.tip.id)
-    return [...document.querySelectorAll<HTMLElement>(`[interestfor="${id}"]`)]
+    return invokersOf(this.tip)
   }
 
   private get rich(): boolean {
@@ -87,15 +90,14 @@ class Interest {
 
   private listenTip(signal: AbortSignal): void {
     const on = { signal }
-    this.tip.addEventListener('pointerenter', () => this.keep(), on)
-    this.tip.addEventListener('focusin', () => this.keep(), on)
-    this.tip.addEventListener('pointerleave', () => this.losing(), on)
-    this.tip.addEventListener('focusout', () => this.losing(), on)
-    document.addEventListener(
-      'keydown',
-      (e) => e.key === 'Escape' && this.lose(),
-      on,
-    )
+    const tip = this.tip
+    tip.addEventListener('toggle', (e) => this.toggled(e as ToggleEvent), on)
+    tip.addEventListener('pointerenter', () => this.keep(), on)
+    tip.addEventListener('focusin', () => this.keep(), on)
+    tip.addEventListener('pointerleave', () => this.losing(), on)
+    tip.addEventListener('focusout', () => this.losing(), on)
+    const escape = (e: KeyboardEvent) => e.key === 'Escape' && this.lose()
+    document.addEventListener('keydown', escape, on)
   }
 
   private interested(invoker: HTMLElement): void {
@@ -137,10 +139,20 @@ class Interest {
 
   private lose(): void {
     clearTimeout(this.timer)
-    if (!this.isOpen()) return
-    this.tip.hidePopover()
-    if (this.rich) this.source?.setAttribute('aria-expanded', 'false')
+    if (this.isOpen()) this.tip.hidePopover()
+    this.lost()
+  }
+
+  /** Closed by the platform itself (light dismiss, its own Escape): interest is lost the same way. */
+  private toggled(event: ToggleEvent): void {
+    if (event.newState === 'closed') this.lost()
+  }
+
+  private lost(): void {
+    if (!this.source) return
+    if (this.rich) this.source.setAttribute('aria-expanded', 'false')
     this.fire('loseinterest')
+    this.source = undefined
   }
 
   /** The platform's own events, with `source` as `InterestEvent` has it. */
@@ -163,4 +175,11 @@ class Interest {
 /** Touch has no hover: a tap focuses the invoker, and focus shows interest. */
 function isMouse(event: PointerEvent): boolean {
   return event.pointerType !== 'touch'
+}
+
+/** The buttons whose `interestfor` names this tooltip. */
+function invokersOf(tip: Element): HTMLElement[] {
+  if (!tip.id) return []
+  const id = CSS.escape(tip.id)
+  return [...document.querySelectorAll<HTMLElement>(`[interestfor="${id}"]`)]
 }
