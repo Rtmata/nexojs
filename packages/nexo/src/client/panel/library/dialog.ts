@@ -7,7 +7,8 @@ import { bridgeCommands } from './commands'
  * (measured in Chromium 156, WebKit 27.2, Firefox 157). Layer 0 needs no JS:
  * `<button commandfor="info" command="show-modal">` opens it, `command="close"`
  * closes it. The panel adds what APG asks and the platform leaves to you,
- * a name from its first heading, and bridges two gaps:
+ * a name from its first heading, a description for an alert dialog
+ * (`role="alertdialog"`: its first paragraph, R.34), and bridges two gaps:
  *
  * GAP BRIDGE `command`/`commandfor` (shared, `commands.ts`).
  * GAP BRIDGE `closedby` (`any` light dismiss, `none` no Escape): missing in
@@ -23,6 +24,7 @@ export const dialog = panel({
         `dialog: data-panel="dialog" goes on a <dialog>, not <${el.localName}>`,
       )
     named(el)
+    if (el.getAttribute('role') === 'alertdialog') described(el)
     bridgeCommands(el, signal)
     if (!hasClosedBy()) bridgeClosedBy(el, signal)
   },
@@ -43,6 +45,19 @@ function named(dialog: HTMLDialogElement): void {
   if (!heading) return
   heading.id ||= `${dialog.id || 'dialog'}-title`
   dialog.setAttribute('aria-labelledby', heading.id)
+}
+
+/**
+ * APG: an alert dialog (`role="alertdialog"`, the standard role as the
+ * switch, R.34) must describe its message; without `aria-describedby`,
+ * its first paragraph is the description.
+ */
+function described(dialog: HTMLDialogElement): void {
+  if (dialog.hasAttribute('aria-describedby')) return
+  const message = dialog.querySelector('p')
+  if (!message) return
+  message.id ||= `${dialog.id || 'dialog'}-message`
+  dialog.setAttribute('aria-describedby', message.id)
 }
 
 /** `any`: a click on the backdrop asks to close; `none`: Escape doesn't close. */

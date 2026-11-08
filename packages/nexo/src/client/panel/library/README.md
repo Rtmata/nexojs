@@ -59,7 +59,7 @@ On the native `<dialog>`. It already traps focus, closes on Escape and returns f
 </dialog>
 ```
 
-The panel names the dialog from its first heading (APG). **Bridges**, each feature-checked: `command` / `commandfor` (missing in WebKitGTK 2.50) and `closedby` (`any`: a click on the backdrop closes it; `none`: Escape doesn't; missing in Safari 27.2 and WebKitGTK 2.52).
+The panel names the dialog from its first heading (APG). An alert dialog is the standard `role="alertdialog"` on the same `<dialog>` (R.34): the panel then describes it with its first paragraph (`aria-describedby`), unless you wrote one. **Bridges**, each feature-checked: `command` / `commandfor` (missing in WebKitGTK 2.50) and `closedby` (`any`: a click on the backdrop closes it; `none`: Escape doesn't; missing in Safari 27.2 and WebKitGTK 2.52).
 
 ## feed
 
@@ -237,6 +237,35 @@ toastRegion()!.insertAdjacentHTML(
 - **Modal dialogs:** everything outside an open modal `<dialog>` is inert, so a dialog that sends messages holds its own region. `toastRegion()` returns the one of the top-most modal, else the page's.
 - **Placing it:** CSS (`position: fixed; z-index`). Never `display: none` the region.
 - **Event:** `toast:dismiss` carries `{ text, reason }` (`close` or `timeout`).
+
+## accordion
+
+APG Accordion on native `<details>` (R.33): the same `name` keeps one section open at a time (Chrome 120, Safari 17.2, Firefox 130), and Enter, Space and Tab are the platform's. Without the panel it already works.
+
+```html
+<div id="faq" data-panel="accordion" data-accordion-remember>
+  <details name="faq" id="controls">
+    <summary>Controls</summary>
+    …
+  </details>
+  <details name="faq" id="credits">
+    <summary>Credits</summary>
+    …
+  </details>
+</div>
+```
+
+`data-accordion-remember` keeps the open sections for the session (`sessionStorage`, under the panel's `id` or `data-accordion-key`; sections need ids) and restores them on the next visit, as GOV.UK's accordion does. `accordion:toggle` carries `{ id, open }`. For one or two short pieces, a lone `<details>` is enough.
+
+## switch
+
+APG Switch on the platform's own `<input type="checkbox" switch>` (Safari 17.4):
+
+```html
+<label><input type="checkbox" switch data-panel="switch" /> Subtitles</label>
+```
+
+Gap bridge: where the engine lacks `switch` (Chrome, Firefox, 2026-11) the panel sets `role="switch"`; everything else — Space, `checked`, the form value — is the checkbox's. The look is CSS. Register it as `{ switch: switchControl }` (`switch` is a reserved word).
 
 ## Lazy media: markup, no panel
 

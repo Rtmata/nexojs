@@ -1,7 +1,10 @@
 /** Scenarios for library.browser.test.ts: markup in, panels attached. */
 import {
   activity,
+  accordion,
   attach,
+  hasSwitch,
+  switchControl,
   toast,
   toastRegion,
   hasInterest,
@@ -52,11 +55,18 @@ const panels = registry({
   menu,
   tooltip,
   toast,
+  accordion,
+  switch: switchControl,
 })
 
+/** The panels of the previous scenario end with it: no listener outlives its markup. */
+let current = new AbortController()
+
 export function setup(html: string): void {
+  current.abort()
+  current = new AbortController()
   document.body.innerHTML = html
-  attach(document.body, panels, { signal: new AbortController().signal })
+  attach(document.body, panels, { signal: current.signal })
 }
 
 export function roles(): (string | null)[] {
@@ -158,6 +168,7 @@ export function record(): void {
     'interest',
     'loseinterest',
     'toast:dismiss',
+    'accordion:toggle',
     'change',
   ])
     document.addEventListener(name, (e) => w.events.push(describeEvent(e)), {
@@ -178,6 +189,7 @@ function describeEvent(e: Event): string {
     detail.phase ??
     detail.values?.join(',') ??
     (detail.reason ? `${detail.text} ${detail.reason}` : undefined) ??
+    (detail.open !== undefined ? `${detail.id}=${detail.open}` : undefined) ??
     detail.text ??
     (detail.checked === undefined
       ? detail.value
@@ -393,4 +405,30 @@ export function regionInUse(): string | null {
 
 export function openModal(id: string): void {
   ;(document.getElementById(id) as HTMLDialogElement).showModal()
+}
+
+export function openSections(): string[] {
+  return [...document.querySelectorAll('details')]
+    .filter((d) => d.open)
+    .map((d) => d.id)
+}
+
+export function toggleSection(id: string): void {
+  const details = document.getElementById(id) as HTMLDetailsElement
+  details.open = !details.open
+}
+
+export function sessionValue(key: string): string | null {
+  return sessionStorage.getItem(key)
+}
+
+export function nativeSwitch(): boolean {
+  return hasSwitch()
+}
+
+/** Like `withoutPlatform`, for a property that lives on an input. */
+export function withoutSwitch(html: string): void {
+  delete (HTMLInputElement.prototype as unknown as Record<string, unknown>)
+    .switch
+  setup(html)
 }

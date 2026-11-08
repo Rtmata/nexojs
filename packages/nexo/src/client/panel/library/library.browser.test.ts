@@ -1452,3 +1452,138 @@ for (const [name, engine] of engines) {
     })
   })
 }
+
+for (const [name, engine] of engines) {
+  describe(`accordion, switch and alert dialogs in ${name}`, () => {
+    let browser: Browser
+    let page: Page
+    const call = (fn: string, ...args: unknown[]) =>
+      page.evaluate(
+        ([f, a]) => (window as any).library[f as string](...(a as unknown[])),
+        [fn, args] as const,
+      )
+    const faq = (attrs = 'data-accordion-remember') => `
+      <div id="faq" data-panel="accordion" ${attrs}>
+        <details name="faq" id="controls"><summary>Controls</summary><p>Arrows</p></details>
+        <details name="faq" id="credits"><summary>Credits</summary><p>Falcom</p></details>
+      </div>`
+
+    /** `sessionStorage` needs a real origin: a blank page served over HTTP. */
+    let server: ReturnType<typeof Bun.serve>
+
+    beforeAll(async () => {
+      const html = { 'content-type': 'text/html; charset=utf-8' }
+      const blank = '<!doctype html><title>library</title><body></body>'
+      server = Bun.serve({
+        port: 0,
+        fetch: () => new Response(blank, { headers: html }),
+      })
+      browser = await engine.launch()
+      page = await browser.newPage()
+      await page.goto(server.url.href)
+      await page.evaluate(async (code) => {
+        const url = URL.createObjectURL(
+          new Blob([code], { type: 'text/javascript' }),
+        )
+        ;(window as any).library = await import(url)
+      }, code)
+    }, LAUNCH)
+    afterAll(async () => {
+      await browser?.close()
+      await server?.stop()
+    })
+
+    test('accordion: native details name keeps one open; the panel remembers it for the session', async () => {
+      await page.evaluate(() => sessionStorage.clear())
+      await call('record')
+      await call('setup', faq())
+      await page.click('#controls summary')
+      expect(await call('openSections')).toEqual(['controls'])
+      await page.click('#credits summary')
+      expect(await call('openSections')).toEqual(['credits'])
+      await call('settled') // `toggle` on <details> is queued as a task
+      expect(await call('sessionValue', 'accordion:faq')).toBe('["credits"]')
+      await call('setup', faq())
+      expect(await call('openSections')).toEqual(['credits'])
+      expect(
+        ((await call('events')) as string[]).filter((e) =>
+          e.startsWith('accordion'),
+        ),
+      ).toEqual([
+        // the platform opens the clicked one, then closes its named sibling
+        'accordion:toggle controls=true',
+        'accordion:toggle credits=true',
+        'accordion:toggle controls=false',
+        'accordion:toggle credits=true', // restored by the second setup
+      ])
+    })
+
+    test('accordion: without remember nothing is stored; remember needs an id', async () => {
+      await page.evaluate(() => sessionStorage.clear())
+      await call('setup', faq(''))
+      await page.click('#controls summary')
+      await call('settled')
+      expect(await call('sessionValue', 'accordion:faq')).toBe(null)
+      expect(
+        await call(
+          'setupError',
+          '<div data-panel="accordion" data-accordion-remember></div>',
+        ),
+      ).toContain('needs an id')
+    })
+
+    test('switch: role=switch only where the platform lacks the attribute', async () => {
+      const markup =
+        '<label><input id="subs" type="checkbox" switch data-panel="switch"> Subtitles</label>'
+      await call('setup', markup)
+      const native = await call('nativeSwitch')
+      expect(await call('attributes', '#subs', ['role'])).toEqual({
+        role: native ? null : 'switch',
+      })
+      await call('withoutSwitch', markup)
+      expect(await call('attributes', '#subs', ['role'])).toEqual({
+        role: 'switch',
+      })
+      await page.click('#subs')
+      expect(
+        await page.evaluate(
+          () => (document.querySelector('#subs') as HTMLInputElement).checked,
+        ),
+      ).toBe(true)
+      await call('setupAndEnd', markup)
+      expect(await call('attributes', '#subs', ['role'])).toEqual({
+        role: null,
+      })
+      expect(
+        await call('setupError', '<button data-panel="switch">x</button>'),
+      ).toContain('<button>')
+    })
+
+    test('alert dialog: the standard role switches on a description from the first paragraph', async () => {
+      await call(
+        'setup',
+        `<dialog id="erase" data-panel="dialog" role="alertdialog"><h2>Erase the save?</h2><p>It cannot be undone.</p></dialog>
+         <dialog id="plain" data-panel="dialog"><h2>Info</h2><p>Just text.</p></dialog>
+         <dialog id="own" data-panel="dialog" role="alertdialog" aria-describedby="mine"><h2>Sure?</h2><p>no</p><p id="mine">yes</p></dialog>`,
+      )
+      expect(
+        await call('attributes', '#erase', [
+          'aria-labelledby',
+          'aria-describedby',
+        ]),
+      ).toEqual({
+        'aria-labelledby': 'erase-title',
+        'aria-describedby': 'erase-message',
+      })
+      expect(await call('attributes', '#erase p', ['id'])).toEqual({
+        id: 'erase-message',
+      })
+      expect(await call('attributes', '#plain', ['aria-describedby'])).toEqual({
+        'aria-describedby': null,
+      })
+      expect(await call('attributes', '#own', ['aria-describedby'])).toEqual({
+        'aria-describedby': 'mine',
+      })
+    })
+  })
+}
