@@ -3,7 +3,7 @@ import { oneOf } from '../params'
 import { SelectSource } from './combobox-select'
 import { emit } from './hold'
 import { Marks } from './marks'
-import { Options } from './options'
+import { collapsed, Options } from './options'
 
 /**
  * Combobox (WAI-ARIA APG Combobox, R.39). The element decides:
@@ -300,7 +300,7 @@ class Combobox {
 }
 
 function textOf(option: Element): string {
-  return (option.textContent ?? '').trim()
+  return collapsed(option.textContent)
 }
 
 function matches(option: Element, text: string, filter: Filter): boolean {

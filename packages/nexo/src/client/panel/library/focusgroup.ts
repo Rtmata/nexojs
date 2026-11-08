@@ -117,9 +117,11 @@ export class FocusGroup {
     )
   }
 
+  /** Owned, enabled and rendered: a hidden item would take the tab stop and lose the focus. */
   private owns(item: HTMLElement): boolean {
     if ((item as HTMLButtonElement).disabled || item.closest('[inert]'))
       return false
+    if (!isRendered(item)) return false
     const group = item.parentElement?.closest('[focusgroup]')
     return group === this.el
   }
@@ -195,4 +197,8 @@ export class FocusGroup {
 
 function typing(target: Element): boolean {
   return target.matches(TYPING)
+}
+
+export function isRendered(el: HTMLElement): boolean {
+  return el.checkVisibility?.() ?? el.getClientRects().length > 0
 }

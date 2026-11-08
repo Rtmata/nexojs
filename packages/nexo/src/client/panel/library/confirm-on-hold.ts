@@ -24,7 +24,7 @@ export const confirmOnHold = panel({
     keydown: (e, ctx) => ctx.keyDown(e as KeyboardEvent),
     keyup: (e, ctx) => ctx.keyUp(e as KeyboardEvent),
     focusout: (_e, ctx) => ctx.disarm(),
-    click: (e) => (e.preventDefault(), e.stopImmediatePropagation()),
+    click: (e, ctx) => ctx.clicked(e as MouseEvent),
   },
 })
 
@@ -52,6 +52,20 @@ class ConfirmOnHold {
 
   get holding(): boolean {
     return this.hold.holding
+  }
+
+  /**
+   * A pointer's click is swallowed (the hold is the gesture). A click with
+   * no pointer behind it (`detail === 0`: a screen reader in browse mode,
+   * voice control, switch access, `el.click()`) takes the timing-free
+   * path: arm, then confirm (WCAG 2.1.1).
+   */
+  clicked(event: MouseEvent): void {
+    event.preventDefault()
+    event.stopImmediatePropagation()
+    if (event.detail !== 0) return
+    if (this.armed) this.confirm()
+    else this.arm()
   }
 
   down(event: PointerEvent): void {

@@ -11,7 +11,7 @@ import { topModal } from './close-top'
  * children are the messages, added by the app or by bridge
  * (`data-bridge-swap="append"`). A message the server rendered is layer 0.
  *
- *   <ol data-panel="toast" role="log" aria-label="Notices"><li>Saved</li></ol>
+ *   <div data-panel="toast" role="log" aria-label="Notices"><p>Saved</p></div>
  *
  * `role="log"` (the default) for ordered, polite messages; `role="alert"`
  * for an urgent region. Messages stay until closed (WCAG 2.2.1): the panel
@@ -61,6 +61,10 @@ class Toasts {
     private readonly params: Params,
     private readonly signal: AbortSignal,
   ) {
+    if (el instanceof HTMLUListElement || el instanceof HTMLOListElement)
+      throw new Error(
+        `toast: data-panel="toast" goes on a <div> or <section>, not <${el.localName}>: ARIA lets no list be a log or an alert`,
+      )
     this.marks.default(el, 'role', 'log')
     this.paused.window = !document.hasFocus()
     for (const message of el.children) this.arrived(message as HTMLElement)
@@ -183,9 +187,12 @@ class Toasts {
     this.el.focus()
   }
 
+  /** A close button holding focus leaves: focus goes to the region, not to <body>. */
   private end(): void {
     for (const countdown of this.timers.values()) countdown.stop()
+    const focused = this.made.some((b) => b.contains(document.activeElement))
     for (const button of this.made) button.remove()
+    if (focused) ((this.el.tabIndex = -1), this.el.focus())
     this.marks.restore()
   }
 }

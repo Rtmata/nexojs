@@ -1,6 +1,7 @@
 import { panel } from '../panel'
 import { bridgeCommands } from './commands'
 import { emit } from './hold'
+import { isRendered } from './focusgroup'
 import { Marks } from './marks'
 import { Options } from './options'
 import { Typeahead } from './typeahead'
@@ -35,7 +36,7 @@ type Where = 'first' | 'last'
 
 class Menu {
   private readonly marks = new Marks()
-  private readonly typeahead = new Typeahead()
+  private readonly typeahead: Typeahead
   /** Which invoker opened each menu: where focus returns. */
   private readonly openers = new Map<HTMLElement, HTMLElement>()
   private opening: Where = 'first'
@@ -44,6 +45,7 @@ class Menu {
     private readonly root: HTMLElement,
     signal: AbortSignal,
   ) {
+    this.typeahead = new Typeahead(signal)
     this.prepare(signal)
     this.listen(signal)
     signal.addEventListener('abort', () => this.marks.restore(), { once: true })
@@ -155,7 +157,10 @@ class Menu {
   private itemsOf(menu: Element): HTMLElement[] {
     const items = [...menu.querySelectorAll<HTMLElement>(ITEM)]
     return items.filter(
-      (item) => item.parentElement?.closest(MENU) === menu && !isDisabled(item),
+      (item) =>
+        item.parentElement?.closest(MENU) === menu &&
+        !isDisabled(item) &&
+        isRendered(item),
     )
   }
 

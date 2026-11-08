@@ -354,7 +354,7 @@ export function selectState(selector: string) {
   const input = document.querySelector('[role=combobox]')
   return {
     value: select.value,
-    hidden: select.hidden,
+    hidden: select.getAttribute('aria-hidden') === 'true',
     labelled: label?.getAttribute('for') === input?.id,
   }
 }
@@ -409,7 +409,7 @@ export function tipState(tip = '#tip', invoker = '#info') {
 
 /** What the app does to say something: a message into the region in use. */
 export function say(html: string): void {
-  toastRegion()!.insertAdjacentHTML('beforeend', `<li>${html}</li>`)
+  toastRegion()!.insertAdjacentHTML('beforeend', `<p>${html}</p>`)
 }
 
 export function messages(selector = '[data-panel~=toast]'): string[] {
@@ -597,4 +597,29 @@ export function appendOption(selector: string, text: string): void {
 
 export function focusedId(): string | null {
   return document.activeElement?.id ?? null
+}
+
+/** Review round 4: attach with a signal already aborted must connect nothing. */
+export function attachAborted(html: string): { connected: boolean } {
+  document.body.innerHTML = html
+  const controller = new AbortController()
+  controller.abort()
+  attach(document.body, panels, { signal: controller.signal })
+  return { connected: document.body.querySelector('[role]') !== null }
+}
+
+export function openPopover(id: string): void {
+  ;(document.getElementById(id) as HTMLElement).showPopover()
+}
+
+export function closeTopIds(): string[] {
+  requestCloseTop()
+  return [...document.querySelectorAll('dialog, [popover]')]
+    .filter((el) => (el as HTMLElement).matches(':modal, :popover-open'))
+    .map((el) => el.id)
+}
+
+/** A click with no pointer behind it, as assistive technology sends it. */
+export function syntheticClick(selector: string): void {
+  document.querySelector<HTMLElement>(selector)!.click()
 }

@@ -1,6 +1,5 @@
+import { uniqueId } from './ids'
 import type { Marks } from './marks'
-
-let made = 0
 
 /**
  * The filterable select (R.39, GOV.UK accessible-autocomplete's
@@ -28,7 +27,7 @@ export class SelectSource {
     this.input = inputFor(select, marks)
     this.list = listFor(select)
     select.after(this.input, this.list)
-    marks.toggle(select, 'hidden', true)
+    hideVisually(select, marks) // not `hidden`: a `required` select hidden that way blocks the submit with no message (Chromium)
     signal.addEventListener('abort', () => this.remove(), { once: true })
   }
 
@@ -67,9 +66,12 @@ export class SelectSource {
     this.list.replaceChildren(...[...this.select.options].map(itemFor))
   }
 
+  /** Gone with the panel; a visitor focused on the input lands on the select, back in view. */
   private remove(): void {
+    const focused = this.input.contains(document.activeElement)
     this.input.remove()
     this.list.remove()
+    if (focused) this.select.focus()
   }
 }
 
@@ -77,7 +79,7 @@ export class SelectSource {
 function inputFor(select: HTMLSelectElement, marks: Marks): HTMLInputElement {
   const input = document.createElement('input')
   input.type = 'text'
-  input.id = `${select.id || 'combobox'}-input-${++made}`
+  input.id = uniqueId(`${select.id || 'combobox'}-input`)
   input.value = select.selectedOptions[0]?.text ?? ''
   for (const name of ['aria-label', 'aria-labelledby', 'aria-describedby'])
     if (select.hasAttribute(name))
@@ -89,7 +91,7 @@ function inputFor(select: HTMLSelectElement, marks: Marks): HTMLInputElement {
 /** One list item per option: its value, its text, disabled kept. */
 function listFor(select: HTMLSelectElement): HTMLUListElement {
   const list = document.createElement('ul')
-  list.id = `${select.id || 'combobox'}-list-${made}`
+  list.id = uniqueId(`${select.id || 'combobox'}-list`)
   list.hidden = true
   for (const option of select.options) list.append(itemFor(option))
   return list
@@ -107,4 +109,22 @@ function itemFor(option: HTMLOptionElement): HTMLLIElement {
 function afterTask(fn: () => void, signal: AbortSignal): void {
   const timer = setTimeout(fn)
   signal.addEventListener('abort', () => clearTimeout(timer), { once: true })
+}
+
+/** Out of sight and out of the accessibility tree, still in the form and focusable by the browser's validation. */
+function hideVisually(select: HTMLSelectElement, marks: Marks): void {
+  for (const [name, value] of Object.entries(SR_ONLY))
+    marks.style(select, name, value)
+  marks.set(select, 'aria-hidden', 'true')
+  marks.set(select, 'tabindex', '-1')
+}
+
+const SR_ONLY: Record<string, string> = {
+  position: 'absolute',
+  width: '1px',
+  height: '1px',
+  overflow: 'hidden',
+  'clip-path': 'inset(50%)',
+  opacity: '0',
+  'pointer-events': 'none',
 }

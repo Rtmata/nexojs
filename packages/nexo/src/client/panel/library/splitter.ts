@@ -110,6 +110,7 @@ class Splitter {
   }
 
   private key(event: KeyboardEvent): void {
+    if (event.altKey || event.ctrlKey || event.metaKey) return // the browser's (Alt+← is back)
     const by = this.stepFor(event)
     if (by === undefined) return
     event.preventDefault()

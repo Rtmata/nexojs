@@ -1,6 +1,7 @@
 import { panel } from '../panel'
 import { oneOf } from '../params'
 import { FocusGroup, readSpec } from './focusgroup'
+import { uniqueId } from './ids'
 import { Marks } from './marks'
 
 /**
@@ -35,8 +36,6 @@ interface Tab {
   tab: HTMLAnchorElement
   panel: HTMLElement
 }
-
-let made = 0
 
 class Tabs {
   private readonly marks = new Marks()
@@ -111,7 +110,7 @@ class Tabs {
 
   /** APG roles and the links between each tab and its panel. */
   private roles({ tab, panel }: Tab): void {
-    if (!tab.id) this.marks.set(tab, 'id', `tab-${++made}`)
+    if (!tab.id) this.marks.set(tab, 'id', uniqueId('tab-1'))
     this.marks.set(tab, 'role', 'tab')
     this.marks.set(tab, 'aria-controls', panel.id)
     this.marks.set(panel, 'role', 'tabpanel')

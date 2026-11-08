@@ -29,16 +29,19 @@ function topMost(): HTMLElement | undefined {
 
 /**
  * The top-most of some open top-layer elements: one inside another is
- * above it; among the rest, the one with focus (everything under a modal
- * is inert, so focus can only be in the top one), else the last in the
- * document.
+ * above it; a popover is above a modal dialog (under a modal everything is
+ * inert, so only something inside it could have opened the popover, which
+ * makes the popover newer); among the rest, the one with focus, else the
+ * last in the document.
  */
 export function topOf<T extends HTMLElement>(open: T[]): T | undefined {
   const innermost = open.filter(
     (el) => !open.some((other) => other !== el && el.contains(other)),
   )
-  const focused = innermost.find((el) => el.contains(document.activeElement))
-  return focused ?? innermost.at(-1)
+  const popovers = innermost.filter((el) => !(el instanceof HTMLDialogElement))
+  const candidates = popovers.length > 0 ? popovers : innermost
+  const focused = candidates.find((el) => el.contains(document.activeElement))
+  return focused ?? candidates.at(-1)
 }
 
 /** The top-most open modal `<dialog>`, if any. */

@@ -11,8 +11,9 @@ export function reducedMotion(): boolean {
 const AT_MOST = 4000
 
 export function atMost<T>(promise: Promise<T>): Promise<T | void> {
-  const cap = new Promise<void>((done) => setTimeout(done, AT_MOST))
-  return Promise.race([promise, cap])
+  let timer: ReturnType<typeof setTimeout>
+  const cap = new Promise<void>((done) => (timer = setTimeout(done, AT_MOST)))
+  return Promise.race([promise, cap]).finally(() => clearTimeout(timer))
 }
 
 /** The element's animations (its subtree's too) finished, or none to wait for. */

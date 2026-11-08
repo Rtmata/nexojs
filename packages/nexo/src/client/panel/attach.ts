@@ -45,6 +45,7 @@ function connectOnce(
   const live = connected.get(el) ?? new Map<string, AbortController>()
   if (live.get(name)?.signal.aborted === false) return
   const controller = childOf(signal)
+  if (controller.signal.aborted) return // the owner is gone already: connecting would never end
   if (!tryConnect(el, name, registry, controller)) return
   connected.set(el, live.set(name, controller))
 }

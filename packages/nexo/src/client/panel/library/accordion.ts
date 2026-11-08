@@ -1,5 +1,6 @@
 import { panel } from '../panel'
 import { boolean, string } from '../params'
+import { Marks } from './marks'
 
 /**
  * Accordion (WAI-ARIA APG Accordion) on native `<details>` (R.33): one
@@ -24,7 +25,7 @@ export const accordion = panel({
     const sections = [
       ...el.querySelectorAll<HTMLDetailsElement>(':scope details'),
     ]
-    if (remember) new Memory(storageKey(el, key), sections, signal)
+    if (remember) new Memory(storageKey(el, key), sections, signal, new Marks())
     el.addEventListener('toggle', (e) => announce(el, e), {
       capture: true,
       signal,
@@ -55,17 +56,20 @@ class Memory {
     private readonly key: string,
     private readonly sections: HTMLDetailsElement[],
     signal: AbortSignal,
+    private readonly marks: Marks,
   ) {
     this.restore()
     for (const details of sections)
       details.addEventListener('toggle', () => this.save(), { signal })
+    signal.addEventListener('abort', () => marks.restore(), { once: true })
   }
 
   private restore(): void {
     const open = this.read()
     if (!open) return
     for (const details of this.sections)
-      if (details.id) details.open = open.includes(details.id)
+      if (details.id)
+        this.marks.toggle(details, 'open', open.includes(details.id))
   }
 
   private save(): void {

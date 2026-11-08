@@ -55,12 +55,18 @@ export function swallowNextClick(el: Element, signal: AbortSignal): void {
     event.preventDefault()
     event.stopImmediatePropagation()
   }
+  el.addEventListener('click', swallow, { capture: true, once: true, signal })
   const forget = () =>
     el.removeEventListener('click', swallow, { capture: true })
-  el.addEventListener('click', swallow, { capture: true, once: true, signal })
-  const released = () => setTimeout(forget, 300)
+  const released = () => soon(forget, signal)
   document.addEventListener('pointerup', released, { once: true, signal })
   document.addEventListener('pointercancel', released, { once: true, signal })
+}
+
+/** A moment after the release (the click has come by then), unless the panel ended. */
+function soon(fn: () => void, signal: AbortSignal): void {
+  const timer = setTimeout(fn, 300)
+  signal.addEventListener('abort', () => clearTimeout(timer), { once: true })
 }
 
 /**

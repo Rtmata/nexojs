@@ -1,4 +1,5 @@
 import { panel } from '../panel'
+import { Marks } from './marks'
 
 /**
  * Switch (WAI-ARIA APG Switch) on `<input type="checkbox" switch>`, the
@@ -20,10 +21,9 @@ export const switchControl = panel({
         `switch: data-panel="switch" goes on <input type="checkbox" switch>, not <${el.localName}>`,
       )
     if (hasSwitch() || el.hasAttribute('role')) return
-    el.setAttribute('role', 'switch')
-    signal.addEventListener('abort', () => el.removeAttribute('role'), {
-      once: true,
-    })
+    const marks = new Marks()
+    marks.set(el, 'role', 'switch')
+    signal.addEventListener('abort', () => marks.restore(), { once: true })
   },
 })
 

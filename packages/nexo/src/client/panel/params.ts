@@ -16,7 +16,8 @@ export type ParamsOf<S> = {
 }
 
 export function number(fallback: number): Param<number> {
-  return param(fallback, 'a number', String, (text) => {
+  const write = (n: number) => (Number.isFinite(n) ? String(n) : '')
+  return param(fallback, 'a number', write, (text) => {
     const n = Number(text)
     return text.trim() !== '' && Number.isFinite(n) ? { value: n } : undefined
   })
@@ -40,16 +41,36 @@ export function string(fallback = ''): Param<string> {
 }
 
 /** Arrays and objects, as JSON in the attribute. */
-export function json<T>(fallback: T): Param<T> {
-  return param(fallback, 'JSON', (value) => JSON.stringify(value), parseJson<T>)
+/** Arrays and objects, as JSON in the attribute; `shape` says what the JSON must be (`'array'`, `'object'`). */
+export function json<T>(fallback: T, shape?: 'array' | 'object'): Param<T> {
+  const expected = shape
+    ? `JSON (${shape === 'array' ? 'an array' : 'an object'})`
+    : 'JSON'
+  return param(
+    fallback,
+    expected,
+    (value) => JSON.stringify(value),
+    (text) => parseJson<T>(text, shape),
+  )
 }
 
-function parseJson<T>(text: string): { value: T } | undefined {
+function parseJson<T>(
+  text: string,
+  shape?: 'array' | 'object',
+): { value: T } | undefined {
   try {
-    return { value: JSON.parse(text) as T }
+    const value = JSON.parse(text) as T
+    return isShape(value, shape) ? { value } : undefined
   } catch {
     return undefined
   }
+}
+
+function isShape(value: unknown, shape?: 'array' | 'object'): boolean {
+  if (shape === 'array') return Array.isArray(value)
+  if (shape === 'object')
+    return typeof value === 'object' && value !== null && !Array.isArray(value)
+  return true
 }
 
 /** One of a fixed list of words. */

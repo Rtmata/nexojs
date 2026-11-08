@@ -1347,8 +1347,8 @@ for (const [name, engine] of engines) {
       )
     const region = (attrs = '', inside = '') => `
       <button id="away" style="position:fixed;left:0;top:0">away</button>
-      <ol id="page" data-panel="toast" aria-label="Avisos" data-toast-close="Cerrar" ${attrs}
-          style="position:fixed;right:0;bottom:0;width:300px;min-height:100px;margin:0">${inside}</ol>`
+      <div id="page" data-panel="toast" aria-label="Avisos" data-toast-close="Cerrar" ${attrs}
+          style="position:fixed;right:0;bottom:0;width:300px;min-height:100px;margin:0">${inside}</div>`
     const later = (ms: number) => page.waitForTimeout(ms)
 
     beforeAll(async () => {
@@ -1370,7 +1370,7 @@ for (const [name, engine] of engines) {
 
     test("persistent: the server's message and the app's stay until closed", async () => {
       await call('record')
-      await call('setup', region('', '<li>Guardado</li>'))
+      await call('setup', region('', '<p>Guardado</p>'))
       expect(await call('attributes', '#page', ['role'])).toEqual({
         role: 'log',
       })
@@ -1380,7 +1380,7 @@ for (const [name, engine] of engines) {
         'Guardado [Cerrar]',
         'Agregado a favoritos Deshacer [Cerrar]',
       ])
-      await page.click('#page li:nth-child(2) [data-toast-dismiss]')
+      await page.click('#page p:nth-child(2) [data-toast-dismiss]')
       await later(50)
       expect(await call('messages')).toEqual(['Guardado [Cerrar]'])
       expect(
@@ -1409,13 +1409,13 @@ for (const [name, engine] of engines) {
     })
 
     test('closing keeps focus in the region; F8 reaches the region', async () => {
-      await call('setup', region('', '<li>Uno</li><li>Dos</li>'))
-      await page.focus('#page li:first-child [data-toast-dismiss]')
+      await call('setup', region('', '<p>Uno</p><p>Dos</p>'))
+      await page.focus('#page p:first-child [data-toast-dismiss]')
       await page.keyboard.press('Enter')
       await later(50)
       expect(
         await page.evaluate(
-          () => document.activeElement?.closest('li')?.textContent,
+          () => document.activeElement?.closest('p')?.textContent,
         ),
       ).toContain('Dos')
       await page.focus('#away')
@@ -1427,7 +1427,7 @@ for (const [name, engine] of engines) {
       await call(
         'setup',
         region() +
-          `<dialog id="info"><button id="fav">Favorito</button><ol id="in-info" data-panel="toast" aria-label="Avisos"></ol></dialog>`,
+          `<dialog id="info"><button id="fav">Favorito</button><div id="in-info" data-panel="toast" aria-label="Avisos"></div></dialog>`,
       )
       expect(await call('regionInUse')).toBe('page')
       await call('openModal', 'info')
@@ -1443,7 +1443,7 @@ for (const [name, engine] of engines) {
     })
 
     test('ended: the region as the server sent it', async () => {
-      await call('setupAndEnd', region('', '<li>Guardado</li>'))
+      await call('setupAndEnd', region('', '<p>Guardado</p>'))
       expect(await call('attributes', '#page', ['role', 'tabindex'])).toEqual({
         role: null,
         tabindex: null,
@@ -2180,7 +2180,7 @@ const LAYER_ZERO: [string, string][] = [
     'tooltip',
     '<button interestfor="tip">i</button><div id="tip" popover="hint" data-panel="tooltip">Text <a href="#r">rich</a></div>',
   ],
-  ['toast', '<ol data-panel="toast" aria-label="Notices"><li>Saved</li></ol>'],
+  ['toast', '<div data-panel="toast" aria-label="Notices"><p>Saved</p></div>'],
   [
     'accordion',
     '<div id="acc" data-panel="accordion"><details name="f"><summary>a</summary>1</details></div>',
@@ -2560,9 +2560,9 @@ for (const [name, engine] of engines) {
     test('toast: the region of the modal on top, even when it comes first in the DOM', async () => {
       await call(
         'setup',
-        `<ol id="page" data-panel="toast" aria-label="n"></ol>
-         <dialog id="b"><button id="bb">b</button><ol id="rb" data-panel="toast" aria-label="n"></ol></dialog>
-         <dialog id="a"><button id="ab">open b</button><ol id="ra" data-panel="toast" aria-label="n"></ol></dialog>`,
+        `<div id="page" data-panel="toast" aria-label="n"></div>
+         <dialog id="b"><button id="bb">b</button><div id="rb" data-panel="toast" aria-label="n"></div></dialog>
+         <dialog id="a"><button id="ab">open b</button><div id="ra" data-panel="toast" aria-label="n"></div></dialog>`,
       )
       await call('openModal', 'a')
       expect(await call('regionInUse')).toBe('ra')
@@ -2658,6 +2658,140 @@ for (const [name, engine] of engines) {
         current: 2,
         scrollLeft: 600,
       })
+    })
+  })
+}
+
+for (const [name, engine] of engines) {
+  describe(`review round 4, panels in ${name}`, () => {
+    let browser: Browser
+    let page: Page
+    const call = (fn: string, ...args: unknown[]) =>
+      page.evaluate(
+        ([f, a]) => (window as any).library[f as string](...(a as unknown[])),
+        [fn, args] as const,
+      )
+
+    beforeAll(async () => {
+      browser = await engine.launch()
+      page = await browser.newPage({ viewport: { width: 800, height: 600 } })
+      await page.setContent(
+        '<!doctype html><title>library</title><body style="margin:0"></body>',
+      )
+      await page.evaluate(async (code) => {
+        const url = URL.createObjectURL(
+          new Blob([code], { type: 'text/javascript' }),
+        )
+        ;(window as any).library = await import(url)
+      }, code)
+    }, LAUNCH)
+    afterAll(async () => {
+      await browser?.close()
+    })
+
+    test("two panels on one element: the server's markup comes back whatever the order", async () => {
+      for (const html of [
+        '<div data-panel="tokens gesture" data-tokens-values=\'{"accent":"blue"}\' data-gesture-axis="x"></div>',
+        '<div data-panel="gesture tokens" data-tokens-values=\'{"accent":"blue"}\' data-gesture-axis="x" style="color: red"></div>',
+        '<div data-panel="focusgroup indicator" focusgroup="toolbar"><button aria-selected="true">a</button></div>',
+      ]) {
+        const result = (await call('roundTrip', html)) as {
+          before: string
+          after: string
+        }
+        expect(result.after).toBe(result.before)
+      }
+    })
+
+    test('attach with a signal already aborted connects nothing', async () => {
+      expect(
+        await call(
+          'attachAborted',
+          '<ul data-panel="listbox" aria-label="l"><li>a</li></ul>',
+        ),
+      ).toEqual({ connected: false })
+    })
+
+    test('focusgroup skips hidden items; dialogs without ids get distinct ones', async () => {
+      await call(
+        'setup',
+        `<div data-panel="focusgroup" focusgroup="toolbar inline"><button id="a">a</button><button id="b" hidden>b</button><button id="c">c</button></div>
+         <dialog data-panel="dialog"><h2>One</h2></dialog><dialog data-panel="dialog"><h2>Two</h2></dialog>`,
+      )
+      await page.focus('#a')
+      await page.keyboard.press('ArrowRight')
+      expect(await call('focusedId')).toBe('c')
+      const ids = await page.evaluate(() =>
+        [...document.querySelectorAll('dialog h2')].map((h) => h.id),
+      )
+      expect(new Set(ids).size).toBe(2)
+      expect(
+        await page.evaluate(() =>
+          [...document.querySelectorAll('dialog')].map((d) =>
+            d.getAttribute('aria-labelledby'),
+          ),
+        ),
+      ).toEqual(ids)
+    })
+
+    test('confirm-on-hold: a click without a pointer (assistive technology) arms, then confirms', async () => {
+      await call('record')
+      await call(
+        'setup',
+        '<button id="del" data-panel="confirm-on-hold">Delete</button>',
+      )
+      await call('syntheticClick', '#del')
+      expect(await call('attributes', '#del', ['data-armed'])).toEqual({
+        'data-armed': '',
+      })
+      await call('syntheticClick', '#del')
+      expect(
+        ((await call('events')) as string[]).filter((e) =>
+          e.startsWith('confirm'),
+        ),
+      ).toEqual(['confirm-on-hold:confirm'])
+    })
+
+    test('toast refuses a list; carousel li slides make their list presentational', async () => {
+      expect(
+        await call('setupError', '<ol data-panel="toast" aria-label="n"></ol>'),
+      ).toContain('not <ol>')
+      await call(
+        'setup',
+        '<section data-panel="carousel" aria-label="s"><ul id="sl" data-carousel-slides><li>a</li><li>b</li></ul></section>',
+      )
+      expect(await call('rolesOf', '#sl, #sl > li')).toEqual([
+        'presentation',
+        'group',
+        'group',
+      ])
+    })
+
+    test('splitter leaves Alt/Ctrl/Meta arrows to the browser; listbox typeahead cycles on a repeated letter', async () => {
+      await call(
+        'setup',
+        `<div style="display:flex;width:600px"><nav id="side" style="inline-size:var(--splitter-size, 200px);flex:none">s</nav><div id="sep" data-panel="splitter" aria-controls="side" style="width:8px;flex:none"></div><main style="flex:1">m</main></div>
+         <ul id="lb" data-panel="listbox" aria-label="l"><li>Alpha</li><li>Avocado</li><li>Apple</li><li>Beta</li></ul>`,
+      )
+      await page.focus('#sep')
+      await page.keyboard.press('Alt+ArrowRight')
+      expect(await call('splitterState')).toMatchObject({ size: '' })
+      await page.focus('#lb')
+      await page.keyboard.press('a') // focus had made Alpha active: the next one starting with a
+      expect(await call('listboxState')).toMatchObject({ active: 'Avocado' })
+      await page.keyboard.press('a') // again: the one after, not the prefix "aa"
+      expect(await call('listboxState')).toMatchObject({ active: 'Apple' })
+    })
+
+    test('requestCloseTop: a popover opened from inside a modal is above it', async () => {
+      await call(
+        'setup',
+        `<div id="help" popover>help</div><dialog id="d"><button id="hb">?</button></dialog>`,
+      )
+      await call('openModal', 'd')
+      await page.focus('#hb')
+      await call('openPopover', 'help')
+      expect(await call('closeTopIds')).toEqual(['d'])
     })
   })
 }

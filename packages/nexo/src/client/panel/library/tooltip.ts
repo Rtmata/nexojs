@@ -133,7 +133,7 @@ class Interest {
     ;(this.tip.showPopover as (o?: { source: Element }) => void)({
       source: invoker,
     })
-    if (this.rich) invoker.setAttribute('aria-expanded', 'true')
+    if (this.rich) this.marks.set(invoker, 'aria-expanded', 'true')
     this.fire('interest')
   }
 
@@ -150,7 +150,7 @@ class Interest {
 
   private lost(): void {
     if (!this.source) return
-    if (this.rich) this.source.setAttribute('aria-expanded', 'false')
+    if (this.rich) this.marks.set(this.source, 'aria-expanded', 'false')
     this.fire('loseinterest')
     this.source = undefined
   }

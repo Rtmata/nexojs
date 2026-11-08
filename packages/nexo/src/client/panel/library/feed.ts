@@ -58,7 +58,9 @@ class Feed {
     move()
   }
 
+  /** Not while typing in a field inside an article, and never with Alt or Meta. */
   private moveFor(event: KeyboardEvent): (() => void) | undefined {
+    if (event.altKey || event.metaKey || typing(event.target)) return undefined
     if (event.key === 'PageDown') return () => this.step(1)
     if (event.key === 'PageUp') return () => this.step(-1)
     if (event.ctrlKey && event.key === 'End') return () => this.out(1)
@@ -111,3 +113,12 @@ function isShown(e: HTMLElement): boolean {
 
 const FOCUSABLE =
   'a[href], button:not([disabled]), input:not([disabled]), select, textarea, [tabindex]:not([tabindex="-1"])'
+
+function typing(target: EventTarget | null): boolean {
+  return (
+    target instanceof Element &&
+    target.matches(
+      'input:not([type=button],[type=submit],[type=reset],[type=checkbox],[type=radio],[type=range]), textarea, select, [contenteditable="true"]',
+    )
+  )
+}

@@ -1,21 +1,28 @@
 /**
  * Attributes a panel writes over layer 0, remembered so the panel can take
  * them back when it ends: the markup returns to what the server sent.
+ *
+ * Several panels may write the same attribute of one element (`data-panel=
+ * "tokens gesture"`): what the server sent is recorded once, by the first
+ * to touch it, and put back by the last to leave, whatever the order.
  */
 export class Marks {
-  private readonly before = new Map<Element, Map<string, string | null>>()
+  private readonly touched = new Map<Element, Set<string>>()
 
   set(el: Element, name: string, value: string): void {
-    const seen = this.before.get(el) ?? new Map<string, string | null>()
-    if (!seen.has(name)) seen.set(name, el.getAttribute(name))
-    this.before.set(el, seen)
+    this.claim(el, name)
     el.setAttribute(name, value)
   }
 
   /** A boolean attribute on or off (`hidden`), remembered the same way. */
   toggle(el: Element, name: string, on: boolean): void {
-    this.set(el, name, '')
-    if (!on) el.removeAttribute(name)
+    this.claim(el, name)
+    el.toggleAttribute(name, on)
+  }
+
+  remove(el: Element, name: string): void {
+    this.claim(el, name)
+    el.removeAttribute(name)
   }
 
   /** Writes it only where the author didn't. */
@@ -29,22 +36,54 @@ export class Marks {
    * it back verbatim (no stray `style=""` or reformatted text).
    */
   style(el: HTMLElement, name: string, value: string): void {
-    const seen = this.before.get(el) ?? new Map<string, string | null>()
-    if (!seen.has('style')) seen.set('style', el.getAttribute('style'))
-    this.before.set(el, seen)
+    this.claim(el, 'style')
     el.style.setProperty(name, value)
     el.style.cssText = el.style.cssText // settled now, not lazily (see `put`); CSSOM, so a strict CSP allows it
   }
 
-  /** Every attribute back, `style` last: a later attribute change would resurrect a removed one (WebKit). */
-  restore(): void {
-    for (const [el, seen] of this.before) {
-      for (const [name, value] of seen)
-        if (name !== 'style') put(el, name, value)
-      if (seen.has('style')) put(el, 'style', seen.get('style')!)
-    }
-    this.before.clear()
+  /** This panel holds the attribute; the server's value is recorded by whoever came first. */
+  private claim(el: Element, name: string): void {
+    const names = this.touched.get(el) ?? new Set<string>()
+    names.add(name)
+    this.touched.set(el, names)
+    originalOf(el, name).holders.add(this)
   }
+
+  /** Every attribute this panel touched goes back once no other panel holds it; `style` last. */
+  restore(): void {
+    for (const [el, names] of this.touched) {
+      for (const name of names) if (name !== 'style') this.release(el, name)
+      if (names.has('style')) this.release(el, 'style')
+    }
+    this.touched.clear()
+  }
+
+  private release(el: Element, name: string): void {
+    const original = originals.get(el)?.get(name)
+    if (!original) return
+    original.holders.delete(this)
+    if (original.holders.size > 0) return
+    originals.get(el)!.delete(name)
+    put(el, name, original.value)
+  }
+}
+
+/** What the server sent for one attribute of one element, and the panels writing over it now. */
+interface Original {
+  value: string | null
+  holders: Set<Marks>
+}
+
+const originals = new WeakMap<Element, Map<string, Original>>()
+
+function originalOf(el: Element, name: string): Original {
+  const map = originals.get(el) ?? new Map<string, Original>()
+  originals.set(el, map)
+  const known = map.get(name)
+  if (known) return known
+  const made = { value: el.getAttribute(name), holders: new Set<Marks>() }
+  map.set(name, made)
+  return made
 }
 
 /**

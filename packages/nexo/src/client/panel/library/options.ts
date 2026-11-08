@@ -1,6 +1,5 @@
+import { uniqueId } from './ids'
 import type { Marks } from './marks'
-
-let made = 0
 
 /**
  * A list's options and the active one (APG's `aria-activedescendant`
@@ -28,7 +27,7 @@ export class Options {
 
   /** No active option: nothing is named on the controller. */
   clear(): void {
-    this.controller.removeAttribute('aria-activedescendant')
+    this.marks.remove(this.controller, 'aria-activedescendant')
     for (const o of this.all()) this.marks.toggle(o, 'data-active', false)
   }
 
@@ -39,7 +38,7 @@ export class Options {
 
   activate(option: HTMLElement | undefined): void {
     if (!option) return
-    if (!option.id) this.marks.set(option, 'id', `option-${++made}`)
+    if (!option.id) this.marks.set(option, 'id', uniqueId('option-1'))
     this.marks.set(this.controller, 'aria-activedescendant', option.id)
     for (const o of this.all())
       this.marks.toggle(o, 'data-active', o === option)
@@ -58,8 +57,11 @@ export class Options {
 
   /** What an option stands for: `data-value`, else its text. */
   static valueOf(option: Element): string {
-    return (
-      option.getAttribute('data-value') ?? (option.textContent ?? '').trim()
-    )
+    return option.getAttribute('data-value') ?? collapsed(option.textContent)
   }
+}
+
+/** Text as a value: whitespace collapsed (an option with nested markup has line breaks inside). */
+export function collapsed(text: string | null): string {
+  return (text ?? '').replace(/\s+/g, ' ').trim()
 }

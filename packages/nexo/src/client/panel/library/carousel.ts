@@ -77,6 +77,8 @@ class Carousel {
   }
 
   private prepareSlide(slide: HTMLElement, i: number): void {
+    if (slide instanceof HTMLLIElement)
+      this.marks.set(this.scroller, 'role', 'presentation') // ARIA in HTML: `group` on an li only once its list isn't one
     this.marks.set(slide, 'role', 'group')
     this.marks.set(slide, 'aria-roledescription', 'slide')
     if (

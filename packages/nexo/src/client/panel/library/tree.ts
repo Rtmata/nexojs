@@ -33,13 +33,14 @@ class Tree {
   private readonly marks = new Marks()
   private readonly nodes: Nested<HTMLElement>
   private readonly expansion: Expansion<HTMLElement>
-  private readonly typeahead = new Typeahead()
+  private readonly typeahead: Typeahead
 
   constructor(
     private readonly root: HTMLElement,
     signal: AbortSignal,
   ) {
     this.nodes = new Nested(root, itemOf)
+    this.typeahead = new Typeahead(signal, ownLabel)
     this.prepare()
     this.expansion = new Expansion(this.nodes, this.marks, (node) =>
       node.closest('li')!,
@@ -82,11 +83,13 @@ class Tree {
     const on = { signal }
     this.root.addEventListener('keydown', (e) => this.key(e), on)
     this.root.addEventListener('click', (e) => this.clicked(e), on)
-    this.root.addEventListener(
-      'focusin',
-      (e) => this.settle(this.itemAround(e.target as Element)),
-      on,
-    )
+    this.root.addEventListener('focusin', (e) => this.focused(e), on)
+  }
+
+  /** Focus on an item: the tab stop; on something else inside (a button beside a link): nothing moves. */
+  private focused(event: FocusEvent): void {
+    const item = this.itemAround(event.target as Element)
+    if (item) this.settle(item)
   }
 
   private itemAround(target: Element): HTMLElement | undefined {
@@ -239,6 +242,11 @@ function itemOf(li: HTMLLIElement): HTMLElement {
   return first instanceof HTMLAnchorElement && first.hasAttribute('href')
     ? first
     : li
+}
+
+/** For typeahead: an item's own line, lower case. */
+function ownLabel(item: Element): string {
+  return ownText(item as HTMLElement).toLowerCase()
 }
 
 /** An item's own label: its text nodes, not its group's. */

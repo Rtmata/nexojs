@@ -45,8 +45,8 @@ class Indicator {
       signal,
       passive: true,
     })
+    signal.addEventListener('abort', () => this.end(changed), { once: true }) // before the first measure: a bad selector throws there, and attach aborts
     this.measure()
-    signal.addEventListener('abort', () => this.end(changed), { once: true })
   }
 
   private measure(): void {

@@ -1,5 +1,6 @@
 import { panel } from '../panel'
 import { bridgeCommands } from './commands'
+import { uniqueId } from './ids'
 import { Marks } from './marks'
 
 /**
@@ -46,7 +47,8 @@ function named(dialog: HTMLDialogElement, marks: Marks): void {
     return
   const heading = dialog.querySelector('h1, h2, h3, h4, h5, h6')
   if (!heading) return
-  if (!heading.id) marks.set(heading, 'id', `${dialog.id || 'dialog'}-title`)
+  if (!heading.id)
+    marks.set(heading, 'id', uniqueId(`${dialog.id || 'dialog'}-title`))
   marks.set(dialog, 'aria-labelledby', heading.id)
 }
 
@@ -59,7 +61,8 @@ function described(dialog: HTMLDialogElement, marks: Marks): void {
   if (dialog.hasAttribute('aria-describedby')) return
   const message = dialog.querySelector('p')
   if (!message) return
-  if (!message.id) marks.set(message, 'id', `${dialog.id || 'dialog'}-message`)
+  if (!message.id)
+    marks.set(message, 'id', uniqueId(`${dialog.id || 'dialog'}-message`))
   marks.set(dialog, 'aria-describedby', message.id)
 }
 

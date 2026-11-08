@@ -19,7 +19,7 @@ import { animationsDone, atMost } from './motion'
  */
 export const sequence = panel({
   params: {
-    phases: json<string[]>(['out', 'in']),
+    phases: json<string[]>(['out', 'in'], 'array'),
     on: string('sequence:start'),
   },
   connect: (el, params, { signal }) =>

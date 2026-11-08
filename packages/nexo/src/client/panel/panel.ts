@@ -109,6 +109,10 @@ const NON_BUBBLING = new Set([
   'scroll',
   'invalid',
   'toggle',
+  'beforetoggle',
+  'scrollend',
+  'loadend',
+  'progress',
   'abort',
   'cancel',
   'close',
@@ -148,6 +152,8 @@ class Connection<S extends Schema, C> {
     params: ParamsOf<S>,
     private readonly signal: AbortSignal,
   ) {
+    this.ctx = undefined as C
+    if (signal.aborted) return // over before it began: nothing to connect, nothing to end later
     this.ctx = options.connect
       ? options.connect(el, params, { signal })
       : (undefined as C)
@@ -159,12 +165,21 @@ class Connection<S extends Schema, C> {
   private listen(type: string, entries: Entry<C>[]): void {
     const capture = NON_BUBBLING.has(type)
     const listener = (event: Event) => {
-      for (const entry of entries) this.dispatch(event, type, entry)
+      for (const entry of entries) this.dispatchSafely(event, type, entry)
     }
     this.el.addEventListener(TWIN[type] ?? type, listener, {
       capture,
       signal: this.signal,
     })
+  }
+
+  /** One handler's error never silences the next entry for the same event. */
+  private dispatchSafely(event: Event, type: string, entry: Entry<C>): void {
+    try {
+      this.dispatch(event, type, entry)
+    } catch (error) {
+      reportError(error)
+    }
   }
 
   /**

@@ -87,7 +87,7 @@ Pointer gestures on an element: `gesture:tap`, and `gesture:swipe` with `{ direc
 
 ## slider
 
-On native `<input type="range">`, alone or several in a container (multi-thumb, APG). CSS gets `--slider-fill` (0–1); `data-slider-valuetext="{value} €"` sets `aria-valuetext`. Thumbs never cross: each one's `aria-valuemin` / `aria-valuemax` follow its neighbours (the end thumbs keep the native bounds), and the container gets `--slider-from` / `--slider-to`. A form reset repaints.
+On native `<input type="range">`, alone or several in a container (multi-thumb, APG). CSS gets `--slider-fill` (a percentage, `0%`–`100%`); `data-slider-valuetext="{value} €"` sets `aria-valuetext`. Thumbs never cross: each one's `aria-valuemin` / `aria-valuemax` follow its neighbours (the end thumbs keep the native bounds), and the container gets `--slider-from` / `--slider-to`. A form reset repaints.
 
 ## hover-intent
 
@@ -212,26 +212,26 @@ The defaults are what Chromium 156 does for `interest-delay: normal`. Place it w
 A messages region (R.40) that exists from the first render (a live region added later is often not announced). Its children are the messages, added by the app or by bridge (`data-bridge-swap="append"`). A message the server rendered after a form post is layer 0.
 
 ```html
-<ol
+<div
   id="notices"
   data-panel="toast"
   role="log"
   aria-label="Notices"
   data-toast-close="Close"
 >
-  <li>Saved</li>
-</ol>
+  <p>Saved</p>
+</div>
 ```
 
 ```ts
 toastRegion()!.insertAdjacentHTML(
   'beforeend',
-  '<li>Added to favorites <button>Undo</button></li>',
+  '<p>Added to favorites <button>Undo</button></p>',
 )
 ```
 
 - **Staying:** messages stay until closed (WCAG 2.2.1), and each one gets a close button (`[data-toast-dismiss]`, named by `data-toast-close`). With `data-toast-duration="5000"`, a message without controls of its own leaves by itself, paused while hovered or focused and while the window isn't (Radix). A message with an Undo always waits for the visitor.
-- **Roles:** `role="log"` is the default, for ordered, polite messages; use a separate `role="alert"` region for urgent ones.
+- **Roles:** `role="log"` is the default, for ordered, polite messages; use a separate `role="alert"` region for urgent ones. The region is a `<div>` or `<section>`, never a list: ARIA in HTML lets no `<ul>`/`<ol>` be a log or an alert.
 - **Leaving:** a closing message gets `[data-leaving]` for its exit animation, and focus stays in the region.
 - **Reaching it:** F8 (`data-toast-key`) moves focus to the region in use.
 - **Modal dialogs:** everything outside an open modal `<dialog>` is inert, so a dialog that sends messages holds its own region. `toastRegion()` returns the one of the top-most modal (the one holding focus: everything under it is inert), else the page's.

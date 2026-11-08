@@ -10,7 +10,7 @@ import { Marks } from './marks'
  *   → style="--accent: #e3b341; --gap: 1rem"
  */
 export const tokens = panel({
-  params: { values: json<Record<string, string | number>>({}) },
+  params: { values: json<Record<string, string | number>>({}, 'object') },
   connect(el, { values }, { signal }) {
     const marks = new Marks()
     for (const [key, value] of Object.entries(values))

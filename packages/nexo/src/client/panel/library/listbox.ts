@@ -54,7 +54,7 @@ export class Listbox {
   private readonly explicit: boolean
   private readonly marks = new Marks()
   private readonly options: Options
-  private readonly typeahead = new Typeahead()
+  private readonly typeahead: Typeahead
   private anchor?: HTMLElement
 
   constructor(
@@ -65,6 +65,7 @@ export class Listbox {
     this.multiple =
       multiple || el.getAttribute('aria-multiselectable') === 'true'
     this.options = new Options(el, el, this.marks)
+    this.typeahead = new Typeahead(signal)
     this.explicit = el.querySelector('[role=option]') !== null
     this.prepare()
     this.watch(signal)

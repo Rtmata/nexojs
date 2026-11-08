@@ -14,7 +14,7 @@ import { emit } from './hold'
  *   <html data-panel="keymap" data-keymap-keys='{"ctrl+k":"search","j":"next"}'>
  */
 export const keymap = panel({
-  params: { keys: json<Record<string, string>>({}) },
+  params: { keys: json<Record<string, string>>({}, 'object') },
   connect: (_el, { keys }) => normalize(keys),
   events: { keydown: (e, keys, el) => press(e as KeyboardEvent, keys, el) },
 })
