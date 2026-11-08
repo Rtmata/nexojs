@@ -296,6 +296,29 @@ One tab stop, and APG's keys: the arrows move between cells and stop at the edge
 
 **Treegrid (R.36):** rows with `aria-level` make the table a `treegrid`. A row followed by deeper rows is a parent: it gets `aria-expanded` (closed unless you wrote `aria-expanded="true"`), its children hide while it's closed, and it takes focus as a row: → opens it (or enters its first cell), ← closes it (or, from the first cell, goes back to the row), ↑ ↓ Home End move between rows. `grid:toggle` carries `{ id, expanded }`. Not built (APG "if supported"): selection, `aria-rowcount` for virtual rows, sorting.
 
+## tree
+
+APG Tree View on plain nested lists (R.36). Without JS it's an outline with everything shown; nested `<details>` without a panel remain the right markup for an outline that must fold without JS (that's nested disclosures, not a tree: ARIA lets `<details>` carry no role).
+
+```html
+<ul data-panel="tree" aria-label="Contents">
+  <li>
+    Part I
+    <ul>
+      <li><a href="#c1">Chapter 1</a></li>
+      <li aria-expanded="true">
+        Chapter 2
+        <ul>
+          <li>Section 1</li>
+        </ul>
+      </li>
+    </ul>
+  </li>
+</ul>
+```
+
+As APG's examples, the treeitem is the `<li>`, or the link that starts it (the `<li>` is then `none`); a list inside an item is its `group`. Parents get `aria-expanded` (closed unless you wrote `true`) and their groups hide while closed. One tab stop (the `aria-current` item, else the selected one, else the first). Keys: ↑ ↓ between visible items, → opens a parent or enters it, ← closes it or goes up, Home / End, `*` opens every sibling, typeahead. Enter on a link follows it; on another item Enter, Space or a click selects it (`aria-selected`, one at a time), and a click on a parent's own text toggles it. `tree:toggle` carries `{ id, expanded }`, `tree:select` `{ id, value }` (`data-value`, else the text). Not built: multiple selection, `aria-level` / `aria-setsize` for lazily loaded nodes.
+
 ## Lazy media: markup, no panel
 
 `<img loading="lazy">` and `<iframe loading="lazy">` work in every engine. For `<video>`, `loading="lazy"` is Chrome-only (150+). Write `preload="none"` too: every engine then waits to fetch the video, though the `poster` still loads early where `loading` is missing. A script can't help here, because the poster is requested before any script runs.

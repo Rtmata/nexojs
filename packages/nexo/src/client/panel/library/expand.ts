@@ -15,9 +15,14 @@ export interface Hierarchy<N extends HTMLElement> {
 }
 
 export class Expansion<N extends HTMLElement> {
+  /**
+   * `shell(node)` is what hides with the node: the node itself (a row), or
+   * the list item around a link that is the treeitem (tree).
+   */
   constructor(
     private readonly tree: Hierarchy<N>,
     private readonly marks: Marks,
+    private readonly shell: (node: N) => HTMLElement = (node) => node,
   ) {
     for (const node of tree.all()) this.prepare(node)
   }
@@ -40,7 +45,7 @@ export class Expansion<N extends HTMLElement> {
 
   /** Nodes that can be seen: every ancestor open. */
   visible(): N[] {
-    return this.tree.all().filter((node) => !node.hidden)
+    return this.tree.all().filter((node) => !this.shell(node).hidden)
   }
 
   open(node: N): boolean {
@@ -63,13 +68,13 @@ export class Expansion<N extends HTMLElement> {
 
   /** Shown with its open descendants, as they were before the parent closed. */
   private show(node: N): void {
-    this.marks.toggle(node, 'hidden', false)
+    this.marks.toggle(this.shell(node), 'hidden', false)
     if (this.isOpen(node))
       for (const child of this.tree.children(node)) this.show(child)
   }
 
   private hide(node: N): void {
-    this.marks.toggle(node, 'hidden', true)
+    this.marks.toggle(this.shell(node), 'hidden', true)
     for (const child of this.tree.children(node)) this.hide(child)
   }
 }
@@ -105,4 +110,42 @@ export class Leveled<N extends HTMLElement> implements Hierarchy<N> {
 function takeWhile<T>(items: T[], keep: (item: T) => boolean): T[] {
   const end = items.findIndex((item) => !keep(item))
   return end < 0 ? items : items.slice(0, end)
+}
+
+/**
+ * Nested lists (tree): a node is a list item's treeitem (the item, or the
+ * link that starts it), its children the items of the list inside it.
+ */
+export class Nested<N extends HTMLElement> implements Hierarchy<N> {
+  constructor(
+    private readonly root: HTMLElement,
+    private readonly itemOf: (li: HTMLLIElement) => N,
+  ) {}
+
+  all(): N[] {
+    return [...this.root.querySelectorAll('li')].map(this.itemOf)
+  }
+
+  level(node: N): number {
+    let level = 0
+    for (
+      let el = node.closest('ul, ol');
+      el && el !== this.root;
+      el = el.parentElement!.closest('ul, ol')
+    )
+      level++
+    return level + 1
+  }
+
+  children(node: N): N[] {
+    const list = node.closest('li')?.querySelector(':scope > ul, :scope > ol')
+    return [...(list?.querySelectorAll(':scope > li') ?? [])].map((li) =>
+      this.itemOf(li as HTMLLIElement),
+    )
+  }
+
+  parent(node: N): N | undefined {
+    const li = node.closest('li')?.parentElement?.closest('li')
+    return li ? this.itemOf(li) : undefined
+  }
 }

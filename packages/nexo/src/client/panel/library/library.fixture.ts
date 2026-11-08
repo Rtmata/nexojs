@@ -3,6 +3,7 @@ import {
   activity,
   accordion,
   attach,
+  tree,
   grid,
   hasSwitch,
   switchControl,
@@ -59,6 +60,7 @@ const panels = registry({
   accordion,
   switch: switchControl,
   grid,
+  tree,
 })
 
 /** The panels of the previous scenario end with it: no listener outlives its markup. */
@@ -172,6 +174,8 @@ export function record(): void {
     'toast:dismiss',
     'accordion:toggle',
     'grid:toggle',
+    'tree:toggle',
+    'tree:select',
     'change',
   ])
     document.addEventListener(name, (e) => w.events.push(describeEvent(e)), {
@@ -463,4 +467,24 @@ export function tabStops(): string[] {
   return [...document.querySelectorAll<HTMLElement>('[tabindex="0"]')].map(
     (e) => e.id || e.textContent!.trim(),
   )
+}
+
+export function treeFocus(): string | null {
+  const active = document.activeElement as HTMLElement | null
+  if (!active?.closest('[role=tree]')) return null
+  const text = [...active.childNodes]
+    .filter((n) => n.nodeType === Node.TEXT_NODE)
+    .map((n) => n.textContent!.trim())
+    .join('')
+  return `${active.localName} ${text || active.textContent!.trim()}`
+}
+
+export function visibleItems(): string[] {
+  return [...document.querySelectorAll<HTMLElement>('[role=treeitem]')]
+    .filter(
+      (i) =>
+        !i.closest('li')!.hidden &&
+        !i.closest('li')!.parentElement!.closest('li')?.hidden,
+    )
+    .map((i) => i.id)
 }

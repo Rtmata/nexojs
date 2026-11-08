@@ -1755,3 +1755,151 @@ for (const [name, engine] of engines) {
     })
   })
 }
+
+for (const [name, engine] of engines) {
+  describe(`tree in ${name}`, () => {
+    let browser: Browser
+    let page: Page
+    const call = (fn: string, ...args: unknown[]) =>
+      page.evaluate(
+        ([f, a]) => (window as any).library[f as string](...(a as unknown[])),
+        [fn, args] as const,
+      )
+    const focus = () => call('treeFocus')
+    const contents = `
+      <ul id="toc" data-panel="tree" aria-label="Contents">
+        <li id="p1">Part I
+          <ul>
+            <li id="c1"><a id="l1" href="#c1">Chapter 1</a></li>
+            <li id="c2" aria-expanded="true">Chapter 2
+              <ul><li id="s1">Section 1</li></ul>
+            </li>
+          </ul>
+        </li>
+        <li id="p2">Part II<ul><li id="c3">Chapter 3</li></ul></li>
+        <li id="ap">Appendix</li>
+      </ul>`
+
+    beforeAll(async () => {
+      browser = await engine.launch()
+      page = await browser.newPage()
+      await page.setContent(
+        '<!doctype html><title>library</title><body></body>',
+      )
+      await page.evaluate(async (code) => {
+        const url = URL.createObjectURL(
+          new Blob([code], { type: 'text/javascript' }),
+        )
+        ;(window as any).library = await import(url)
+      }, code)
+    }, LAUNCH)
+    afterAll(async () => {
+      await browser?.close()
+    })
+
+    test('roles as APG: items, a link as the item, groups; parents closed unless said open', async () => {
+      await call('setup', contents)
+      expect(await call('rolesOf', '#toc')).toEqual(['tree'])
+      expect(await call('rolesOf', '#toc ul')).toEqual(Array(3).fill('group'))
+      expect(await call('rolesOf', '#p1, #l1, #ap')).toEqual(
+        Array(3).fill('treeitem'),
+      )
+      expect(await call('rolesOf', '#c1')).toEqual(['none'])
+      expect(
+        await call('attributes', '#p1', ['aria-expanded', 'tabindex']),
+      ).toEqual({ 'aria-expanded': 'false', tabindex: '0' })
+      expect(
+        await call('attributes', '#ap', ['aria-expanded', 'tabindex']),
+      ).toEqual({ 'aria-expanded': null, tabindex: '-1' })
+      expect(await call('visibleItems')).toEqual(['p1', 'p2', 'ap'])
+    })
+
+    test('keys: → opens then enters, ← closes then goes up, ↑ ↓ Home End, *, typeahead', async () => {
+      await call('record')
+      await call('setup', contents)
+      await page.keyboard.press('Tab')
+      expect(await focus()).toBe('li Part I')
+      await page.keyboard.press('ArrowRight')
+      expect(await call('visibleItems')).toEqual([
+        'p1',
+        'l1',
+        'c2',
+        's1',
+        'p2',
+        'ap',
+      ])
+      await page.keyboard.press('ArrowRight')
+      expect(await focus()).toBe('a Chapter 1')
+      await page.keyboard.press('ArrowDown')
+      await page.keyboard.press('ArrowLeft')
+      expect(await call('visibleItems')).toEqual(['p1', 'l1', 'c2', 'p2', 'ap'])
+      await page.keyboard.press('ArrowLeft')
+      expect(await focus()).toBe('li Part I')
+      await page.keyboard.press('End')
+      expect(await focus()).toBe('li Appendix')
+      await page.keyboard.press('Home')
+      await page.keyboard.press('*')
+      expect(await call('visibleItems')).toEqual([
+        'p1',
+        'l1',
+        'c2',
+        'p2',
+        'c3',
+        'ap',
+      ])
+      await page.keyboard.press('a')
+      expect(await focus()).toBe('li Appendix')
+      await page.keyboard.press('ArrowUp')
+      expect(await focus()).toBe('li Chapter 3')
+      expect(
+        ((await call('events')) as string[]).filter((e) =>
+          e.startsWith('tree'),
+        ),
+      ).toEqual([
+        'tree:toggle p1=true',
+        'tree:toggle c2=false',
+        'tree:toggle p2=true',
+      ])
+    })
+
+    test("selection: Enter or a click selects one item; a click on a parent's text toggles it", async () => {
+      await call('record')
+      await call('setup', contents)
+      await page.focus('#ap')
+      await page.keyboard.press('Enter')
+      expect(await call('attributes', '#ap', ['aria-selected'])).toEqual({
+        'aria-selected': 'true',
+      })
+      await page.click('#p2')
+      expect(await call('visibleItems')).toEqual(['p1', 'p2', 'c3', 'ap'])
+      await page.click('#c3')
+      expect(await call('attributes', '#ap', ['aria-selected'])).toEqual({
+        'aria-selected': 'false',
+      })
+      expect(
+        ((await call('events')) as string[]).filter((e) =>
+          e.startsWith('tree'),
+        ),
+      ).toEqual([
+        'tree:select Appendix',
+        'tree:toggle p2=true',
+        'tree:select Chapter 3',
+      ])
+    })
+
+    test('ended: the outline as the server sent it', async () => {
+      await call('setupAndEnd', contents)
+      expect(await call('rolesOf', '#toc, #p1, #l1, #c1')).toEqual([
+        null,
+        null,
+        null,
+        null,
+      ])
+      expect(
+        await page.evaluate(
+          () => document.querySelectorAll('[hidden], [tabindex]').length,
+        ),
+      ).toBe(0)
+    })
+  })
+}
