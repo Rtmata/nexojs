@@ -95,6 +95,7 @@ class Gesture {
   private end(): void {
     this.pointer = undefined
     this.samples = []
+    if (!this.params.follow) return
     this.marks.style(this.el, '--gesture-x', '')
     this.marks.style(this.el, '--gesture-y', '')
     this.marks.toggle(this.el, 'data-gesturing', false)

@@ -131,7 +131,7 @@ class Carousel {
     const index = gaps.indexOf(Math.min(...gaps))
     if (index === this.current) return
     this.current = index
-    slides.forEach((s, i) => s.toggleAttribute('data-current', i === index))
+    slides.forEach((s, i) => this.marks.toggle(s, 'data-current', i === index))
     emit(this.el, 'carousel:change', { index })
   }
 
@@ -157,11 +157,15 @@ class Carousel {
     this.rotating = on
     clearInterval(this.timer)
     this.timer = on ? this.ticking() : undefined
-    this.toggle()?.setAttribute(
-      'aria-label',
-      on ? this.params.pause : this.params.play,
-    )
+    this.label(on)
     this.marks.set(this.scroller, 'aria-live', on ? 'off' : 'polite')
+  }
+
+  /** The toggle says what it will do (APG). */
+  private label(rotating: boolean): void {
+    const toggle = this.toggle()
+    const text = rotating ? this.params.pause : this.params.play
+    if (toggle) this.marks.set(toggle, 'aria-label', text)
   }
 
   private ticking(): ReturnType<typeof setInterval> {
@@ -182,7 +186,6 @@ class Carousel {
 
   private end(): void {
     clearInterval(this.timer)
-    for (const slide of this.slides()) slide.removeAttribute('data-current')
     this.marks.restore()
   }
 }

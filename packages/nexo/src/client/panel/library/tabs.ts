@@ -120,13 +120,19 @@ class Tabs {
   }
 }
 
-/** Each link to a section inside the panel, with that section; a dead link is an error. */
+/**
+ * The tabs: the links of the first link's list (`ul`, `ol`, `nav`), each
+ * with its section; a dead link there is an error. Links inside the
+ * sections are the author's content, not tabs.
+ */
 function pairsIn(el: HTMLElement): Tab[] {
-  const links = [...el.querySelectorAll<HTMLAnchorElement>('a[href^="#"]')]
-  if (links.length === 0)
+  const first = el.querySelector<HTMLAnchorElement>('a[href^="#"]')
+  if (!first)
     throw new Error(
       'tabs: no links to sections inside this panel (<a href="#id"> → <section id>)',
     )
+  const list = first.closest<HTMLElement>('ul, ol, nav') ?? first.parentElement!
+  const links = [...list.querySelectorAll<HTMLAnchorElement>('a[href^="#"]')]
   return links.map((tab) => ({ tab, panel: sectionOf(el, tab) }))
 }
 

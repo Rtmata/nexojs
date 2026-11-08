@@ -86,6 +86,8 @@ class Splitter {
     this.el.addEventListener('keydown', (e) => this.key(e), on)
     this.el.addEventListener('pointerdown', (e) => this.grab(e), on)
     this.el.addEventListener('pointermove', (e) => this.drag(e), on)
+    for (const type of ['pointerup', 'pointercancel', 'lostpointercapture'])
+      this.el.addEventListener(type, () => this.released(), on)
   }
 
   private size(): number {
@@ -130,8 +132,10 @@ class Splitter {
     if (event.button !== 0) return
     this.el.setPointerCapture(event.pointerId)
     this.marks.toggle(this.el, 'data-dragging', true)
-    const release = () => this.marks.toggle(this.el, 'data-dragging', false)
-    this.el.addEventListener('pointerup', release, { once: true })
+  }
+
+  private released(): void {
+    this.marks.toggle(this.el, 'data-dragging', false)
   }
 
   private drag(event: PointerEvent): void {

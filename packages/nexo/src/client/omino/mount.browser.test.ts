@@ -348,6 +348,10 @@ for (const [name, engine] of engines) {
       })
       expect(await play('exitTimeoutText')).toContain('takes milliseconds')
       expect(await play('mountAlreadyAborted')).toBe(0)
+      expect(await play('motionsAndDialogEdges')).toEqual({
+        left: 0,
+        stillHere: true,
+      })
     })
 
     test('aborting the mount ends components and removes the content', async () => {

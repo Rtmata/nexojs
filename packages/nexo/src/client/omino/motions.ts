@@ -29,10 +29,11 @@ export class Motions {
 
   /** Nexo's own props `enter`, `exit`, `exit-timeout`, from the element's props. */
   set(el: Element, name: string, value: unknown): void {
+    if (value == null) return // not given
     if (name === 'exit-timeout') this.timeouts.set(el, timeoutOf(el, value))
     else if (typeof value === 'function')
       this.own[name as Kind].set(el, value as MotionFn)
-    else if (value != null)
+    else
       throw new Error(
         `omino: <${el.localName} ${name}> takes a function: (el, { signal, reducedMotion }) => Promise`,
       )

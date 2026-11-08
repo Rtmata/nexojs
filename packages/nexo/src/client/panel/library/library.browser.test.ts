@@ -2196,7 +2196,7 @@ const LAYER_ZERO: [string, string][] = [
   ],
   [
     'carousel',
-    '<section data-panel="carousel" aria-label="s"><button data-carousel-toggle></button><ul data-carousel-slides><li>a</li><li aria-label="B">b</li></ul></section>',
+    '<section data-panel="carousel" aria-label="s" data-carousel-interval="60000"><button data-carousel-toggle aria-label="Pause">⏯</button><ul data-carousel-slides><li>a</li><li aria-label="B" data-current>b</li></ul></section>',
   ],
   [
     'splitter',
@@ -2343,6 +2343,16 @@ for (const [name, engine] of engines) {
       await page.keyboard.press('Tab')
       expect(await page.evaluate(() => document.activeElement?.id)).toBe('two')
       expect(await call('tabsState')).toMatchObject({ shown: ['two'] })
+    })
+
+    test('tabs: links inside the sections are content, not tabs', async () => {
+      await call(
+        'setup',
+        `<div data-panel="tabs"><ul><li><a href="#one">One</a></li><li><a href="#two">Two</a></li></ul>
+          <section id="one">1 <a href="#top">Back to top</a></section><section id="two">2</section></div>`,
+      )
+      expect(await call('rolesOf', 'a')).toEqual(['tab', 'tab', null])
+      expect(await call('tabsState')).toMatchObject({ shown: ['one'] })
     })
 
     test('keymap: ctrl+shift+k and ctrl+k are different bindings', async () => {

@@ -145,7 +145,7 @@ class Interest {
 
   /** Closed by the platform itself (light dismiss, its own Escape): interest is lost the same way. */
   private toggled(event: ToggleEvent): void {
-    if (event.newState === 'closed') this.lost()
+    if (event.newState === 'closed' && !this.isOpen()) this.lost()
   }
 
   private lost(): void {

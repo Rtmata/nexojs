@@ -988,6 +988,25 @@ export function exitTimeoutText() {
   }
 }
 
+/** Review round 2: an `exit-timeout` not given is fine; a dialog built and never inserted never hangs. */
+export async function motionsAndDialogEdges() {
+  const el = host()
+  const controller = new AbortController()
+  const open = signal(true)
+  const cond = false
+  mount(
+    <section>
+      <p exit-timeout={cond ? 300 : undefined} />
+      <dialog bind:open={open}>never shown</dialog>
+    </section>,
+    el,
+    { signal: controller.signal, reactivity },
+  )
+  controller.abort() // content removed at once; the deferred dialog write must not run or loop
+  await new Promise((done) => setTimeout(done, 20))
+  return { left: el.childNodes.length, stillHere: true }
+}
+
 /** Review: mounting with a signal already aborted leaves nothing behind. */
 export function mountAlreadyAborted() {
   const el = host()

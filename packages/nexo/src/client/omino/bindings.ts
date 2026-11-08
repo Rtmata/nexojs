@@ -21,6 +21,8 @@ interface Kind {
   events: readonly string[]
   read(el: Element): unknown
   write?(el: Element, value: unknown): void
+  /** The first write waits for the element to be in the document (`showModal()` needs that). */
+  afterInsertion?: boolean
 }
 
 type Picker = (el: Element) => Kind | undefined
@@ -49,15 +51,12 @@ const TEXT: Kind = {
 const NUMBER: Kind = {
   events: ['input'],
   read: (el) => nullIfNaN((el as HTMLInputElement).valueAsNumber),
-  write: (el, v) => setNumber(el as HTMLInputElement, v as number | null),
+  write: (el, v) => setNumber(el as HTMLInputElement, v),
 }
 
 /** Written only when the number differs: "1.0" stays as typed while it still means 1. */
-function setNumber(
-  el: HTMLInputElement,
-  value: number | null | undefined,
-): void {
-  const wanted = value ?? null
+function setNumber(el: HTMLInputElement, value: unknown): void {
+  const wanted = value == null ? null : nullIfNaN(Number(value))
   if (nullIfNaN(el.valueAsNumber) === wanted) return
   el.value = wanted === null ? '' : String(wanted)
 }
@@ -104,6 +103,7 @@ const OPEN: Kind = {
   events: ['toggle', 'close'],
   read: (el) => (el as HTMLDetailsElement).open,
   write: (el, v) => setOpen(el, Boolean(v)),
+  afterInsertion: true,
 }
 
 /** contenteditable (C.16d, item 36): text only; no `innerHTML` (XSS). */
@@ -219,8 +219,11 @@ export class Bindings {
     const kind = PICKERS[name]?.(el)
     if (!kind) throw notBindable(el, name)
     this.listen(el, kind, writable, eventsOf(el, kind, on), at.signal)
-    if (kind.write)
+    if (!kind.write) return
+    const write = () =>
       this.holes.write(writable, (v) => kind.write!(el, v), at.signal)
+    if (kind.afterInsertion) at.inserted(write)
+    else write()
   }
 
   /** Sizes are layout: observed once the element is in the document. */
@@ -367,7 +370,6 @@ function selectAll(el: HTMLSelectElement, values: string[]): void {
 function setOpen(el: Element, open: boolean): void {
   if (!(el instanceof HTMLDialogElement))
     return void ((el as HTMLDetailsElement).open = open)
-  if (!el.isConnected) return queueMicrotask(() => setOpen(el, open)) // showModal() needs it in the document; the first write comes before insertion
   if (open) !el.open && el.showModal()
   else el.close()
 }
@@ -437,7 +439,12 @@ function notBindable(el: Element, name: string): Error {
   )
 }
 
-/** A play interrupted by a pause is expected (AbortError); a source that can't play is reported. */
+/**
+ * Expected rejections of `play()`: interrupted by a pause (AbortError), or
+ * autoplay held back until the visitor interacts (NotAllowedError). A
+ * source that can't play at all is reported.
+ */
 function playFailed(error: unknown): void {
-  if ((error as DOMException)?.name !== 'AbortError') reportError(error)
+  const name = (error as DOMException)?.name
+  if (name !== 'AbortError' && name !== 'NotAllowedError') reportError(error)
 }

@@ -33,7 +33,7 @@ export class Marks {
     if (!seen.has('style')) seen.set('style', el.getAttribute('style'))
     this.before.set(el, seen)
     el.style.setProperty(name, value)
-    el.setAttribute('style', el.style.cssText) // settled now, not lazily (see `put`)
+    el.style.cssText = el.style.cssText // settled now, not lazily (see `put`); CSSOM, so a strict CSP allows it
   }
 
   /** Every attribute back, `style` last: a later attribute change would resurrect a removed one (WebKit). */
@@ -54,7 +54,19 @@ export class Marks {
  * (measured 2026-11; Firefox doesn't).
  */
 function put(el: Element, name: string, value: string | null): void {
-  if (name === 'style') void el.getAttribute('style')
+  if (name === 'style') return putStyle(el as HTMLElement, value)
   if (value === null) el.removeAttribute(name)
   else el.setAttribute(name, value)
+}
+
+/**
+ * The server's `style` back verbatim (a page that sent one allows inline
+ * styles). None sent: emptied through the CSSOM (allowed under a strict
+ * CSP), settled, removed.
+ */
+function putStyle(el: HTMLElement, value: string | null): void {
+  if (value !== null) return el.setAttribute('style', value)
+  el.style.cssText = ''
+  void el.getAttribute('style')
+  el.removeAttribute('style')
 }

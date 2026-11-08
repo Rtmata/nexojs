@@ -36,7 +36,7 @@ class Slider {
     this.thumbs = thumbsOf(el)
     this.repaint()
     const form = this.thumbs[0]!.form
-    form?.addEventListener('reset', () => setTimeout(() => this.repaint()), {
+    form?.addEventListener('reset', () => later(() => this.repaint(), signal), {
       signal,
     })
     signal.addEventListener('abort', () => this.marks.restore(), { once: true })
@@ -108,4 +108,10 @@ function fraction(thumb: HTMLInputElement): number {
   const min = Number(thumb.min || 0)
   const max = Number(thumb.max || 100)
   return max === min ? 0 : (thumb.valueAsNumber - min) / (max - min)
+}
+
+/** After the reset has applied (a task later), unless the panel ended meanwhile. */
+function later(fn: () => void, signal: AbortSignal): void {
+  const timer = setTimeout(fn)
+  signal.addEventListener('abort', () => clearTimeout(timer), { once: true })
 }

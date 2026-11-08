@@ -55,9 +55,8 @@ export class SelectSource {
   onChanged(fn: () => void, signal: AbortSignal): void {
     const theirs = () => this.ours || fn()
     this.select.addEventListener('change', theirs, { signal })
-    this.select.form?.addEventListener('reset', () => setTimeout(fn), {
-      signal,
-    })
+    const reset = () => afterTask(fn, signal)
+    this.select.form?.addEventListener('reset', reset, { signal })
     const options = new MutationObserver(fn)
     options.observe(this.select, OPTION_CHANGES)
     signal.addEventListener('abort', () => options.disconnect(), { once: true })
@@ -102,4 +101,10 @@ function itemFor(option: HTMLOptionElement): HTMLLIElement {
   item.textContent = option.text
   if (option.disabled) item.setAttribute('aria-disabled', 'true')
   return item
+}
+
+/** A task later (the reset has applied by then), unless the panel ended meanwhile. */
+function afterTask(fn: () => void, signal: AbortSignal): void {
+  const timer = setTimeout(fn)
+  signal.addEventListener('abort', () => clearTimeout(timer), { once: true })
 }
