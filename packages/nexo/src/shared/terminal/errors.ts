@@ -4,6 +4,7 @@ export const RESERVED = {
   forbidden: 403,
   unknownCommand: 404,
   methodNotAllowed: 405,
+  unsupportedMediaType: 415,
   internal: 500,
 } as const
 

@@ -29,10 +29,9 @@ export function tauri(options: { invoke: Invoke }): Transport {
 
 /** Archive's `{ kind, message }` keeps its kind as the code; anything else is internal. */
 function toCommandError(error: unknown): never {
-  const { kind, message } = (typeof error === 'object' && error) as {
-    kind?: string
-    message?: string
-  }
+  const { kind, message } = (
+    typeof error === 'object' && error !== null ? error : {}
+  ) as { kind?: string; message?: string }
   if (typeof kind === 'string')
     throw new CommandError(kind, message ?? kind, error)
   const text = typeof error === 'string' ? error : 'internal error'
@@ -47,9 +46,9 @@ function untilAborted<T>(
   if (!signal) return promise
   if (signal.aborted) return Promise.reject(signal.reason)
   return new Promise((resolve, reject) => {
-    signal.addEventListener('abort', () => reject(signal.reason), {
-      once: true,
-    })
-    promise.then(resolve, reject)
+    const abort = () => reject(signal.reason)
+    signal.addEventListener('abort', abort, { once: true })
+    const done = () => signal.removeEventListener('abort', abort)
+    promise.then(resolve, reject).finally(done)
   })
 }

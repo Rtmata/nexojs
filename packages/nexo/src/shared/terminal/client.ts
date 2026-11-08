@@ -60,11 +60,12 @@ function checked(
 
 export function describe(issue: {
   message: string
-  path?: readonly PropertyKey[]
+  path?: readonly (PropertyKey | { readonly key: PropertyKey })[]
 }): string {
-  return issue.path?.length
-    ? `${issue.path.join('.')}: ${issue.message}`
-    : issue.message
+  const keys = issue.path?.map((p) =>
+    typeof p === 'object' && p !== null ? String(p.key) : String(p),
+  )
+  return keys?.length ? `${keys.join('.')}: ${issue.message}` : issue.message
 }
 
 export type { CodeOf }

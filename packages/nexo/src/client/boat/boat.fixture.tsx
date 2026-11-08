@@ -212,3 +212,70 @@ export async function clickChain(kind: 'navigation' | 'history' | 'hash') {
   controller.abort()
   return { ...after, back }
 }
+
+/** Review: a hash that points at another host is no route; the route's own #fragment survives. */
+export async function hashSafety() {
+  history.replaceState(null, '', '/#//evil.com/x')
+  const source = hashUrl()
+  const foreign = source.current()
+  history.replaceState(null, '', '/#/book/3?p=2#reviews')
+  const fragment = source.current()
+  source.go(new URL('/book/4#notes', location.origin))
+  const written = location.hash
+  history.replaceState(null, '', '/')
+  return {
+    foreignHost: foreign.host,
+    foreignPath: foreign.pathname,
+    fragment: `${fragment.pathname}${fragment.search}${fragment.hash}`,
+    written,
+  }
+}
+
+/** Review: a link inside an inline SVG is not the router's (its href is an SVGAnimatedString). */
+export async function svgLink() {
+  history.replaceState(null, '', '/links')
+  const { host, controller } = start(historyUrl(), [], false)
+  await settle()
+  host.insertAdjacentHTML(
+    'beforeend',
+    '<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20"><a id="svg-link" href="#x"><rect width="20" height="20"/></a></svg>',
+  )
+  const errors: string[] = []
+  const onError = (e: ErrorEvent) => (
+    errors.push(e.message),
+    e.preventDefault()
+  )
+  window.addEventListener('error', onError)
+  const bubble = bubbleLog()
+  ;(host.querySelector('#svg-link') as SVGAElement).dispatchEvent(
+    new MouseEvent('click', { bubbles: true, cancelable: true }),
+  )
+  bubble.stop()
+  window.removeEventListener('error', onError)
+  controller.abort()
+  return { errors, seen: bubble.seen }
+}
+
+/** Review: a `#hash` that isn't valid percent-encoding still scrolls (to the top) instead of throwing. */
+export async function oddHash() {
+  history.replaceState(null, '', '/')
+  const { router, controller } = start(historyUrl(), [], false)
+  await settle()
+  const errors: string[] = []
+  const onError = (e: ErrorEvent) => (
+    errors.push(e.message),
+    e.preventDefault()
+  )
+  window.addEventListener('error', onError)
+  router.visit('/book/2#100%')
+  await wait(60)
+  await settle()
+  await new Promise((done) =>
+    requestAnimationFrame(() => requestAnimationFrame(done)),
+  )
+  window.removeEventListener('error', onError)
+  const path = location.pathname
+  controller.abort()
+  history.replaceState(null, '', '/')
+  return { errors, path }
+}

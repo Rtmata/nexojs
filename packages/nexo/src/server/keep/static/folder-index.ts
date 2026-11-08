@@ -139,12 +139,18 @@ export class FolderWalker {
     const root = await realpath(this.dir).catch(() => null)
     if (!root) return null
     const found: Walk = { files: new Map(), folders: new Set() }
-    try {
-      await this.walkInto('', root, found)
-      return found
-    } catch {
-      return null
-    }
+    return this.walkInto('', root, found)
+      .then(() => found)
+      .catch((error) => this.unreadable(error))
+  }
+
+  /** Said, not swallowed: the server goes on, looking files up on disk. */
+  private unreadable(error: unknown): null {
+    console.warn(
+      `keep: ${this.dir} could not be indexed; files are looked up on disk instead\n`,
+      error,
+    )
+    return null
   }
 
   private async walkInto(relative: string, root: string, found: Walk) {

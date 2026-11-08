@@ -49,11 +49,17 @@ const TEXT: Kind = {
 const NUMBER: Kind = {
   events: ['input'],
   read: (el) => nullIfNaN((el as HTMLInputElement).valueAsNumber),
-  write: (el, v) =>
-    setValue(
-      el as HTMLInputElement,
-      v === null || v === undefined ? '' : String(v),
-    ),
+  write: (el, v) => setNumber(el as HTMLInputElement, v as number | null),
+}
+
+/** Written only when the number differs: "1.0" stays as typed while it still means 1. */
+function setNumber(
+  el: HTMLInputElement,
+  value: number | null | undefined,
+): void {
+  const wanted = value ?? null
+  if (nullIfNaN(el.valueAsNumber) === wanted) return
+  el.value = wanted === null ? '' : String(wanted)
 }
 
 /** The platform's string as is ("2026-10-29"); empty is `null`. No `Date`: valueAsDate is UTC. */
@@ -359,9 +365,11 @@ function selectAll(el: HTMLSelectElement, values: string[]): void {
 }
 
 function setOpen(el: Element, open: boolean): void {
-  if (el instanceof HTMLDialogElement)
-    return void (open ? !el.open && el.showModal() : el.close())
-  ;(el as HTMLDetailsElement).open = open
+  if (!(el instanceof HTMLDialogElement))
+    return void ((el as HTMLDetailsElement).open = open)
+  if (!el.isConnected) return queueMicrotask(() => setOpen(el, open)) // showModal() needs it in the document; the first write comes before insertion
+  if (open) !el.open && el.showModal()
+  else el.close()
 }
 
 function writeMedia(
@@ -370,7 +378,7 @@ function writeMedia(
   value: unknown,
 ): void {
   if (property === 'paused')
-    return void (value ? el.pause() : el.play().catch(() => {}))
+    return void (value ? el.pause() : el.play().catch(playFailed))
   if ((el as any)[property] !== value) (el as any)[property] = value
 }
 
@@ -427,4 +435,9 @@ function notBindable(el: Element, name: string): Error {
   return new Error(
     `omino: bind:${name} doesn't work on ${what}. See the control table (C.16d)`,
   )
+}
+
+/** A play interrupted by a pause is expected (AbortError); a source that can't play is reported. */
+function playFailed(error: unknown): void {
+  if ((error as DOMException)?.name !== 'AbortError') reportError(error)
 }

@@ -39,12 +39,45 @@ function request(
 }
 
 async function answer(response: Response): Promise<unknown> {
-  const body = await response.json().catch(() => null)
+  const text = await response.text()
+  const body = parsed(text)
+  if (response.ok && body === NOT_JSON) throw notJson(response, text)
   if (response.ok) return body
+  throw failure(response, text, body)
+}
+
+/** The server's structured error, or what it did send (a proxy's text) with the status. */
+function failure(
+  response: Response,
+  text: string,
+  body: unknown,
+): CommandError {
+  const given = body === NOT_JSON ? {} : ((body ?? {}) as Record<string, any>)
   const {
     code = 'internal',
-    message = response.statusText,
+    message = text || response.statusText,
     data,
-  } = (body ?? {}) as Record<string, any>
-  throw new CommandError(code, message, data, response.status)
+  } = given
+  return new CommandError(code, message, data, response.status)
+}
+
+/** A 2xx that isn't JSON (a captive portal, a proxy's HTML page) is no result. */
+function notJson(response: Response, text: string): CommandError {
+  const message = `not a JSON reply (${response.status})`
+  return new CommandError(
+    'internal',
+    message,
+    text.slice(0, 200),
+    response.status,
+  )
+}
+
+const NOT_JSON = Symbol('not JSON')
+
+function parsed(text: string): unknown {
+  try {
+    return JSON.parse(text)
+  } catch {
+    return NOT_JSON
+  }
 }

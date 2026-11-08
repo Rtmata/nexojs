@@ -95,7 +95,7 @@ export function historyUrl(): UrlSource {
 export function hashUrl(): UrlSource {
   return new PushStateUrl({
     read: fromHash,
-    write: (url) => `#${url.pathname}${url.search}`,
+    write: (url) => `#${url.pathname}${url.search}${url.hash}`,
   })
 }
 
@@ -128,7 +128,8 @@ class PushStateUrl implements UrlSource {
 function fromHash(href: string): URL {
   const page = new URL(href)
   const route = page.hash.slice(1) || '/'
-  return new URL(route.startsWith('/') ? route : `/${route}`, page.origin)
+  const url = new URL(route.startsWith('/') ? route : `/${route}`, page.origin)
+  return url.origin === page.origin ? url : new URL('/', page.origin) // `#//other.host/x` is no route
 }
 
 function manualScroll(signal: AbortSignal): void {

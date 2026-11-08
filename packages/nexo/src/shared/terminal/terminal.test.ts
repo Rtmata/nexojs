@@ -15,6 +15,7 @@ import {
   terminal,
   type,
 } from './index'
+import { describe as describeIssue } from './client'
 import { check } from './schema'
 
 type Book = { id: number; title: string }
@@ -153,10 +154,24 @@ describe('terminal over HTTP (R.24–R.26)', () => {
     expect((await viaKeep('/_nexo/terminal/boom', post({ x: 1 }))).status).toBe(
       400,
     )
+    const asJson = { 'content-type': 'application/json' }
     expect(
-      (await viaKeep('/_nexo/terminal/save', { method: 'POST', body: '{' }))
-        .status,
+      (
+        await viaKeep('/_nexo/terminal/save', {
+          method: 'POST',
+          headers: asJson,
+          body: '{',
+        })
+      ).status,
     ).toBe(400)
+    // a POST that doesn't say it's JSON (a cross-site form, a no-cors fetch) is refused
+    expect(
+      (await viaKeep('/_nexo/terminal/save', { method: 'POST', body: '{}' }))
+        .status,
+    ).toBe(415)
+    expect((await viaKeep('/_nexo/terminal/%E0%A4%A', post({}))).status).toBe(
+      404,
+    ) // a name that isn't valid percent-encoding names nothing
   })
 
   test('the handler gets the request signal; the client can abort', async () => {
@@ -194,6 +209,42 @@ describe('terminal over HTTP (R.24–R.26)', () => {
   })
 })
 
+describe('replies that are not the contract (review)', () => {
+  test('a 2xx that is not JSON is an error, never a null result', async () => {
+    const portal = async () =>
+      new Response('<html>Sign in</html>', {
+        status: 200,
+        headers: { 'content-type': 'text/html' },
+      })
+    const behindPortal = api.client(http({ fetch: portal }))
+    const error = await behindPortal.exec('book', { id: 1 }).catch((e) => e)
+    expect(error).toBeInstanceOf(CommandError)
+    expect([error.code, error.message]).toEqual([
+      'internal',
+      'not a JSON reply (200)',
+    ])
+  })
+
+  test('a non-JSON failure keeps its text and status', async () => {
+    const gateway = async () => new Response('Bad gateway', { status: 502 })
+    const error = await api
+      .client(http({ fetch: gateway }))
+      .exec('book', { id: 1 })
+      .catch((e) => e)
+    expect([error.code, error.message, error.status]).toEqual([
+      'internal',
+      'Bad gateway',
+      502,
+    ])
+  })
+
+  test('issue paths with { key } segments (Valibot, Zod) read as keys', () => {
+    expect(
+      describeIssue({ message: 'expected a string', path: [{ key: 'id' }, 0] }),
+    ).toBe('id.0: expected a string')
+  })
+})
+
 describe('terminal through Tauri', () => {
   test('a result; { kind, message } becomes the code; aborting stops waiting', async () => {
     const invoke = mock(
@@ -209,6 +260,11 @@ describe('terminal through Tauri', () => {
     expect(await ipc.exec('book', { id: 1 })).toEqual({ id: 1, title: 'Dune' })
     const error = await ipc.exec('book', { id: 2 }).catch((e) => e)
     expect([error.code, error.message]).toEqual(['notFound', 'no such book'])
+    const nothing = api.client(
+      tauri({ invoke: async () => Promise.reject(null) }),
+    )
+    const bare = await nothing.exec('book', { id: 1 }).catch((e) => e)
+    expect([bare.code, bare.message]).toEqual(['internal', 'internal error'])
     const controller = new AbortController()
     const waiting = ipc.exec(
       'save',

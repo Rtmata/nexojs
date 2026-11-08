@@ -908,3 +908,91 @@ export function shadowStyles() {
       document.querySelector('style[data-scope-for="Shadowed"]') !== null,
   }
 }
+
+/** Review: `ONCLICK` is an event name too, so the lowercase rule refuses it (no inline JS written). */
+export function uppercaseEvent() {
+  const el = host()
+  const controller = new AbortController()
+  try {
+    mount(<p {...{ ONCLICK: 'window.__x=1' }}>x</p>, el, {
+      signal: controller.signal,
+      reactivity,
+    })
+    return {
+      threw: false,
+      attribute: el.querySelector('p')!.getAttribute('onclick'),
+    }
+  } catch (error) {
+    return { threw: true, message: (error as Error).message }
+  } finally {
+    controller.abort()
+  }
+}
+
+/** Review: a number binding compares numbers, so "1.0" stays as typed. */
+export async function numberSpelling() {
+  const n = signal<number | null>(null)
+  const el = host()
+  const controller = new AbortController()
+  mount(<input type="number" bind:value={n} />, el, {
+    signal: controller.signal,
+    reactivity,
+  })
+  const input = el.querySelector('input')!
+  input.value = '1.0'
+  input.dispatchEvent(new Event('input', { bubbles: true }))
+  flush()
+  await new Promise((done) => setTimeout(done, 0))
+  const result = { signal: n.get(), shown: input.value }
+  controller.abort()
+  return result
+}
+
+/** Review: `bind:open` true at mount waits until the dialog is in the document. */
+export async function dialogOpenAtMount() {
+  const open = signal(true)
+  const el = host()
+  const controller = new AbortController()
+  const errors: string[] = []
+  const onError = (e: ErrorEvent) => (
+    errors.push(e.message),
+    e.preventDefault()
+  )
+  window.addEventListener('error', onError)
+  mount(<dialog bind:open={open}>hi</dialog>, el, {
+    signal: controller.signal,
+    reactivity,
+  })
+  await new Promise((done) => setTimeout(done, 0))
+  window.removeEventListener('error', onError)
+  const dialog = el.querySelector('dialog')!
+  const result = { open: dialog.open, modal: dialog.matches(':modal'), errors }
+  controller.abort()
+  return result
+}
+
+/** Review: `exit-timeout` that isn't a number is an error, not a zero wait. */
+export function exitTimeoutText() {
+  const el = host()
+  const controller = new AbortController()
+  try {
+    mount(<p exit-timeout={'2s' as unknown as number} />, el, {
+      signal: controller.signal,
+      reactivity,
+    })
+    return 'no error'
+  } catch (error) {
+    return (error as Error).message
+  } finally {
+    controller.abort()
+  }
+}
+
+/** Review: mounting with a signal already aborted leaves nothing behind. */
+export function mountAlreadyAborted() {
+  const el = host()
+  const controller = new AbortController()
+  controller.abort()
+  mount(<p>gone</p>, el, { signal: controller.signal, reactivity })
+  return el.childNodes.length
+}

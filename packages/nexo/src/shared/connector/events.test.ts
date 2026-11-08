@@ -204,3 +204,20 @@ describe('changed', () => {
     stop()
   })
 })
+
+describe('abort listeners leave with the listener (review)', () => {
+  test('next() and on(…, { once }) remove their abort listeners when they fire', async () => {
+    const tick = event<number>()
+    const controller = new AbortController()
+    const { signal } = controller
+    const added = spyOn(signal, 'addEventListener')
+    const removed = spyOn(signal, 'removeEventListener')
+    const waiting = tick.next({ signal })
+    tick.on(() => {}, { once: true, signal })
+    tick.emit(1)
+    expect(await waiting).toBe(1)
+    expect(removed).toHaveBeenCalledTimes(added.mock.calls.length)
+    added.mockRestore()
+    removed.mockRestore()
+  })
+})

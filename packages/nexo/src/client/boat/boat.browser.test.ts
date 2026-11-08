@@ -106,6 +106,21 @@ describe('boat client', () => {
         })
       })
 
+      test('review: a foreign-host hash is no route; fragments survive; SVG links and odd hashes never throw', async () => {
+        expect(await play('hashSafety')).toEqual({
+          foreignHost: new URL(server.url.href).host,
+          foreignPath: '/',
+          fragment: '/book/3?p=2#reviews',
+          written: '#/book/4#notes',
+        })
+        const svg = await play('svgLink')
+        expect(svg.errors).toEqual([])
+        expect(svg.seen).toEqual(['svg-link:false'])
+        const odd = await play('oddHash')
+        expect(odd.errors).toEqual([])
+        expect(odd.path).toBe('/book/2')
+      })
+
       for (const kind of ['navigation', 'history', 'hash']) {
         test(`${kind}: the chain — boat claims its links, the rest go on; back returns`, async () => {
           const result = await play('clickChain', kind)

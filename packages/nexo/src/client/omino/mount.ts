@@ -35,6 +35,7 @@ function replaceContent(el: Element, nodes: Node[], signal: AbortSignal): void {
   const end = document.createComment('')
   el.replaceChildren(start, ...nodes, end)
   const leave = () => removeBetween(start, end)
+  if (signal.aborted) return leave()
   signal.addEventListener('abort', leave, { once: true })
 }
 

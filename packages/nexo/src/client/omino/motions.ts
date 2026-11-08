@@ -29,7 +29,7 @@ export class Motions {
 
   /** Nexo's own props `enter`, `exit`, `exit-timeout`, from the element's props. */
   set(el: Element, name: string, value: unknown): void {
-    if (name === 'exit-timeout') this.timeouts.set(el, Number(value))
+    if (name === 'exit-timeout') this.timeouts.set(el, timeoutOf(el, value))
     else if (typeof value === 'function')
       this.own[name as Kind].set(el, value as MotionFn)
     else if (value != null)
@@ -73,15 +73,21 @@ export class Motions {
     signal: AbortSignal,
   ): Promise<unknown> | undefined {
     const fn = this.own[kind].get(el)
-    if (fn)
-      return this.atMost(
-        el,
-        FIXED_WAIT,
-        Promise.resolve(fn(el, { signal, reducedMotion: reducedMotion() })),
-      )
+    if (fn) return this.atMost(el, FIXED_WAIT, this.run(fn, el, signal))
     const animations = el.getAnimations({ subtree: true })
     if (animations.length === 0) return undefined
     return this.atMost(el, fallbackFor(animations), finished(animations))
+  }
+
+  /** The author's motion as a promise: a synchronous throw rejects, like an async one. */
+  private run(
+    fn: MotionFn,
+    el: Element,
+    signal: AbortSignal,
+  ): Promise<unknown> {
+    return new Promise((done) =>
+      done(fn(el, { signal, reducedMotion: reducedMotion() })),
+    )
   }
 
   /** A motion that never finishes still ends: at `exit-timeout`, or the fallback. */
@@ -129,5 +135,14 @@ function fallbackFor(animations: Animation[]): number {
 function reducedMotion(): boolean {
   return (
     globalThis.matchMedia?.('(prefers-reduced-motion: reduce)').matches ?? false
+  )
+}
+
+/** `exit-timeout` in ms: a non-negative number, else an error (NaN would be "no wait at all"). */
+function timeoutOf(el: Element, value: unknown): number {
+  const ms = typeof value === 'string' ? Number(value) : value
+  if (typeof ms === 'number' && Number.isFinite(ms) && ms >= 0) return ms
+  throw new Error(
+    `omino: <${el.localName} exit-timeout=${JSON.stringify(value)}> takes milliseconds, a number`,
   )
 }

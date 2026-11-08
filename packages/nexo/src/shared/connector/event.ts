@@ -43,11 +43,15 @@ export class TypedEvent<T> {
 
   /** Listen; the returned function stops it. */
   on(fn: Listener<T>, options: ListenOptions = {}): Dispose {
-    if (options.signal?.aborted) return () => {}
-    const listener = options.once ? this.onceOf(fn) : fn
+    const { signal } = options
+    if (signal?.aborted) return () => {}
+    const off = () => {
+      this.listeners.delete(listener)
+      signal?.removeEventListener('abort', off)
+    }
+    const listener = options.once ? this.onceOf(fn, off) : fn
     this.listeners.add(listener)
-    const off = () => void this.listeners.delete(listener)
-    options.signal?.addEventListener('abort', off, { once: true })
+    signal?.addEventListener('abort', off, { once: true })
     return off
   }
 
@@ -58,11 +62,13 @@ export class TypedEvent<T> {
 
   /** The next value, as a promise; aborting the signal rejects it. */
   next(options: { signal?: AbortSignal } = {}): Promise<T> {
+    const { signal } = options
+    if (signal?.aborted) return Promise.reject(signal.reason)
     return new Promise((resolve, reject) => {
-      const { signal } = options
-      if (signal?.aborted) return reject(signal.reason)
-      const off = this.on(resolve, { once: true, signal })
-      signal?.addEventListener('abort', () => (off(), reject(signal.reason)))
+      const abort = () => reject(signal!.reason)
+      signal?.addEventListener('abort', abort, { once: true })
+      const settle = (v: T) => (unlisten(signal, abort), resolve(v))
+      this.on(settle, { once: true, signal })
     })
   }
 
@@ -71,9 +77,9 @@ export class TypedEvent<T> {
     this.listeners.clear()
   }
 
-  private onceOf(fn: Listener<T>): Listener<T> {
-    const once = (value: T) => (this.listeners.delete(once), fn(value))
-    return once
+  /** Fires once, then is gone (its abort listener with it). */
+  private onceOf(fn: Listener<T>, off: () => void): Listener<T> {
+    return (value: T) => (off(), fn(value))
   }
 
   private call(listener: Listener<T>, value: T): void {
@@ -116,4 +122,8 @@ export function changed<T>(
   options?: WatchOptions,
 ): Dispose {
   return watch(source, (now) => target.emit(...([now] as Payload<T>)), options)
+}
+
+function unlisten(signal: AbortSignal | undefined, fn: () => void): void {
+  signal?.removeEventListener('abort', fn)
 }

@@ -18,7 +18,8 @@ export function claimClicks(
 
 function linkOf(event: MouseEvent): HTMLAnchorElement | null {
   const target = event.target as Element | null
-  return target?.closest?.('a[href]') ?? null
+  const link = target?.closest?.('a[href]') ?? null
+  return link instanceof HTMLAnchorElement ? link : null
 }
 
 /** What the browser must keep: modified clicks, other buttons, downloads, other windows, other sites, jumps within the page. */

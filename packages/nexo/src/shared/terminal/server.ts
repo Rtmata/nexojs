@@ -53,7 +53,7 @@ export class CommandServer<T extends Table> implements ServeHooks {
   }): Promise<Response | undefined> => {
     const url = new URL(request.url)
     if (!url.pathname.startsWith(`${this.base}/`)) return undefined
-    const name = decodeURIComponent(url.pathname.slice(this.base.length + 1))
+    const name = nameIn(url.pathname.slice(this.base.length + 1))
     return this.answer(name, request, url).catch((error) =>
       this.unexpected(error),
     )
@@ -103,13 +103,36 @@ export class CommandServer<T extends Table> implements ServeHooks {
   }
 }
 
-/** POST always; GET only for `read` commands, never from another site's navigation (R.26). */
+/** The command's name from the path; one that isn't valid percent-encoding names nothing. */
+function nameIn(segment: string): string {
+  try {
+    return decodeURIComponent(segment)
+  } catch {
+    return segment
+  }
+}
+
+/**
+ * POST always, as JSON: a `content-type` another site's form or `no-cors`
+ * fetch can't send without a preflight, which nothing here answers
+ * (CSRF). GET only for `read` commands, never from another site's
+ * navigation (R.26).
+ */
 function refused(spec: CommandSpec, request: Request): Response | undefined {
-  if (request.method === 'POST') return undefined
+  if (request.method === 'POST') return notJson(request)
   if (request.method !== 'GET' || !spec.read) return notAllowed(spec, request)
   if (isCrossSiteNavigation(request))
     return reply('forbidden', 'a read from another site is refused')
   return undefined
+}
+
+function notJson(request: Request): Response | undefined {
+  const type = request.headers.get('content-type') ?? ''
+  if (/^application\/json\b/i.test(type)) return undefined
+  return reply(
+    'unsupportedMediaType',
+    'a command is posted as application/json',
+  )
 }
 
 function notAllowed(spec: CommandSpec, request: Request): Response {

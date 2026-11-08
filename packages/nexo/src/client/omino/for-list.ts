@@ -70,8 +70,9 @@ export class ForList<T> {
   /** Every item's row: the one it had, updated, or a new one. */
   private rowsFor(items: readonly T[], phase: InsertedPhase): Row<T>[] {
     const seen = new Set<unknown>()
+    const keys = items.map((item, index) => this.keyOf(item, index, seen)) // all checked first: a duplicate builds nothing
     return items.map((item, index) => {
-      const key = this.keyOf(item, index, seen)
+      const key = keys[index]
       const row = this.rows.get(key)
       if (!row) return this.row(key, item, index, phase)
       row.item.set(item)

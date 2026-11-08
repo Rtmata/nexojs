@@ -20,7 +20,8 @@ export type Result<Output> =
 
 export interface Issue {
   readonly message: string
-  readonly path?: readonly PropertyKey[]
+  /** Standard Schema's: keys, or `{ key }` segments (Valibot, Zod). */
+  readonly path?: readonly (PropertyKey | { readonly key: PropertyKey })[]
 }
 
 /** What a schema gives once valid. */

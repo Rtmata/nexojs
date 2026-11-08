@@ -338,6 +338,18 @@ for (const [name, engine] of engines) {
       })
     })
 
+    test('review: ONCLICK refused, number spelling kept, dialog open at mount, exit-timeout text, aborted mount', async () => {
+      expect(await play('uppercaseEvent')).toMatchObject({ threw: true })
+      expect(await play('numberSpelling')).toEqual({ signal: 1, shown: '1.0' })
+      expect(await play('dialogOpenAtMount')).toEqual({
+        open: true,
+        modal: true,
+        errors: [],
+      })
+      expect(await play('exitTimeoutText')).toContain('takes milliseconds')
+      expect(await play('mountAlreadyAborted')).toBe(0)
+    })
+
     test('aborting the mount ends components and removes the content', async () => {
       expect(await play('abortEnds')).toEqual({
         log: ['ended'],

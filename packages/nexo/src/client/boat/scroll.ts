@@ -21,10 +21,18 @@ export class Scroll {
   private place(url: URL, how: Arrival): void {
     if (how === 'traverse')
       return scrollTo(0, this.positions.get(url.href) ?? 0)
-    const target = url.hash
-      ? document.getElementById(decodeURIComponent(url.hash.slice(1)))
-      : null
+    const target = url.hash ? document.getElementById(decoded(url.hash)) : null
     if (target) target.scrollIntoView()
     else scrollTo(0, 0)
+  }
+}
+
+/** The `#id`, percent-decoded when it can be (`#100%` can't: then as written). */
+function decoded(hash: string): string {
+  const id = hash.slice(1)
+  try {
+    return decodeURIComponent(id)
+  } catch {
+    return id
   }
 }

@@ -31,8 +31,9 @@ export function listen(
   else throw notAListener(el, name, value)
 }
 
+/** Any spelling (`ONCLICK` too): the lowercase rule then refuses what HTML would run as inline JS. */
 export function isEventName(name: string): boolean {
-  return name.length > 2 && name.startsWith('on')
+  return name.length > 2 && /^on/i.test(name)
 }
 
 function eventType(el: Element, name: string): string {

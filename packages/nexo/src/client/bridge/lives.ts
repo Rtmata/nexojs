@@ -20,6 +20,11 @@ class Lives {
     return this.controllerOf(element).signal
   }
 
+  /** Whether the element already has a life (it arrived before). */
+  has(element: Element): boolean {
+    return this.controllers.has(element)
+  }
+
   /** The element leaves: its life ends, and every life inside it. */
   end(element: Element): void {
     this.controllers.get(element)?.abort()
@@ -76,9 +81,22 @@ export function arrivals(
   })
 }
 
-/** An arrived element and the owners inside it, deepest first, itself last. */
+/** Roots `visit` has been through: an arrival on one of them again is an append or prepend. */
+const visited = new WeakSet<Element>()
+
+/**
+ * An arrived element and the owners inside it, deepest first, itself last.
+ * An append or prepend swap arrives on its container again (so what was
+ * added inside attaches: `attach` is idempotent); the owners inside that
+ * were already alive before it are not visited twice. A replaced segment
+ * is new, so everything inside it is visited, persisted elements included.
+ */
 function visit(root: Element, fn: Arrival): void {
-  const inside = [...root.querySelectorAll(OWNER)].reverse()
+  const again = visited.has(root)
+  visited.add(root)
+  const inside = [...root.querySelectorAll(OWNER)]
+    .reverse()
+    .filter((element) => !again || !lives.has(element))
   for (const element of [...inside, root])
     fn(element, { signal: lives.of(element) })
 }
