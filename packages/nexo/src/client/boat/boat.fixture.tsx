@@ -213,6 +213,77 @@ export async function clickChain(kind: 'navigation' | 'history' | 'hash') {
   return { ...after, back }
 }
 
+/** R.41: a load that throws shows the route's `failed` page, else the router's, with a working retry. */
+export async function failing() {
+  let attempts = 0
+  const match = routes({
+    '/': { page: () => <h1>shelf</h1> },
+    '/flaky': {
+      load: async () => {
+        if (++attempts < 2) throw new Error('boom')
+        return { ok: true }
+      },
+      page: () => <h1>flaky ok</h1>,
+      failed: ({ error, retry }) => (
+        <section>
+          <h1>route failed: {(error as Error).message}</h1>
+          <button id="retry" onclick={retry}>
+            retry
+          </button>
+        </section>
+      ),
+    },
+    '/broken': {
+      load: () => Promise.reject(new Error('down')),
+      page: () => <h1>never</h1>,
+    },
+    '/silent': {
+      load: () => Promise.reject(new Error('quiet')),
+      page: () => <h1>never</h1>,
+    },
+  })
+  const controller = new AbortController()
+  const source = memoryUrl('/')
+  const onError = (e: PromiseRejectionEvent | ErrorEvent) => e.preventDefault()
+  window.addEventListener('unhandledrejection', onError)
+  const router = boat({
+    match,
+    source,
+    reactivity: connector,
+    signal: controller.signal,
+  })
+  const host = document.createElement('div')
+  document.body.replaceChildren(host)
+  mount(<main>{router.page}</main>, host, {
+    signal: controller.signal,
+    reactivity: connector,
+  })
+  const heading = () => host.querySelector('h1')?.textContent ?? null
+  await settle()
+  router.visit('/flaky')
+  await wait(30)
+  await settle()
+  const routeOwn = heading()
+  ;(host.querySelector('#retry') as HTMLButtonElement).click()
+  await wait(30)
+  await settle()
+  const afterRetry = heading()
+  router.visit('/silent')
+  await wait(30)
+  await settle()
+  const withoutHook = heading()
+  router.failed(({ error }) => (
+    <h1>router failed: {(error as Error).message}</h1>
+  ))
+  router.visit('/broken')
+  await wait(30)
+  await settle()
+  const routerLevel = heading()
+  window.removeEventListener('unhandledrejection', onError)
+  controller.abort()
+  return { routeOwn, afterRetry, withoutHook, routerLevel }
+}
+
 /** Review: a hash that points at another host is no route; the route's own #fragment survives. */
 export async function hashSafety() {
   history.replaceState(null, '', '/#//evil.com/x')

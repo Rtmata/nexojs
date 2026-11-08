@@ -106,6 +106,15 @@ describe('boat client', () => {
         })
       })
 
+      test("R.41: a load that throws shows the route's failed page, else the router's; retry works; nothing without a hook", async () => {
+        expect(await play('failing')).toEqual({
+          routeOwn: 'route failed: boom',
+          afterRetry: 'flaky ok',
+          withoutHook: 'flaky ok', // the page before stays
+          routerLevel: 'router failed: down',
+        })
+      })
+
       test('review: a foreign-host hash is no route; fragments survive; SVG links and odd hashes never throw', async () => {
         expect(await play('hashSafety')).toEqual({
           foreignHost: new URL(server.url.href).host,

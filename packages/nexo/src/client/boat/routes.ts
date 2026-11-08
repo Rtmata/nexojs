@@ -17,10 +17,23 @@ export interface PageContext<P extends Params = Params> {
   url: URL
 }
 
-/** boat's server form `{ load, page }` (E.2); `page` returns JSX here, not a `Response`. */
+/** What a `failed` page gets (R.41): the error `load` threw, and a way to try again. */
+export interface FailedContext<
+  P extends Params = Params,
+> extends PageContext<P> {
+  error: unknown
+  retry(): void
+}
+
+/**
+ * boat's server form `{ load, page }` (E.2); `page` returns JSX here, not a
+ * `Response`. `failed` (R.41) is the page for a `load` that throws, this
+ * route's own; without it the router's `failed(page)` answers.
+ */
 export interface ClientRoute<P extends Params = Params, D = any> {
   load?(ctx: LoadContext<P>): D | NotFound | PromiseLike<D | NotFound>
   page(data: D, ctx: PageContext<P>): unknown
+  failed?(ctx: FailedContext<P>): unknown
 }
 
 export interface ClientMatch {

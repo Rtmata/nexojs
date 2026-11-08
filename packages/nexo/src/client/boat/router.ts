@@ -6,7 +6,7 @@ import type {
   Reactivity,
   ResourceLike,
 } from './reactivity'
-import type { ClientMatch, PageContext } from './routes'
+import type { ClientMatch, FailedContext, PageContext } from './routes'
 import { Scroll } from './scroll'
 import type { Arrival, UrlSource } from './sources'
 
@@ -39,6 +39,7 @@ export class ClientRouter {
   private readonly shown: ReactiveValue<unknown>
   private readonly scroll = new Scroll()
   private notFoundPage?: (ctx: PageContext) => unknown
+  private failedPage?: (ctx: FailedContext) => unknown
 
   constructor(private readonly options: BoatClientOptions) {
     const { reactivity, source, signal } = options
@@ -76,6 +77,17 @@ export class ClientRouter {
    */
   notFound(page: (ctx: PageContext) => unknown): this {
     this.notFoundPage = page
+    return this
+  }
+
+  /**
+   * The page for a `load` that throws (R.41), when the route has no
+   * `failed` of its own: the nearest wins, as SvelteKit's `+error` and React
+   * Router's boundaries. It gets `{ error, retry, url, params }`. Without
+   * either, the page before stays and the error is reported.
+   */
+  failed(page: (ctx: FailedContext) => unknown): this {
+    this.failedPage = page
     return this
   }
 
@@ -123,9 +135,10 @@ export class ClientRouter {
     })
   }
 
-  /** Once its data is ready, the place's page; until then, the page before. */
+  /** Once its data is ready, the place's page; until then, the page before. A failure: its page, if there is one. */
   private show(): void {
     const status = this.data.status.get()
+    if (status === 'error') return this.showFailure()
     if (status !== 'ready' && status !== 'local') return
     const value = this.data.value.get()
     const place = this.options.reactivity.untrack(() => this.place.get())
@@ -134,8 +147,24 @@ export class ClientRouter {
     )
   }
 
+  /** The route's `failed`, else the router's; neither: the page before stays, the resource reported it. */
+  private showFailure(): void {
+    const { untrack } = this.options.reactivity
+    const place = untrack(() => this.place.get())
+    const page = place.match?.route.failed ?? this.failedPage
+    if (!page) return
+    const ctx = { ...this.contextOf(place), error: this.data.error.get() }
+    untrack(() =>
+      this.shown.set(page({ ...ctx, retry: () => this.data.reload() })),
+    )
+  }
+
+  private contextOf(place: Place): PageContext {
+    return { params: place.match?.params ?? {}, url: place.url }
+  }
+
   private pageOf(place: Place, value: unknown): unknown {
-    const ctx = { params: place.match?.params ?? {}, url: place.url }
+    const ctx = this.contextOf(place)
     if (!place.match || isNotFound(value))
       return this.notFoundPage?.(ctx) ?? null
     return place.match.route.page(value, ctx)
