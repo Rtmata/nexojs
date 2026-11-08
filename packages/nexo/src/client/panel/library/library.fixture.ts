@@ -3,6 +3,7 @@ import {
   activity,
   accordion,
   attach,
+  grid,
   hasSwitch,
   switchControl,
   toast,
@@ -57,6 +58,7 @@ const panels = registry({
   toast,
   accordion,
   switch: switchControl,
+  grid,
 })
 
 /** The panels of the previous scenario end with it: no listener outlives its markup. */
@@ -169,6 +171,7 @@ export function record(): void {
     'loseinterest',
     'toast:dismiss',
     'accordion:toggle',
+    'grid:toggle',
     'change',
   ])
     document.addEventListener(name, (e) => w.events.push(describeEvent(e)), {
@@ -190,6 +193,9 @@ function describeEvent(e: Event): string {
     detail.values?.join(',') ??
     (detail.reason ? `${detail.text} ${detail.reason}` : undefined) ??
     (detail.open !== undefined ? `${detail.id}=${detail.open}` : undefined) ??
+    (detail.expanded !== undefined
+      ? `${detail.id}=${detail.expanded}`
+      : undefined) ??
     detail.text ??
     (detail.checked === undefined
       ? detail.value
@@ -431,4 +437,30 @@ export function withoutSwitch(html: string): void {
   delete (HTMLInputElement.prototype as unknown as Record<string, unknown>)
     .switch
   setup(html)
+}
+
+/** Where focus is in a grid: "row:cell" indexes, or the text of a focused widget. */
+export function gridFocus(): string | null {
+  const active = document.activeElement as HTMLElement | null
+  const cell = active?.closest<HTMLTableCellElement>('td, th')
+  const row = active?.closest<HTMLTableRowElement>('tr')
+  if (!row) return null
+  const place = cell
+    ? `${row.rowIndex}:${cell.cellIndex}`
+    : `row ${row.rowIndex}`
+  return active !== cell && active !== row
+    ? `${place} ${active!.textContent?.trim() || active!.localName}`
+    : place
+}
+
+export function visibleRows(): string[] {
+  return [...document.querySelectorAll<HTMLTableRowElement>('tbody tr')]
+    .filter((r) => !r.hidden)
+    .map((r) => r.id)
+}
+
+export function tabStops(): string[] {
+  return [...document.querySelectorAll<HTMLElement>('[tabindex="0"]')].map(
+    (e) => e.id || e.textContent!.trim(),
+  )
 }

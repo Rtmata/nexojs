@@ -1587,3 +1587,171 @@ for (const [name, engine] of engines) {
     })
   })
 }
+
+for (const [name, engine] of engines) {
+  describe(`grid and treegrid in ${name}`, () => {
+    let browser: Browser
+    let page: Page
+    const call = (fn: string, ...args: unknown[]) =>
+      page.evaluate(
+        ([f, a]) => (window as any).library[f as string](...(a as unknown[])),
+        [fn, args] as const,
+      )
+    const focus = () => call('gridFocus')
+    const games = `
+      <table data-panel="grid" aria-label="Games" data-grid-page="2">
+        <thead><tr><th>Title</th><th>Year</th><th>Actions</th></tr></thead>
+        <tbody>
+          <tr><td>Ys</td><td>1987</td><td><button>Play</button></td></tr>
+          <tr><td>Sorcerian</td><td>1987</td><td><button>Play</button> <button>Info</button></td></tr>
+          <tr><td>Xanadu</td><td>1985</td><td><a href="#x">Page</a></td></tr>
+          <tr><td>Dragon Slayer</td><td>1984</td><td>—</td></tr>
+        </tbody>
+      </table>`
+    const series = `
+      <table data-panel="grid" aria-label="Series">
+        <thead><tr><th>Title</th><th>Year</th></tr></thead>
+        <tbody>
+          <tr id="ys" aria-level="1"><td>Ys</td><td>1987</td></tr>
+          <tr id="ys2" aria-level="2"><td>Ys II</td><td>1988</td></tr>
+          <tr id="ys3" aria-level="2" aria-expanded="true"><td>Ys III</td><td>1989</td></tr>
+          <tr id="ys3b" aria-level="3"><td>Ys III (PCE)</td><td>1991</td></tr>
+          <tr id="xanadu" aria-level="1"><td>Xanadu</td><td>1985</td></tr>
+        </tbody>
+      </table>`
+
+    beforeAll(async () => {
+      browser = await engine.launch()
+      page = await browser.newPage()
+      await page.setContent(
+        '<!doctype html><title>library</title><body></body>',
+      )
+      await page.evaluate(async (code) => {
+        const url = URL.createObjectURL(
+          new Blob([code], { type: 'text/javascript' }),
+        )
+        ;(window as any).library = await import(url)
+      }, code)
+    }, LAUNCH)
+    afterAll(async () => {
+      await browser?.close()
+    })
+
+    test('grid: roles, one tab stop, arrows stop at the edges, Home/End, Ctrl+Home/End, Page keys', async () => {
+      await call('setup', games)
+      expect(await call('rolesOf', 'table, thead th')).toEqual([
+        'grid',
+        'columnheader',
+        'columnheader',
+        'columnheader',
+      ])
+      expect(await call('rolesOf', 'tbody tr')).toEqual(Array(4).fill('row'))
+      expect(await call('rolesOf', 'tbody td')).toEqual(
+        Array(12).fill('gridcell'),
+      )
+      expect(await call('tabStops')).toEqual(['Title'])
+      await page.keyboard.press('Tab')
+      expect(await focus()).toBe('0:0')
+      await page.keyboard.press('ArrowUp')
+      expect(await focus()).toBe('0:0')
+      await page.keyboard.press('ArrowDown')
+      await page.keyboard.press('ArrowRight')
+      expect(await focus()).toBe('1:1')
+      await page.keyboard.press('End')
+      expect(await focus()).toBe('1:2 Play')
+      await page.keyboard.press('ArrowRight')
+      expect(await focus()).toBe('1:2 Play')
+      await page.keyboard.press('Home')
+      await page.keyboard.press('PageDown')
+      expect(await focus()).toBe('3:0')
+      await page.keyboard.press('ControlOrMeta+End')
+      expect(await focus()).toBe('4:2')
+      await page.keyboard.press('ControlOrMeta+Home')
+      expect(await focus()).toBe('0:0')
+      expect(await call('tabStops')).toEqual(['Title'])
+    })
+
+    test('grid: a cell with one widget focuses it; several need Enter, then Tab among them, Escape back', async () => {
+      await call('setup', games)
+      await page.focus('tbody tr:nth-child(3) td:nth-child(3) a')
+      expect(await focus()).toBe('3:2 Page')
+      await page.keyboard.press('ArrowUp')
+      expect(await focus()).toBe('2:2')
+      await page.keyboard.press('Enter')
+      expect(await focus()).toBe('2:2 Play')
+      await page.keyboard.press('Tab')
+      expect(await focus()).toBe('2:2 Info')
+      await page.keyboard.press('ArrowLeft')
+      expect(await focus()).toBe('2:2 Info')
+      await page.keyboard.press('Escape')
+      expect(await focus()).toBe('2:2')
+      await page.keyboard.press('ArrowLeft')
+      expect(await focus()).toBe('2:1')
+    })
+
+    test('treegrid: parent rows expand and collapse with → and ←, children hide, ← in the first cell goes to the row', async () => {
+      await call('record')
+      await call('setup', series)
+      expect(await call('rolesOf', 'table')).toEqual(['treegrid'])
+      expect(await call('attributes', '#ys', ['aria-expanded'])).toEqual({
+        'aria-expanded': 'false',
+      })
+      expect(await call('attributes', '#ys2', ['aria-expanded'])).toEqual({
+        'aria-expanded': null,
+      })
+      expect(await call('visibleRows')).toEqual(['ys', 'xanadu'])
+      await page.focus('#ys')
+      await page.keyboard.press('ArrowRight')
+      expect(await call('visibleRows')).toEqual([
+        'ys',
+        'ys2',
+        'ys3',
+        'ys3b',
+        'xanadu',
+      ])
+      await page.keyboard.press('ArrowRight')
+      expect(await focus()).toBe('1:0')
+      await page.keyboard.press('ArrowLeft')
+      expect(await focus()).toBe('row 1')
+      await page.keyboard.press('ArrowDown')
+      await page.keyboard.press('ArrowDown')
+      await page.keyboard.press('ArrowLeft')
+      expect(await call('visibleRows')).toEqual(['ys', 'ys2', 'ys3', 'xanadu'])
+      await page.keyboard.press('Home')
+      await page.keyboard.press('ArrowLeft')
+      expect(await call('visibleRows')).toEqual(['ys', 'xanadu'])
+      await page.keyboard.press('ArrowRight')
+      expect(await call('visibleRows')).toEqual(['ys', 'ys2', 'ys3', 'xanadu'])
+      expect(
+        ((await call('events')) as string[]).filter((e) =>
+          e.startsWith('grid'),
+        ),
+      ).toEqual([
+        'grid:toggle ys=true',
+        'grid:toggle ys3=false',
+        'grid:toggle ys=false',
+        'grid:toggle ys=true',
+      ])
+    })
+
+    test('ended: the table as the server sent it, every row shown', async () => {
+      await call('setupAndEnd', series)
+      expect(await call('attributes', 'table', ['role'])).toEqual({
+        role: null,
+      })
+      expect(
+        await call('attributes', '#ys', ['role', 'tabindex', 'aria-expanded']),
+      ).toEqual({ role: null, tabindex: null, 'aria-expanded': null })
+      expect(await call('visibleRows')).toEqual([
+        'ys',
+        'ys2',
+        'ys3',
+        'ys3b',
+        'xanadu',
+      ])
+      expect(
+        await call('setupError', '<div data-panel="grid"></div>'),
+      ).toContain('<div>')
+    })
+  })
+}

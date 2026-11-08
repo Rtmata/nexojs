@@ -267,6 +267,35 @@ APG Switch on the platform's own `<input type="checkbox" switch>` (Safari 17.4):
 
 Gap bridge: where the engine lacks `switch` (Chrome, Firefox, 2026-11) the panel sets `role="switch"`; everything else — Space, `checked`, the form value — is the checkbox's. The look is CSS. Register it as `{ switch: switchControl }` (`switch` is a reserved word).
 
+## grid
+
+APG Grid on a native `<table>`, the table itself being layer 0 (every row shown):
+
+```html
+<table data-panel="grid" aria-label="Series">
+  <thead>
+    <tr>
+      <th>Title</th>
+      <th>Year</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr id="ys" aria-level="1">
+      <td>Ys</td>
+      <td>1987</td>
+    </tr>
+    <tr id="ys2" aria-level="2">
+      <td>Ys II</td>
+      <td>1988</td>
+    </tr>
+  </tbody>
+</table>
+```
+
+One tab stop, and APG's keys: the arrows move between cells and stop at the edges (a data grid never wraps), Home / End within the row, Ctrl+Home / End across the grid, Page Up / Down by `data-grid-page` rows (5). A cell with one simple widget (a link, a button, a checkbox) focuses the widget itself; a cell with several takes Enter or F2 to go in (Tab moves among them) and Escape to come out. Header cells become `columnheader` (in `<thead>` or `scope="col"`) or `rowheader`.
+
+**Treegrid (R.36):** rows with `aria-level` make the table a `treegrid`. A row followed by deeper rows is a parent: it gets `aria-expanded` (closed unless you wrote `aria-expanded="true"`), its children hide while it's closed, and it takes focus as a row: → opens it (or enters its first cell), ← closes it (or, from the first cell, goes back to the row), ↑ ↓ Home End move between rows. `grid:toggle` carries `{ id, expanded }`. Not built (APG "if supported"): selection, `aria-rowcount` for virtual rows, sorting.
+
 ## Lazy media: markup, no panel
 
 `<img loading="lazy">` and `<iframe loading="lazy">` work in every engine. For `<video>`, `loading="lazy"` is Chrome-only (150+). Write `preload="none"` too: every engine then waits to fetch the video, though the `poster` still loads early where `loading` is missing. A script can't help here, because the poster is requested before any script runs.
