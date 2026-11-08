@@ -1,4 +1,4 @@
-import { readOnce } from './hole'
+import { isReadable, readOnce } from './hole'
 import { isOwnProp } from './own-props'
 import { escapeHtml } from './html'
 
@@ -186,10 +186,6 @@ export function classNames(value: ClassValue): string {
   if (Array.isArray(value))
     return value.map(classNames).filter(Boolean).join(' ')
   return onNames(value as { readonly [name: string]: unknown })
-}
-
-function isReadable(value: object): value is { get: () => ClassValue } {
-  return typeof (value as { get?: unknown }).get === 'function'
 }
 
 /** `{ active: isActive }`: the names whose value holds. */
