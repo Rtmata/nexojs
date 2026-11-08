@@ -56,9 +56,16 @@ const NUMBER: Kind = {
 
 /** Written only when the number differs: "1.0" stays as typed while it still means 1. */
 function setNumber(el: HTMLInputElement, value: unknown): void {
-  const wanted = value == null ? null : nullIfNaN(Number(value))
+  const wanted = numberOf(value)
   if (nullIfNaN(el.valueAsNumber) === wanted) return
   el.value = wanted === null ? '' : String(wanted)
+}
+
+/** A number, or a numeric string; anything else (empty, a boolean, a date) is "no value". */
+function numberOf(value: unknown): number | null {
+  if (typeof value === 'number') return nullIfNaN(value)
+  if (typeof value === 'string' && value.trim()) return nullIfNaN(Number(value))
+  return null
 }
 
 /** The platform's string as is ("2026-10-29"); empty is `null`. No `Date`: valueAsDate is UTC. */

@@ -943,7 +943,11 @@ export async function numberSpelling() {
   input.dispatchEvent(new Event('input', { bubbles: true }))
   flush()
   await new Promise((done) => setTimeout(done, 0))
-  const result = { signal: n.get(), shown: input.value }
+  const typed = { signal: n.get(), shown: input.value }
+  ;(n as unknown as { set(v: unknown): void }).set('')
+  flush()
+  await new Promise((done) => setTimeout(done, 0))
+  const result = { ...typed, emptied: input.value }
   controller.abort()
   return result
 }

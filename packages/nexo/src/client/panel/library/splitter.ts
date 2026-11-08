@@ -52,6 +52,7 @@ class Splitter {
   private readonly primary: HTMLElement
   private readonly container: HTMLElement
   private before?: number
+  private pointer?: number
 
   constructor(
     private readonly el: HTMLElement,
@@ -87,7 +88,11 @@ class Splitter {
     this.el.addEventListener('pointerdown', (e) => this.grab(e), on)
     this.el.addEventListener('pointermove', (e) => this.drag(e), on)
     for (const type of ['pointerup', 'pointercancel', 'lostpointercapture'])
-      this.el.addEventListener(type, () => this.released(), on)
+      this.el.addEventListener(
+        type,
+        (e) => this.released(e as PointerEvent),
+        on,
+      )
   }
 
   private size(): number {
@@ -129,12 +134,16 @@ class Splitter {
   }
 
   private grab(event: PointerEvent): void {
-    if (event.button !== 0) return
+    if (event.button !== 0 || this.pointer !== undefined) return
+    this.pointer = event.pointerId
     this.el.setPointerCapture(event.pointerId)
     this.marks.toggle(this.el, 'data-dragging', true)
   }
 
-  private released(): void {
+  /** Only the dragging pointer ends the drag (a second finger doesn't). */
+  private released(event: PointerEvent): void {
+    if (event.pointerId !== this.pointer) return
+    this.pointer = undefined
     this.marks.toggle(this.el, 'data-dragging', false)
   }
 

@@ -131,8 +131,7 @@ function pairsIn(el: HTMLElement): Tab[] {
     throw new Error(
       'tabs: no links to sections inside this panel (<a href="#id"> → <section id>)',
     )
-  const list = first.closest<HTMLElement>('ul, ol, nav') ?? first.parentElement!
-  const links = [...list.querySelectorAll<HTMLAnchorElement>('a[href^="#"]')]
+  const links = tabLinks(el, first)
   return links.map((tab) => ({ tab, panel: sectionOf(el, tab) }))
 }
 
@@ -149,5 +148,22 @@ function startsFocusable(panel: HTMLElement): boolean {
   return (
     first !== null &&
     first.matches('a[href], button, input, select, textarea, [tabindex]')
+  )
+}
+
+/**
+ * The tab links: those of the first link's list (`ul`, `ol`, `nav`) inside
+ * the panel. With no such list, every link not inside an element with an
+ * `id` (the sections have ids; the tab bar has none).
+ */
+function tabLinks(
+  el: HTMLElement,
+  first: HTMLAnchorElement,
+): HTMLAnchorElement[] {
+  const list = first.closest<HTMLElement>('ul, ol, nav')
+  const all = [...el.querySelectorAll<HTMLAnchorElement>('a[href^="#"]')]
+  if (list && el.contains(list)) return all.filter((a) => list.contains(a))
+  return all.filter(
+    (a) => a.parentElement?.closest('[id]') === el.closest('[id]'),
   )
 }

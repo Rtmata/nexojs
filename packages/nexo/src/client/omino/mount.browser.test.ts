@@ -340,7 +340,11 @@ for (const [name, engine] of engines) {
 
     test('review: ONCLICK refused, number spelling kept, dialog open at mount, exit-timeout text, aborted mount', async () => {
       expect(await play('uppercaseEvent')).toMatchObject({ threw: true })
-      expect(await play('numberSpelling')).toEqual({ signal: 1, shown: '1.0' })
+      expect(await play('numberSpelling')).toEqual({
+        signal: 1,
+        shown: '1.0',
+        emptied: '',
+      })
       expect(await play('dialogOpenAtMount')).toEqual({
         open: true,
         modal: true,
