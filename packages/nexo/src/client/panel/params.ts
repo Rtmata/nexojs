@@ -16,7 +16,7 @@ export type ParamsOf<S> = {
 }
 
 export function number(fallback: number): Param<number> {
-  const write = (n: number) => (Number.isFinite(n) ? String(n) : '')
+  const write = (n: number) => (Number.isFinite(n) ? String(n) : null) // non-finite: left out, the fallback applies
   return param(fallback, 'a number', write, (text) => {
     const n = Number(text)
     return text.trim() !== '' && Number.isFinite(n) ? { value: n } : undefined
@@ -90,7 +90,7 @@ export function oneOf<const W extends string>(
 function param<T>(
   fallback: T,
   expected: string,
-  write: (value: T) => string,
+  write: (value: T) => string | true | null,
   read: (text: string) => { value: T } | undefined,
 ): Param<T> {
   return {

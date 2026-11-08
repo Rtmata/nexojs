@@ -107,6 +107,13 @@ describe('elements', () => {
       ),
     ).toBe('<button class="btn btn-primary btn-disabled"></button>')
     expect(await renderToString(<i class={[false, null]} />)).toBe('<i></i>')
+    // review round 5: a class object with a key named `get` is classes, not a readable (it looped forever)
+    expect(await renderToString(<i class={{ get: true, set: false }} />)).toBe(
+      '<i class="get"></i>',
+    )
+    expect(
+      await renderToString(<i class={['a', () => 'b', { get: () => 'c' }]} />),
+    ).toBe('<i class="a b c"></i>')
   })
 
   test("a function handler is the browser's: left out (C.18d); text is refused", async () => {

@@ -478,7 +478,17 @@ function watchOptions(
   apply: () => void,
   signal: AbortSignal,
 ): void {
-  const observer = new MutationObserver(apply)
+  const observer = new MutationObserver((records) => {
+    if (records.some(changesOptions)) apply()
+  })
   observer.observe(el, { childList: true, subtree: true })
   signal.addEventListener('abort', () => observer.disconnect(), { once: true })
+}
+
+/** An option (or group) added or removed; a label's text changing is not that. */
+function changesOptions(record: MutationRecord): boolean {
+  const nodes = [...record.addedNodes, ...record.removedNodes]
+  return nodes.some(
+    (n) => n instanceof HTMLOptionElement || n instanceof HTMLOptGroupElement,
+  )
 }

@@ -80,3 +80,14 @@ describe('values that are not given', () => {
     })
   })
 })
+
+describe('numbers that are not numbers', () => {
+  test('a non-finite number is left out, so the fallback applies', () => {
+    const panels = registry({
+      splitter: panel({ params: { max: number(Infinity) } }),
+    })
+    expect(panels.markup('splitter', { max: Infinity })).toEqual({
+      'data-panel': 'splitter',
+    })
+  })
+})

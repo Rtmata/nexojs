@@ -96,12 +96,42 @@ export class ElementProps {
       this.holes.write(on, (v) => toggle(el, names, Boolean(v)), signal)
   }
 
-  /** Each array entry toggles the names it yields, as they change. */
+  /**
+   * Each entry is a hole (an object: one per key); whenever one changes,
+   * the whole class list is written again from every entry's current
+   * names, so a name two entries share is never lost when one lets go.
+   */
   private classList(el: Element, entries: unknown[], signal: AbortSignal) {
-    for (const entry of entries) {
-      if (isPlainObject(entry)) this.classes(el, entry, signal)
-      else this.holes.write(entry, swapper(el), signal)
+    const parts: string[] = entries.map(() => '')
+    const write = (i: number, names: string) => {
+      parts[i] = names
+      setClass(el, parts)
     }
+    entries.forEach((entry, i) => this.part(entry, (n) => write(i, n), signal))
+  }
+
+  /** One entry's names as they change: an object's keys each on their own hole, anything else one hole. */
+  private part(
+    entry: unknown,
+    changed: (names: string) => void,
+    signal: AbortSignal,
+  ) {
+    if (isPlainObject(entry)) return this.objectPart(entry, changed, signal)
+    this.holes.write(entry, (v) => changed(classNames(v as ClassValue)), signal)
+  }
+
+  private objectPart(
+    entry: Record<string, unknown>,
+    changed: (names: string) => void,
+    signal: AbortSignal,
+  ) {
+    const on = new Map<string, boolean>()
+    for (const [names, value] of Object.entries(entry))
+      this.holes.write(
+        value,
+        (v) => (on.set(names, Boolean(v)), changed(held(on))),
+        signal,
+      )
   }
 
   /** An object: CSS's own property names, each value maybe a hole (C.20b). */
@@ -142,14 +172,12 @@ function setLive(el: Element, name: string, value: unknown): void {
   ;(el as any)[name] = isText ? String(value ?? '') : Boolean(value)
 }
 
-/** Writes the names an entry yields now, taking back the ones it yielded before. */
-function swapper(el: Element): (value: unknown) => void {
-  let before = ''
-  return (value) => {
-    toggle(el, before, false)
-    before = classNames(value as ClassValue)
-    toggle(el, before, true)
-  }
+/** The names whose value holds now. */
+function held(on: Map<string, boolean>): string {
+  return [...on]
+    .filter(([, v]) => v)
+    .map(([names]) => names)
+    .join(' ')
 }
 
 function setClass(el: Element, value: ClassValue): void {

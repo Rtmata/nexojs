@@ -512,7 +512,7 @@ export function carouselState() {
     labels: slides.map((s) => s.getAttribute('aria-label')),
     toggle: toggle?.getAttribute('aria-label') ?? null,
     live: document
-      .querySelector('[data-carousel-slides]')!
+      .querySelector('[data-panel~=carousel]')!
       .getAttribute('aria-live'),
     scrollLeft: document.querySelector('[data-carousel-slides]')!.scrollLeft,
   }

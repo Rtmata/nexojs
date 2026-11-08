@@ -44,6 +44,7 @@ export class ClientRouter {
   private loading?: Place
   /** The last page that wasn't a failure: what shows when a later load fails with no page for it. */
   private lastGood: unknown = null
+  private shownGood = false
 
   constructor(private readonly options: BoatClientOptions) {
     const { reactivity, source, signal } = options
@@ -158,6 +159,7 @@ export class ClientRouter {
       this.loading ?? this.options.reactivity.untrack(() => this.place.get())
     const page = this.pageOf(place, value)
     this.lastGood = page
+    this.shownGood = true
     this.options.reactivity.untrack(() => this.shown.set(page))
   }
 
@@ -169,6 +171,7 @@ export class ClientRouter {
     const page = route?.failed ? route.failed.bind(route) : this.failedPage
     const ctx = { ...this.contextOf(place), error: this.data.error.get() }
     const retry = () => this.data.reload()
+    if (!page && !this.shownGood) return // nothing good shown yet: the server's page stays
     const shown = page ? page({ ...ctx, retry }) : this.lastGood
     untrack(() => this.shown.set(shown))
   }

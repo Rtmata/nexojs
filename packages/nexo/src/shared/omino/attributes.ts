@@ -181,11 +181,15 @@ export function classNames(value: ClassValue): string {
   if (!value || value === true) return ''
   if (typeof value === 'string' || typeof value === 'number')
     return String(value).trim()
-  if (typeof value === 'function' || 'get' in value)
+  if (typeof value === 'function' || isReadable(value))
     return classNames(readOnce(value) as ClassValue) // a hole inside an array: read once here (the client keeps it live)
   if (Array.isArray(value))
     return value.map(classNames).filter(Boolean).join(' ')
   return onNames(value as { readonly [name: string]: unknown })
+}
+
+function isReadable(value: object): value is { get: () => ClassValue } {
+  return typeof (value as { get?: unknown }).get === 'function'
 }
 
 /** `{ active: isActive }`: the names whose value holds. */

@@ -60,7 +60,11 @@ export class Region {
     this.swapOrKeep(child, old, text)
   }
 
-  /** The swap; if building the new content throws, the old stays in charge. */
+  /**
+   * The swap; if building the new content throws while the old is still
+   * there (`in-out`, `together`), the old stays in charge. Once the old has
+   * left (`out-in`), nothing is in charge: the region is empty.
+   */
   private swapOrKeep(
     child: Child,
     old: Content | undefined,
@@ -69,7 +73,8 @@ export class Region {
     try {
       this.swap(child, old, ++this.version)
     } catch (error) {
-      ;((this.current = old), (this.text = text))
+      if (old && !old.life.signal.aborted)
+        ((this.current = old), (this.text = text))
       throw error
     }
   }
@@ -86,7 +91,12 @@ export class Region {
   /** The `out-in` second half: only the latest change comes in. */
   private after(child: Child, version: number, leaving?: Promise<void>): void {
     if (this.leaving === leaving) this.leaving = undefined
-    if (version === this.version) this.come(child)
+    if (version !== this.version) return
+    try {
+      this.come(child)
+    } catch (error) {
+      reportError(error) // after the old left: nothing to go back to, the region stays empty
+    }
   }
 
   /** The new content: in, its refs run, then its entry. */

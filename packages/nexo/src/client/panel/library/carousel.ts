@@ -21,7 +21,7 @@ import { reducedMotion } from './motion'
  *
  * Rotation (`interval` ms, 0 = none) stops while hovered or focused and
  * only the toggle restarts it (APG); the toggle's label says what it will
- * do (`play` / `pause` params); the slides are `aria-live="off"` while
+ * do (`play` / `pause` params); the carousel is `aria-live="off"` while
  * rotating, `polite` when stopped. Scrolling is instant under
  * `prefers-reduced-motion`. `carousel:change` carries `{ index }`.
  */
@@ -160,7 +160,7 @@ class Carousel {
     clearInterval(this.timer)
     this.timer = on ? this.ticking() : undefined
     this.label(on)
-    this.marks.set(this.scroller, 'aria-live', on ? 'off' : 'polite')
+    this.marks.set(this.el, 'aria-live', on ? 'off' : 'polite') // on the carousel, not the scroller: a global ARIA attribute would undo a list's role=presentation
   }
 
   /** The toggle says what it will do (APG). */
