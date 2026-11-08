@@ -2052,9 +2052,15 @@ for (const [name, engine] of engines) {
         size: '600px',
         now: '100',
       })
+      await page.keyboard.press('Enter') // collapses below min, then restores the 600
+      expect(await call('splitterState')).toMatchObject({
+        size: '0px',
+        collapsed: true,
+        now: '0',
+      })
       await page.keyboard.press('Enter')
       expect(await call('splitterState')).toMatchObject({
-        size: '50px',
+        size: '600px',
         collapsed: false,
       })
       await call('setup', shell())
@@ -2102,6 +2108,335 @@ for (const [name, engine] of engines) {
           '<div data-panel="splitter" aria-controls="nope"></div>',
         ),
       ).toContain('names no element')
+    })
+  })
+}
+
+/** Every panel's markup: connected and ended, layer 0 is back (the reviewers' group A). */
+const LAYER_ZERO: [string, string][] = [
+  [
+    'focusgroup',
+    '<div data-panel="focusgroup" focusgroup="toolbar"><button>a</button><button>b</button></div>',
+  ],
+  [
+    'tabs',
+    '<div data-panel="tabs"><ul><li><a href="#s1">One</a></li><li><a href="#s2">Two</a></li></ul><section id="s1">1</section><section id="s2" hidden>2</section></div>',
+  ],
+  [
+    'dialog',
+    '<dialog id="d" data-panel="dialog" role="alertdialog"><h2>Title</h2><p>Message</p></dialog>',
+  ],
+  [
+    'feed',
+    '<section data-panel="feed"><article><h3>A</h3></article><article><h3>B</h3></article></section>',
+  ],
+  ['press-hold', '<li data-panel="press-hold">x</li>'],
+  ['confirm-on-hold', '<button data-panel="confirm-on-hold">Delete</button>'],
+  [
+    'gesture',
+    '<div data-panel="gesture" data-gesture-axis="x" style="width:10px"></div>',
+  ],
+  [
+    'slider',
+    '<div data-panel="slider" data-slider-valuetext="{value} %"><input type="range" value="20"><input type="range" value="80"></div>',
+  ],
+  ['hover-intent', '<div data-panel="hover-intent"></div>'],
+  [
+    'keymap',
+    '<div data-panel="keymap" data-keymap-keys=\'{"j":"next"}\'></div>',
+  ],
+  [
+    'indicator',
+    '<div data-panel="indicator" style="--own: 1"><button aria-selected="true">a</button></div>',
+  ],
+  [
+    'tokens',
+    '<div data-panel="tokens" data-tokens-values=\'{"accent":"blue"}\' style="--accent: red"></div>',
+  ],
+  ['activity', '<div data-panel="activity"></div>'],
+  [
+    'typewriter',
+    '<p data-panel="typewriter">Read <a href="#x">this</a> now</p>',
+  ],
+  ['decode', '<p data-panel="decode">Hello <em>there</em></p>'],
+  ['sequence', '<div data-panel="sequence"></div>'],
+  [
+    'listbox',
+    '<ul data-panel="listbox" aria-label="l"><li>a</li><li>b</li></ul>',
+  ],
+  [
+    'combobox (input)',
+    '<input data-panel="combobox" aria-controls="cl" aria-label="c"><ul id="cl" hidden><li>a</li></ul>',
+  ],
+  [
+    'combobox (select)',
+    '<label for="cs">Platform</label><select id="cs" data-panel="combobox"><option value="a">A</option></select>',
+  ],
+  [
+    'menu',
+    '<button commandfor="m" command="toggle-popover">More</button><div id="m" data-panel="menu" popover><button>One</button><hr><button role="menuitemcheckbox">Two</button></div>',
+  ],
+  [
+    'tooltip',
+    '<button interestfor="tip">i</button><div id="tip" popover="hint" data-panel="tooltip">Text <a href="#r">rich</a></div>',
+  ],
+  ['toast', '<ol data-panel="toast" aria-label="Notices"><li>Saved</li></ol>'],
+  [
+    'accordion',
+    '<div id="acc" data-panel="accordion"><details name="f"><summary>a</summary>1</details></div>',
+  ],
+  ['switch', '<input type="checkbox" switch data-panel="switch">'],
+  [
+    'grid',
+    '<table data-panel="grid"><thead><tr><th>T</th></tr></thead><tbody><tr aria-level="1"><td><a href="#g">a</a></td></tr><tr aria-level="2"><td>b</td></tr></tbody></table>',
+  ],
+  [
+    'tree',
+    '<ul data-panel="tree" aria-label="t"><li>Part<ul><li><a href="#c">Ch</a></li></ul></li></ul>',
+  ],
+  [
+    'carousel',
+    '<section data-panel="carousel" aria-label="s"><button data-carousel-toggle></button><ul data-carousel-slides><li>a</li><li aria-label="B">b</li></ul></section>',
+  ],
+  [
+    'splitter',
+    '<div style="display:flex"><nav id="sp">s</nav><div data-panel="splitter" aria-controls="sp"></div><main>m</main></div>',
+  ],
+]
+
+for (const [name, engine] of engines) {
+  describe(`layer 0 comes back in ${name}`, () => {
+    let browser: Browser
+    let page: Page
+    const call = (fn: string, ...args: unknown[]) =>
+      page.evaluate(
+        ([f, a]) => (window as any).library[f as string](...(a as unknown[])),
+        [fn, args] as const,
+      )
+
+    beforeAll(async () => {
+      browser = await engine.launch()
+      page = await browser.newPage()
+      await page.setContent(
+        '<!doctype html><title>library</title><body></body>',
+      )
+      await page.evaluate(async (code) => {
+        const url = URL.createObjectURL(
+          new Blob([code], { type: 'text/javascript' }),
+        )
+        ;(window as any).library = await import(url)
+      }, code)
+    }, LAUNCH)
+    afterAll(async () => {
+      await browser?.close()
+    })
+
+    for (const [panelName, html] of LAYER_ZERO)
+      test(`${panelName}: what the server sent, after the panel ends`, async () => {
+        const result = (await call('roundTrip', html)) as {
+          same: boolean
+          before: string
+          after: string
+        }
+        expect(result.after).toBe(result.before)
+      })
+  })
+}
+
+for (const [name, engine] of engines) {
+  describe(`review fixes, batches 1–2 in ${name}`, () => {
+    let browser: Browser
+    let page: Page
+    const call = (fn: string, ...args: unknown[]) =>
+      page.evaluate(
+        ([f, a]) => (window as any).library[f as string](...(a as unknown[])),
+        [fn, args] as const,
+      )
+
+    beforeAll(async () => {
+      browser = await engine.launch()
+      page = await browser.newPage({ viewport: { width: 800, height: 600 } })
+      await page.setContent(
+        '<!doctype html><title>library</title><body style="margin:0"></body>',
+      )
+      await page.evaluate(async (code) => {
+        const url = URL.createObjectURL(
+          new Blob([code], { type: 'text/javascript' }),
+        )
+        ;(window as any).library = await import(url)
+      }, code)
+    }, LAUNCH)
+    afterAll(async () => {
+      await browser?.close()
+    })
+
+    test('gesture: a button inside still gets its click; a second pointer is ignored', async () => {
+      await call('record')
+      await call(
+        'setup',
+        '<div data-panel="gesture" style="position:fixed;left:0;top:0;width:300px;height:200px"><button id="inner" style="position:absolute;left:10px;top:10px;width:80px;height:40px">go</button></div>',
+      )
+      await call('clicksInside', '#inner')
+      await page.mouse.click(50, 30)
+      expect(await call('wasClicked')).toBe(true)
+      expect(
+        ((await call('events')) as string[]).filter((e) =>
+          e.startsWith('gesture'),
+        ),
+      ).toEqual(['gesture:tap'])
+    })
+
+    test('press-hold: letting go outside cancels (WCAG 2.5.2); confirm-on-hold never fires after the panel ended', async () => {
+      await call('record')
+      await call(
+        'setup',
+        `<div id="item" data-panel="press-hold" data-press-hold-duration="150" style="position:fixed;left:0;top:0;width:200px;height:100px"></div>
+         <button id="del" data-panel="confirm-on-hold" data-confirm-on-hold-duration="150" style="position:fixed;left:0;top:300px;width:200px;height:50px">Delete</button>`,
+      )
+      await page.mouse.move(50, 50)
+      await page.mouse.down()
+      await page.mouse.move(500, 500, { steps: 2 })
+      await page.mouse.up()
+      await page.waitForTimeout(250)
+      expect(
+        ((await call('events')) as string[]).filter((e) =>
+          e.startsWith('press'),
+        ),
+      ).toEqual([])
+      await page.mouse.move(50, 320)
+      await page.mouse.down()
+      await call('endPanels')
+      await page.waitForTimeout(250)
+      await page.mouse.up()
+      expect(
+        ((await call('events')) as string[]).filter((e) =>
+          e.startsWith('confirm'),
+        ),
+      ).toEqual([])
+    })
+
+    test('focusgroup: a nested group keeps its keys; arrows inside a text field move the caret', async () => {
+      await call(
+        'setup',
+        `<div data-panel="focusgroup" focusgroup="toolbar inline">
+          <button id="a">a</button>
+          <span data-panel="focusgroup" focusgroup="toolbar inline"><button id="c">c</button><button id="d">d</button></span>
+          <input id="field" value="text">
+        </div>`,
+      )
+      await page.focus('#c')
+      await page.keyboard.press('ArrowRight')
+      expect(await page.evaluate(() => document.activeElement?.id)).toBe('d')
+      await page.focus('#field')
+      await page.keyboard.press('ArrowLeft')
+      expect(await page.evaluate(() => document.activeElement?.id)).toBe(
+        'field',
+      )
+    })
+
+    test('tabs: the selected tab is the tab stop, so Tab does not change the selection', async () => {
+      await call(
+        'setup',
+        `<button id="before">b</button><div data-panel="tabs"><ul><li><a href="#one">One</a></li><li><a id="two" href="#two" aria-selected="true">Two</a></li></ul><section id="one">1</section><section id="two">2</section></div>`,
+      )
+      await page.focus('#before')
+      await page.keyboard.press('Tab')
+      expect(await page.evaluate(() => document.activeElement?.id)).toBe('two')
+      expect(await call('tabsState')).toMatchObject({ shown: ['two'] })
+    })
+
+    test('keymap: ctrl+shift+k and ctrl+k are different bindings', async () => {
+      await call('record')
+      await call(
+        'setup',
+        `<div data-panel="keymap" data-keymap-keys='{"ctrl+shift+k":"A","ctrl+k":"B"}'><button id="b">b</button></div>`,
+      )
+      await page.focus('#b')
+      await page.keyboard.press('Control+Shift+K')
+      await page.keyboard.press('Control+k')
+      expect(
+        ((await call('events')) as string[]).filter((e) =>
+          e.startsWith('keymap'),
+        ),
+      ).toEqual(['keymap:action A', 'keymap:action B'])
+    })
+
+    test('slider: the end thumbs keep the native bounds; a number input inside is left alone', async () => {
+      await call(
+        'setup',
+        '<div data-panel="slider"><input id="t1" type="range" value="20"><input id="t2" type="range" value="80"><input id="n" type="number" value="99"></div>',
+      )
+      expect(
+        await call('attributes', '#t1', ['aria-valuemin', 'aria-valuemax']),
+      ).toEqual({ 'aria-valuemin': null, 'aria-valuemax': '80' })
+      expect(
+        await call('attributes', '#t2', ['aria-valuemin', 'aria-valuemax']),
+      ).toEqual({ 'aria-valuemin': '20', 'aria-valuemax': null })
+      await page.focus('#n')
+      await page.keyboard.press('ControlOrMeta+a')
+      await page.keyboard.type('99')
+      expect(
+        await page.evaluate(
+          () => (document.querySelector('#n') as HTMLInputElement).value,
+        ),
+      ).toBe('99') // kept, not clamped to a thumb
+    })
+
+    test('typewriter: inline markup survives; characters are whole graphemes', async () => {
+      await call(
+        'setup',
+        '<p id="p" data-panel="typewriter" data-typewriter-speed="20">🎮 <a href="#x">Ys</a></p>',
+      )
+      await page.waitForTimeout(30)
+      const during = (await call('texts', '#p')) as { shown: string }
+      expect(during.shown).not.toContain('\uFFFD')
+      await page.waitForTimeout(200)
+      expect(
+        await page.evaluate(() => document.querySelector('#p')!.innerHTML),
+      ).toBe('🎮 <a href="#x">Ys</a>')
+    })
+
+    test('dialog: closedby="any" bridge ignores a press that started inside and ended on the backdrop', async () => {
+      await call(
+        'withoutPlatform',
+        '<dialog id="d" data-panel="dialog" closedby="any" style="width:200px;height:100px;margin:0;position:fixed;left:100px;top:100px"><p>Select me</p></dialog>',
+        ['closedBy'],
+      )
+      await call('openModal', 'd')
+      await page.mouse.move(150, 150)
+      await page.mouse.down()
+      await page.mouse.move(600, 500, { steps: 3 })
+      await page.mouse.up()
+      expect(
+        await page.evaluate(
+          () => (document.querySelector('#d') as HTMLDialogElement).open,
+        ),
+      ).toBe(true)
+      await page.mouse.click(600, 500)
+      expect(
+        await page.evaluate(
+          () => (document.querySelector('#d') as HTMLDialogElement).open,
+        ),
+      ).toBe(false)
+    })
+
+    test('hover-intent: crossing a child does not count as leaving', async () => {
+      await call('record')
+      await call(
+        'setup',
+        '<div data-panel="hover-intent" data-hover-intent-enter="50" data-hover-intent-leave="50" style="position:fixed;left:0;top:0;width:300px;height:200px;padding:40px"><span style="display:block;width:100%;height:100%;background:#ccc"></span></div>',
+      )
+      await page.mouse.move(700, 500)
+      await page.mouse.move(20, 20)
+      await page.waitForTimeout(120)
+      await page.mouse.move(150, 100)
+      await page.mouse.move(20, 20)
+      await page.waitForTimeout(120)
+      expect(
+        ((await call('events')) as string[]).filter((e) =>
+          e.startsWith('hover'),
+        ),
+      ).toEqual(['hover-intent:enter'])
     })
   })
 }

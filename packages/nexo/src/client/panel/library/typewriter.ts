@@ -1,13 +1,13 @@
 import { panel } from '../panel'
 import { number } from '../params'
 import { emit } from './hold'
-import { reducedMotion, speakingText } from './motion'
+import { graphemes, reducedMotion, speakingText } from './motion'
 
 /**
- * Typewriter (Archive): the element's text appears a character at a time,
- * every `speed` ms; the whole text stays readable by assistive technology
- * meanwhile, and shows at once with reduced motion. `typewriter:done` at
- * the end.
+ * Typewriter (Archive): the element's text appears a character at a time
+ * (whole graphemes: an emoji never shows half), every `speed` ms; the
+ * whole content stays readable by assistive technology meanwhile, and
+ * shows at once with reduced motion. `typewriter:done` at the end.
  */
 export const typewriter = panel({
   params: { speed: number(30) },
@@ -18,7 +18,7 @@ export const typewriter = panel({
 })
 
 class Typewriter {
-  private readonly text: string
+  private readonly units: string[]
   private readonly shown: HTMLElement
   private readonly restore: () => void
   private readonly timer: ReturnType<typeof setInterval>
@@ -29,18 +29,17 @@ class Typewriter {
     speed: number,
     signal: AbortSignal,
   ) {
-    this.text = el.textContent ?? ''
-    ;({ shown: this.shown, restore: this.restore } = speakingText(
-      el,
-      this.text,
-    ))
+    const { text, shown, restore } = speakingText(el)
+    this.units = graphemes(text)
+    this.shown = shown
+    this.restore = restore
     this.timer = setInterval(() => this.step(), speed)
     signal.addEventListener('abort', () => this.stop(), { once: true })
   }
 
   private step(): void {
-    this.shown.textContent = this.text.slice(0, ++this.at)
-    if (this.at < this.text.length) return
+    this.shown.textContent = this.units.slice(0, ++this.at).join('')
+    if (this.at < this.units.length) return
     this.stop()
     emit(this.el, 'typewriter:done')
   }

@@ -532,3 +532,47 @@ export function splitterState() {
     collapsed: sep.hasAttribute('data-collapsed'),
   }
 }
+
+/**
+ * Layer 0 back: the markup after a panel connected and ended, compared
+ * with what the server sent, attributes in any order.
+ */
+export function roundTrip(html: string): {
+  same: boolean
+  before: string
+  after: string
+} {
+  document.body.innerHTML = html
+  const before = canonical(document.body)
+  setupAndEnd(html)
+  const after = canonical(document.body)
+  return { same: before === after, before, after }
+}
+
+function canonical(node: Node): string {
+  if (node.nodeType === Node.TEXT_NODE)
+    return JSON.stringify(node.textContent!.trim())
+  if (!(node instanceof Element)) return ''
+  const attributes = [...node.attributes]
+    .map((a) => `${a.name}=${JSON.stringify(a.value)}`)
+    .sort()
+  const children = [...node.childNodes].map(canonical).filter(Boolean)
+  return `<${node.localName} ${attributes.join(' ')}>${children.join('')}</${node.localName}>`
+}
+
+/** A click on something inside a panel reaches it (gesture must not capture the pointer). */
+export function clicksInside(selector: string): boolean {
+  let clicked = false
+  const target = document.querySelector<HTMLElement>(selector)!
+  target.addEventListener('click', () => (clicked = true), { once: true })
+  return (((window as any).__clickCheck = () => clicked), true)
+}
+
+export function wasClicked(): boolean {
+  return (window as any).__clickCheck()
+}
+
+/** The panels of the current scenario end now, as a navigation would end them. */
+export function endPanels(): void {
+  current.abort()
+}

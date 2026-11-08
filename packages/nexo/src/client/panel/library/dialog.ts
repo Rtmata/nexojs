@@ -1,5 +1,6 @@
 import { panel } from '../panel'
 import { bridgeCommands } from './commands'
+import { Marks } from './marks'
 
 /**
  * Dialog (WAI-ARIA APG Dialog (Modal)) on the native `<dialog>`: it already
@@ -23,10 +24,12 @@ export const dialog = panel({
       throw new Error(
         `dialog: data-panel="dialog" goes on a <dialog>, not <${el.localName}>`,
       )
-    named(el)
-    if (el.getAttribute('role') === 'alertdialog') described(el)
+    const marks = new Marks()
+    named(el, marks)
+    if (el.getAttribute('role') === 'alertdialog') described(el, marks)
     bridgeCommands(el, signal)
     if (!hasClosedBy()) bridgeClosedBy(el, signal)
+    signal.addEventListener('abort', () => marks.restore(), { once: true })
   },
 })
 
@@ -35,7 +38,7 @@ function hasClosedBy(): boolean {
 }
 
 /** APG: a dialog has a name; without one, its first heading gives it. */
-function named(dialog: HTMLDialogElement): void {
+function named(dialog: HTMLDialogElement, marks: Marks): void {
   if (
     dialog.hasAttribute('aria-label') ||
     dialog.hasAttribute('aria-labelledby')
@@ -43,8 +46,8 @@ function named(dialog: HTMLDialogElement): void {
     return
   const heading = dialog.querySelector('h1, h2, h3, h4, h5, h6')
   if (!heading) return
-  heading.id ||= `${dialog.id || 'dialog'}-title`
-  dialog.setAttribute('aria-labelledby', heading.id)
+  if (!heading.id) marks.set(heading, 'id', `${dialog.id || 'dialog'}-title`)
+  marks.set(dialog, 'aria-labelledby', heading.id)
 }
 
 /**
@@ -52,25 +55,40 @@ function named(dialog: HTMLDialogElement): void {
  * switch, R.34) must describe its message; without `aria-describedby`,
  * its first paragraph is the description.
  */
-function described(dialog: HTMLDialogElement): void {
+function described(dialog: HTMLDialogElement, marks: Marks): void {
   if (dialog.hasAttribute('aria-describedby')) return
   const message = dialog.querySelector('p')
   if (!message) return
-  message.id ||= `${dialog.id || 'dialog'}-message`
-  dialog.setAttribute('aria-describedby', message.id)
+  if (!message.id) marks.set(message, 'id', `${dialog.id || 'dialog'}-message`)
+  marks.set(dialog, 'aria-describedby', message.id)
 }
 
-/** `any`: a click on the backdrop asks to close; `none`: Escape doesn't close. */
+/**
+ * `any`: a press that both starts and ends on the backdrop asks to close
+ * (as the platform's: a selection dragged out of the box doesn't);
+ * `none`: Escape doesn't close.
+ */
 function bridgeClosedBy(dialog: HTMLDialogElement, signal: AbortSignal): void {
-  const onClick = (event: MouseEvent) => {
-    if (dialog.getAttribute('closedby') === 'any' && outside(dialog, event))
+  let downOutside = false
+  const onDown = (e: PointerEvent) => (downOutside = outside(dialog, e))
+  const onClick = (e: MouseEvent) => {
+    if (closedBy(dialog) === 'any' && downOutside && outside(dialog, e))
       dialog.requestClose()
   }
-  const onCancel = (event: Event) => {
-    if (dialog.getAttribute('closedby') === 'none') event.preventDefault()
-  }
+  dialog.addEventListener('pointerdown', onDown, { signal })
   dialog.addEventListener('click', onClick, { signal })
+  keepEscapeOut(dialog, signal)
+}
+
+/** `none`: Escape (the `cancel` event) doesn't close. */
+function keepEscapeOut(dialog: HTMLDialogElement, signal: AbortSignal): void {
+  const onCancel = (e: Event) =>
+    closedBy(dialog) === 'none' && e.preventDefault()
   dialog.addEventListener('cancel', onCancel, { signal })
+}
+
+function closedBy(dialog: HTMLDialogElement): string | null {
+  return dialog.getAttribute('closedby')
 }
 
 /** A click the dialog element itself got, outside its box: the backdrop. */

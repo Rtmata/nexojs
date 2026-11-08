@@ -29,7 +29,7 @@ export class Options {
   /** No active option: nothing is named on the controller. */
   clear(): void {
     this.controller.removeAttribute('aria-activedescendant')
-    for (const o of this.all()) o.removeAttribute('data-active')
+    for (const o of this.all()) this.marks.toggle(o, 'data-active', false)
   }
 
   get active(): HTMLElement | undefined {
@@ -41,7 +41,8 @@ export class Options {
     if (!option) return
     if (!option.id) this.marks.set(option, 'id', `option-${++made}`)
     this.marks.set(this.controller, 'aria-activedescendant', option.id)
-    for (const o of this.all()) o.toggleAttribute('data-active', o === option)
+    for (const o of this.all())
+      this.marks.toggle(o, 'data-active', o === option)
     option.scrollIntoView?.({ block: 'nearest' })
   }
 

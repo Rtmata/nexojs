@@ -1,6 +1,7 @@
 import { panel } from '../panel'
 import { number } from '../params'
 import { emit } from './hold'
+import { Marks } from './marks'
 
 /**
  * Hover intent (Archive): a mouse that stays `enter` ms means it, one that
@@ -12,7 +13,7 @@ import { emit } from './hold'
  */
 export const hoverIntent = panel({
   params: { enter: number(250), leave: number(150) },
-  connect: (el, delays) => new HoverIntent(el, delays),
+  connect: (el, delays, { signal }) => new HoverIntent(el, delays, signal),
   events: {
     pointerenter: (e, ctx) =>
       (e as PointerEvent).pointerType === 'mouse' && ctx.entered(),
@@ -22,13 +23,17 @@ export const hoverIntent = panel({
 })
 
 class HoverIntent {
+  private readonly marks = new Marks()
   private timer?: ReturnType<typeof setTimeout>
   private active = false
 
   constructor(
     private readonly el: Element,
     private readonly delays: { enter: number; leave: number },
-  ) {}
+    signal: AbortSignal,
+  ) {
+    signal.addEventListener('abort', () => this.end(), { once: true })
+  }
 
   entered(): void {
     this.wait(this.delays.enter, true)
@@ -47,7 +52,12 @@ class HoverIntent {
 
   private become(active: boolean): void {
     this.active = active
-    this.el.toggleAttribute('data-intent', active)
+    this.marks.toggle(this.el, 'data-intent', active)
     emit(this.el, active ? 'hover-intent:enter' : 'hover-intent:leave')
+  }
+
+  private end(): void {
+    clearTimeout(this.timer)
+    this.marks.restore()
   }
 }

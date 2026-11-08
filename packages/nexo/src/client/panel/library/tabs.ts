@@ -1,6 +1,7 @@
 import { panel } from '../panel'
 import { oneOf } from '../params'
 import { FocusGroup, readSpec } from './focusgroup'
+import { Marks } from './marks'
 
 /**
  * Tabs (WAI-ARIA APG Tabs). Layer 0 is links to sections by id, all shown
@@ -9,7 +10,8 @@ import { FocusGroup, readSpec } from './focusgroup'
  * (`focusgroup="tablist inline"`), the panel shown on focus (`automatic`,
  * APG's choice when panels show without delay) or on Enter/Space/click
  * (`manual`). The first tab shown is the URL's `#hash`, else
- * `aria-selected="true"`, else the first.
+ * `aria-selected="true"`, else the first; the selected tab is the tab
+ * stop (APG). A link whose `#hash` names no section is an error.
  *
  *   <div data-panel="tabs">
  *     <ul><li><a href="#games">Games</a></li><li><a href="#screens">Screens</a></li></ul>
@@ -37,7 +39,9 @@ interface Tab {
 let made = 0
 
 class Tabs {
+  private readonly marks = new Marks()
   private readonly list: Tab[]
+  private readonly group: FocusGroup
 
   constructor(
     el: HTMLElement,
@@ -45,13 +49,12 @@ class Tabs {
     signal: AbortSignal,
   ) {
     this.list = pairsIn(el)
-    const tablist = listOf(this.list, el)
-    if (!tablist.hasAttribute('focusgroup'))
-      tablist.setAttribute('focusgroup', 'tablist inline')
-    for (const pair of this.list) roles(pair)
+    const tablist = this.listOf(el)
+    this.marks.default(tablist, 'focusgroup', 'tablist inline')
+    for (const pair of this.list) this.roles(pair)
+    this.group = new FocusGroup(tablist, readSpec(tablist), signal)
     this.select(this.initial())
-    new FocusGroup(tablist, readSpec(tablist), signal)
-    signal.addEventListener('abort', () => this.restore(), { once: true })
+    signal.addEventListener('abort', () => this.marks.restore(), { once: true })
   }
 
   clicked(event: Event, tab: HTMLElement): void {
@@ -70,11 +73,13 @@ class Tabs {
     if (!this.manual) this.select(this.indexOf(tab))
   }
 
+  /** One panel shown; the selected tab is the tab stop (APG). */
   private select(at: number): void {
     this.list.forEach(({ tab, panel }, i) => {
-      tab.setAttribute('aria-selected', String(i === at))
-      panel.hidden = i !== at
+      this.marks.set(tab, 'aria-selected', String(i === at))
+      this.marks.toggle(panel, 'hidden', i !== at)
     })
+    this.group.settle(this.list[at]?.tab)
   }
 
   private initial(): number {
@@ -94,45 +99,42 @@ class Tabs {
     return this.list.findIndex((pair) => pair.tab === tab)
   }
 
-  /** Disconnected: back to layer 0, every section shown. */
-  private restore(): void {
-    for (const { panel } of this.list) panel.hidden = false
+  /** The links' list (`ul`, `ol`, `nav`), else their parent; list items become presentation. */
+  private listOf(el: HTMLElement): HTMLElement {
+    const first = this.list[0]!.tab
+    const tablist =
+      first.closest<HTMLElement>('ul, ol, nav') ?? first.parentElement ?? el
+    for (const item of tablist.querySelectorAll(':scope > li'))
+      this.marks.set(item, 'role', 'presentation')
+    return tablist
+  }
+
+  /** APG roles and the links between each tab and its panel. */
+  private roles({ tab, panel }: Tab): void {
+    if (!tab.id) this.marks.set(tab, 'id', `tab-${++made}`)
+    this.marks.set(tab, 'role', 'tab')
+    this.marks.set(tab, 'aria-controls', panel.id)
+    this.marks.set(panel, 'role', 'tabpanel')
+    this.marks.set(panel, 'aria-labelledby', tab.id)
+    if (!startsFocusable(panel)) this.marks.default(panel, 'tabindex', '0')
   }
 }
 
-/** Each link to a section inside the panel, with that section. */
+/** Each link to a section inside the panel, with that section; a dead link is an error. */
 function pairsIn(el: HTMLElement): Tab[] {
   const links = [...el.querySelectorAll<HTMLAnchorElement>('a[href^="#"]')]
-  return links.flatMap((tab) => {
-    const panel = el.querySelector<HTMLElement>(
-      `[id="${CSS.escape(tab.hash.slice(1))}"]`,
-    )
-    return panel ? [{ tab, panel }] : []
-  })
-}
-
-/** The links' list (`ul`, `ol`, `nav`), else their parent; list items become presentation. */
-function listOf(list: Tab[], el: HTMLElement): HTMLElement {
-  const first = list[0]?.tab
-  if (!first)
+  if (links.length === 0)
     throw new Error(
       'tabs: no links to sections inside this panel (<a href="#id"> → <section id>)',
     )
-  const tablist =
-    first.closest<HTMLElement>('ul, ol, nav') ?? first.parentElement ?? el
-  for (const item of tablist.querySelectorAll(':scope > li'))
-    item.setAttribute('role', 'presentation')
-  return tablist
+  return links.map((tab) => ({ tab, panel: sectionOf(el, tab) }))
 }
 
-/** APG roles and the links between each tab and its panel. */
-function roles({ tab, panel }: Tab): void {
-  tab.id ||= `tab-${++made}`
-  tab.setAttribute('role', 'tab')
-  tab.setAttribute('aria-controls', panel.id)
-  panel.setAttribute('role', 'tabpanel')
-  panel.setAttribute('aria-labelledby', tab.id)
-  if (!startsFocusable(panel)) panel.tabIndex = 0
+function sectionOf(el: HTMLElement, tab: HTMLAnchorElement): HTMLElement {
+  const id = tab.hash.slice(1)
+  const panel = el.querySelector<HTMLElement>(`[id="${CSS.escape(id)}"]`)
+  if (panel) return panel
+  throw new Error(`tabs: <a href="#${id}"> names no section inside the panel`)
 }
 
 /** APG: a panel gets tabindex=0 unless its first content is focusable. */

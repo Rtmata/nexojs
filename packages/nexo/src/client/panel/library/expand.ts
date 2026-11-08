@@ -50,14 +50,14 @@ export class Expansion<N extends HTMLElement> {
 
   open(node: N): boolean {
     if (!this.isParent(node) || this.isOpen(node)) return false
-    node.setAttribute('aria-expanded', 'true')
+    this.marks.set(node, 'aria-expanded', 'true')
     for (const child of this.tree.children(node)) this.show(child)
     return true
   }
 
   close(node: N): boolean {
     if (!this.isOpen(node)) return false
-    node.setAttribute('aria-expanded', 'false')
+    this.marks.set(node, 'aria-expanded', 'false')
     for (const child of this.tree.children(node)) this.hide(child)
     return true
   }

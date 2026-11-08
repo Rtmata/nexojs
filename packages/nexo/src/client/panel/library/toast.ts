@@ -62,13 +62,15 @@ class Toasts {
   private readonly timers = new Map<Element, Countdown>()
   private readonly made: HTMLElement[] = []
   private paused = { pointer: false, focus: false, window: false }
+  private readonly leaving = new Set<Element>()
 
   constructor(
     private readonly el: HTMLElement,
     private readonly params: Params,
-    signal: AbortSignal,
+    private readonly signal: AbortSignal,
   ) {
     this.marks.default(el, 'role', 'log')
+    this.paused.window = !document.hasFocus()
     for (const message of el.children) this.arrived(message as HTMLElement)
     this.observe(signal)
     this.listen(signal)
@@ -139,11 +141,19 @@ class Toasts {
     message: HTMLElement,
     reason: 'close' | 'timeout',
   ): Promise<void> {
+    if (this.leaving.has(message)) return
+    this.leaving.add(message)
     this.timers.get(message)?.stop()
     this.timers.delete(message)
     if (message.contains(document.activeElement)) this.keepFocus(message)
-    message.setAttribute('data-leaving', '')
+    this.marks.toggle(message, 'data-leaving', true)
     await animationsDone(message)
+    this.gone(message, reason)
+  }
+
+  /** Unless the panel ended meanwhile: removed and announced. */
+  private gone(message: HTMLElement, reason: 'close' | 'timeout'): void {
+    if (this.signal.aborted) return
     const text = textOf(message)
     message.remove()
     emit(this.el, 'toast:dismiss', { text, reason })

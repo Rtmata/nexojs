@@ -1,5 +1,6 @@
 import { panel } from '../panel'
 import { number } from '../params'
+import { Marks } from './marks'
 
 /**
  * Feed (WAI-ARIA APG Feed): a list of articles that grows as the visitor
@@ -23,25 +24,30 @@ export const feed = panel({
 })
 
 class Feed {
+  private readonly marks = new Marks()
+
   constructor(
     private readonly el: HTMLElement,
     private readonly total: number,
     signal: AbortSignal,
   ) {
-    el.setAttribute('role', 'feed')
+    this.marks.set(el, 'role', 'feed')
     this.number()
     const watcher = new MutationObserver(() => this.number())
     watcher.observe(el, { childList: true, subtree: true })
-    signal.addEventListener('abort', () => watcher.disconnect(), { once: true })
+    signal.addEventListener(
+      'abort',
+      () => (watcher.disconnect(), this.marks.restore()),
+      { once: true },
+    )
   }
 
   /** Each article focusable and numbered; the set's size if known. */
   private number(): void {
-    const articles = this.articles()
-    articles.forEach((article, i) => {
-      if (!article.hasAttribute('tabindex')) article.tabIndex = 0
-      article.setAttribute('aria-posinset', String(i + 1))
-      article.setAttribute('aria-setsize', String(this.total))
+    this.articles().forEach((article, i) => {
+      this.marks.default(article, 'tabindex', '0')
+      this.marks.set(article, 'aria-posinset', String(i + 1))
+      this.marks.set(article, 'aria-setsize', String(this.total))
     })
   }
 
@@ -67,7 +73,7 @@ class Feed {
     articles[Math.min(articles.length - 1, Math.max(0, at + by))]?.focus()
   }
 
-  /** The first focusable element after (or before) the whole feed. */
+  /** The first visible focusable element after (or before) the whole feed. */
   private out(direction: 1 | -1): void {
     const outside = focusables().filter((e) => !this.el.contains(e))
     const target =
@@ -92,10 +98,15 @@ class Feed {
   }
 }
 
+/** What can take focus now: not inert, not hidden, rendered. */
 function focusables(): HTMLElement[] {
   return [...document.querySelectorAll<HTMLElement>(FOCUSABLE)].filter(
-    (e) => !e.closest('[inert]'),
+    (e) => !e.closest('[inert]') && isShown(e),
   )
+}
+
+function isShown(e: HTMLElement): boolean {
+  return e.checkVisibility?.() ?? e.getClientRects().length > 0
 }
 
 const FOCUSABLE =

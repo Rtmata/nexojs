@@ -183,7 +183,7 @@ export class Listbox {
   private choose(chosen: HTMLElement[], about: HTMLElement | undefined): void {
     const before = this.selected()
     for (const option of this.options.all())
-      option.setAttribute('aria-selected', String(chosen.includes(option)))
+      this.marks.set(option, 'aria-selected', String(chosen.includes(option)))
     if (sameSet(before, chosen)) return
     const values = this.selected().map(Options.valueOf)
     const value = about ? Options.valueOf(about) : undefined

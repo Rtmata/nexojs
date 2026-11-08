@@ -4,7 +4,6 @@
  */
 export class Marks {
   private readonly before = new Map<Element, Map<string, string | null>>()
-  private readonly styles = new Map<HTMLElement, Map<string, string>>()
 
   set(el: Element, name: string, value: string): void {
     const seen = this.before.get(el) ?? new Map<string, string | null>()
@@ -24,24 +23,38 @@ export class Marks {
     if (!el.hasAttribute(name)) this.set(el, name, value)
   }
 
-  /** An inline style or custom property (`--slider-fill`), remembered the same way. */
+  /**
+   * An inline style or custom property (`--slider-fill`). What's remembered
+   * is the whole `style` attribute as the server sent it, so restoring puts
+   * it back verbatim (no stray `style=""` or reformatted text).
+   */
   style(el: HTMLElement, name: string, value: string): void {
-    const seen = this.styles.get(el) ?? new Map<string, string>()
-    if (!seen.has(name)) seen.set(name, el.style.getPropertyValue(name))
-    this.styles.set(el, seen)
+    const seen = this.before.get(el) ?? new Map<string, string | null>()
+    if (!seen.has('style')) seen.set('style', el.getAttribute('style'))
+    this.before.set(el, seen)
     el.style.setProperty(name, value)
+    el.setAttribute('style', el.style.cssText) // settled now, not lazily (see `put`)
   }
 
+  /** Every attribute back, `style` last: a later attribute change would resurrect a removed one (WebKit). */
   restore(): void {
-    for (const [el, seen] of this.before)
+    for (const [el, seen] of this.before) {
       for (const [name, value] of seen)
-        value === null ? el.removeAttribute(name) : el.setAttribute(name, value)
-    for (const [el, seen] of this.styles)
-      for (const [name, value] of seen)
-        value
-          ? el.style.setProperty(name, value)
-          : el.style.removeProperty(name)
+        if (name !== 'style') put(el, name, value)
+      if (seen.has('style')) put(el, 'style', seen.get('style')!)
+    }
     this.before.clear()
-    this.styles.clear()
   }
+}
+
+/**
+ * Back to the original attribute, or none. A `style` written through
+ * `el.style` is serialized lazily: reading the attribute first settles it,
+ * or Chromium and WebKit bring back a bare `style=""` after the removal
+ * (measured 2026-11; Firefox doesn't).
+ */
+function put(el: Element, name: string, value: string | null): void {
+  if (name === 'style') void el.getAttribute('style')
+  if (value === null) el.removeAttribute(name)
+  else el.setAttribute(name, value)
 }

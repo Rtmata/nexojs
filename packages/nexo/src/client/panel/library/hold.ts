@@ -1,7 +1,8 @@
 /**
  * A press that must last: a timer started on press, ended early by a
- * release, a move past `slop`, or the browser taking the pointer over
- * (`pointercancel`). What `press-hold` and `confirm-on-hold` share.
+ * release, a move past `slop`, the browser taking the pointer over
+ * (`pointercancel`), or the panel ending. What `press-hold` and
+ * `confirm-on-hold` share.
  */
 export class Hold {
   private timer?: ReturnType<typeof setTimeout>
@@ -11,7 +12,10 @@ export class Hold {
     private readonly duration: number,
     private readonly slop: number,
     private readonly done: () => void,
-  ) {}
+    signal: AbortSignal,
+  ) {
+    signal.addEventListener('abort', () => this.cancel(), { once: true })
+  }
 
   get holding(): boolean {
     return this.timer !== undefined
@@ -41,17 +45,42 @@ export class Hold {
   }
 }
 
-/** The click a pointer release makes after a held press: swallowed once (capture phase). */
+/**
+ * The click a pointer release makes after a held press: swallowed once
+ * (capture phase). The window closes a moment after the release, however
+ * long the press went on.
+ */
 export function swallowNextClick(el: Element, signal: AbortSignal): void {
   const swallow = (event: Event) => {
     event.preventDefault()
     event.stopImmediatePropagation()
   }
+  const forget = () =>
+    el.removeEventListener('click', swallow, { capture: true })
   el.addEventListener('click', swallow, { capture: true, once: true, signal })
-  setTimeout(
-    () => el.removeEventListener('click', swallow, { capture: true }),
-    600,
-  )
+  const released = () => setTimeout(forget, 300)
+  document.addEventListener('pointerup', released, { once: true, signal })
+  document.addEventListener('pointercancel', released, { once: true, signal })
+}
+
+/**
+ * The pointer that pressed `el`, followed on the document until it lets
+ * go, so a release outside `el` still ends the press (WCAG 2.5.2) without
+ * `setPointerCapture`, which would redirect the click to `el` and take it
+ * from the buttons inside. Ends by itself on release, cancel or abort.
+ */
+export function followPointer(
+  id: number,
+  on: { move?(e: PointerEvent): void; up(e: PointerEvent): void },
+  signal: AbortSignal,
+): void {
+  const controller = new AbortController()
+  const opts = { signal: AbortSignal.any([signal, controller.signal]) }
+  const own = (e: PointerEvent) => e.pointerId === id
+  const end = (e: PointerEvent) => own(e) && (controller.abort(), on.up(e))
+  document.addEventListener('pointermove', (e) => own(e) && on.move?.(e), opts)
+  document.addEventListener('pointerup', end, opts)
+  document.addEventListener('pointercancel', end, opts)
 }
 
 export function at(event: PointerEvent): { x: number; y: number } {

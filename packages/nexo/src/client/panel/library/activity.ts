@@ -1,6 +1,7 @@
 import { panel } from '../panel'
 import { number } from '../params'
 import { emit } from './hold'
+import { Marks } from './marks'
 
 /**
  * Activity (Archive's activity stir): whether the visitor is here.
@@ -18,6 +19,7 @@ export const activity = panel({
 const ACTIVITY = ['pointermove', 'pointerdown', 'keydown', 'wheel', 'focusin']
 
 class Activity {
+  private readonly marks = new Marks()
   private timer?: ReturnType<typeof setTimeout>
   private state = ''
 
@@ -31,10 +33,8 @@ class Activity {
     document.addEventListener('visibilitychange', () => this.visibility(), {
       signal,
     })
-    signal.addEventListener('abort', () => clearTimeout(this.timer), {
-      once: true,
-    })
-    this.stirred()
+    signal.addEventListener('abort', () => this.end(), { once: true })
+    this.visibility()
   }
 
   private stirred(): void {
@@ -44,15 +44,22 @@ class Activity {
     this.timer = setTimeout(() => this.become('idle'), this.idle)
   }
 
+  /** Hidden: nothing counts down meanwhile; visible again: active. */
   private visibility(): void {
-    if (document.visibilityState === 'hidden') this.become('hidden')
-    else this.stirred()
+    if (document.visibilityState !== 'hidden') return this.stirred()
+    clearTimeout(this.timer)
+    this.become('hidden')
   }
 
   private become(state: string): void {
     if (state === this.state) return
     this.state = state
-    this.el.setAttribute('data-activity', state)
+    this.marks.set(this.el, 'data-activity', state)
     emit(this.el, 'activity:change', { state })
+  }
+
+  private end(): void {
+    clearTimeout(this.timer)
+    this.marks.restore()
   }
 }

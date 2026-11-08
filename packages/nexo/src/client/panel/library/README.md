@@ -18,7 +18,7 @@ arrivals((segment, { signal }) => attach(segment, panels, { signal }))
 
 Gap bridges fill in what an engine lacks today and are marked for removal when support lands.
 
-A hyphenated name is a registry key: `registry({ 'press-hold': pressHold })`, and its params read `data-press-hold-duration`. Every panel event is `<panel>:<verb>`, bubbles, and carries its facts in `detail`.
+A hyphenated name is a registry key: `registry({ 'press-hold': pressHold })`, and its params read `data-press-hold-duration`. A boolean param is on by its presence, and off by the one text `"false"` (`data-x-open="false"`, for a param whose default is on). Every panel event is `<panel>:<verb>`, bubbles, and carries its facts in `detail`. Every panel takes back what it wrote when it ends (its `signal` aborts): the markup is the server's again. A panel that throws (the wrong element, a bad param) is reported as an uncaught error naming it, and the rest of the page's panels still connect.
 
 ## focusgroup
 
@@ -45,7 +45,7 @@ Without JS, links to sections in order, a table of contents (GOV.UK's pattern). 
 </div>
 ```
 
-`activation`: `automatic` (the default; a panel shows when its tab gets focus) or `manual` (Enter, Space or a click).
+`activation`: `automatic` (the default; a panel shows when its tab gets focus) or `manual` (Enter, Space or a click). The selected tab is the tab stop (APG), so Tab never changes the selection. A link whose `#hash` names no section is an error.
 
 ## dialog
 
@@ -59,7 +59,7 @@ On the native `<dialog>`. It already traps focus, closes on Escape and returns f
 </dialog>
 ```
 
-The panel names the dialog from its first heading (APG). An alert dialog is the standard `role="alertdialog"` on the same `<dialog>` (R.34): the panel then describes it with its first paragraph (`aria-describedby`), unless you wrote one. **Bridges**, each feature-checked: `command` / `commandfor` (missing in WebKitGTK 2.50) and `closedby` (`any`: a click on the backdrop closes it; `none`: Escape doesn't; missing in Safari 27.2 and WebKitGTK 2.52).
+The panel names the dialog from its first heading (APG). The `closedby="any"` bridge closes only on a press that both starts and ends on the backdrop, as the platform does. An alert dialog is the standard `role="alertdialog"` on the same `<dialog>` (R.34): the panel then describes it with its first paragraph (`aria-describedby`), unless you wrote one. **Bridges**, each feature-checked: `command` / `commandfor` (missing in WebKitGTK 2.50) and `closedby` (`any`: a click on the backdrop closes it; `none`: Escape doesn't; missing in Safari 27.2 and WebKitGTK 2.52).
 
 ## feed
 
@@ -75,7 +75,7 @@ onBack(() => requestCloseTop() || history.back())
 
 ## press-hold
 
-A long press: `press-hold:press` with `{ pointerType }` after `duration` ms (400) without moving more than `slop` px (8). The click that follows is swallowed, and so is the context menu while held. Keyboard twin: the ContextMenu key or Shift+F10.
+A long press: `press-hold:press` with `{ pointerType }` after `duration` ms (400) without moving more than `slop` px (8). Letting go anywhere, inside or outside, before that cancels it (WCAG 2.5.2). The click that follows is swallowed, and so is the context menu of a press that fired. Keyboard twin: the ContextMenu key or Shift+F10.
 
 ## confirm-on-hold
 
@@ -83,11 +83,11 @@ For destructive buttons: hold for `duration` ms (800) to fire `confirm-on-hold:c
 
 ## gesture
 
-Pointer gestures on an element: `gesture:tap`, and `gesture:swipe` with `{ direction, distance, velocity }` past `threshold` px (40) or `velocity` px/s (300). `axis` (`x`, `y`, `both`) sets `touch-action` so the page still scrolls the other way. With `follow`, CSS gets `--gesture-x` / `--gesture-y` while dragging; `data-gesturing` and `data-flung` mark the moments. Give it a keyboard path of your own (buttons): a gesture is never the only way.
+Pointer gestures on an element: `gesture:tap`, and `gesture:swipe` with `{ direction, distance, velocity }` past `threshold` px (40) or `velocity` px/s (300). `axis` (`x`, `y`, `both`) sets `touch-action` so the page still scrolls the other way. One pointer at a time, followed on the document and never captured, so buttons and links inside keep their clicks. With `follow`, CSS gets `--gesture-x` / `--gesture-y` while dragging; `data-gesturing` and `data-flung` mark the moments. Give it a keyboard path of your own (buttons): a gesture is never the only way.
 
 ## slider
 
-On native `<input type="range">`, alone or several in a container (multi-thumb, APG). CSS gets `--slider-fill` (0–1); `data-slider-valuetext="{value} €"` sets `aria-valuetext`. Thumbs never cross: each one's `aria-valuemin` / `aria-valuemax` follow its neighbours, and the container gets `--slider-from` / `--slider-to`.
+On native `<input type="range">`, alone or several in a container (multi-thumb, APG). CSS gets `--slider-fill` (0–1); `data-slider-valuetext="{value} €"` sets `aria-valuetext`. Thumbs never cross: each one's `aria-valuemin` / `aria-valuemax` follow its neighbours (the end thumbs keep the native bounds), and the container gets `--slider-from` / `--slider-to`. A form reset repaints.
 
 ## hover-intent
 
@@ -95,11 +95,11 @@ A mouse that stays: `hover-intent:enter` after `enter` ms (250) still, `hover-in
 
 ## keymap
 
-Keys to actions: `data-keymap-keys='{"j":"next","ctrl+k":"search","?":"help"}'` fires `keymap:action` with `{ action, key }`. Typing in a field never triggers it unless Ctrl, Alt or Meta is held.
+Keys to actions: `data-keymap-keys='{"j":"next","ctrl+k":"search","?":"help"}'` fires `keymap:action` with `{ action, key }`. A printed character carries its own Shift (`?`), and `ctrl+shift+k` is a different binding from `ctrl+k`. Typing in a field never triggers it unless Ctrl, Alt or Meta is held.
 
 ## indicator
 
-The moving tab underline or blob. On the container, CSS gets `--indicator-x`, `--indicator-y`, `--indicator-width`, `--indicator-height` of the active item (`aria-selected="true"`, `aria-current`, `data-active`, or the `active` selector), measured again when it changes or anything resizes. The motion is yours:
+The moving tab underline or blob. On the container, CSS gets `--indicator-x`, `--indicator-y`, `--indicator-width`, `--indicator-height` of the active item (`aria-selected="true"`, `aria-current`, `data-active`, or the `active` selector), relative to the container's padding box with its scrolling included, measured again when the item changes, the container scrolls, or either resizes. The motion is yours:
 
 ```css
 nav::after {
@@ -115,7 +115,7 @@ CSS custom properties from markup: `data-tokens-values='{"accent":"#e3b341"}'` s
 
 ## replay
 
-Restarts the element's animations (its subtree's too) when the `on` event reaches it: `data-replay-on="click"`. `replayAnimations(el)` does the same from code.
+Restarts the element's animations (its subtree's too) each time the `on` event reaches it: `data-replay-on="click"` (required; a server-rendered animation already plays when the page arrives). `replayAnimations(el)` does the same from code.
 
 ## activity
 
@@ -123,11 +123,11 @@ Whether the visitor is here: `data-activity` is `active`, `idle` (nothing for `i
 
 ## typewriter and decode
 
-Text effects. `typewriter` shows a character every `speed` ms (30); `decode` settles scrambled text left to right over `duration` ms (800), scrambling from `charset`. Both keep the whole text for assistive technology (a visually hidden copy, the animated one `aria-hidden`), show it at once with reduced motion, and end with `typewriter:done` / `decode:done`.
+Text effects. `typewriter` shows a character (a whole grapheme: an emoji never shows half) every `speed` ms (30); `decode` settles scrambled text left to right over `duration` ms (800), scrambling from `charset`. Both keep the element's own content, links and emphasis included, for assistive technology (moved into a visually hidden span, the animated text `aria-hidden`), put it back when done, show it at once with reduced motion, and end with `typewriter:done` / `decode:done`.
 
 ## sequence
 
-Phases one after another, such as a page turn: `data-sequence-phases='["out","step","in"]'`. When the `on` event arrives (`sequence:start`), `data-phase` takes each phase; CSS animates on it, and the next starts when the element's animations finish (at most 4 s). `sequence:phase` carries `{ phase, waitUntil }`: hand `waitUntil` a promise (the next page loading) and the phase waits for it too. Ends with `sequence:done`.
+Phases one after another, such as a page turn: `data-sequence-phases='["out","step","in"]'`. When the `on` event arrives (`sequence:start`), `data-phase` takes each phase; CSS animates on it, and the next starts when the element's animations finish (at most 4 s). `sequence:phase` carries `{ phase, waitUntil }`: hand `waitUntil` a promise (the next page loading) and the phase waits for it too, 4 s at most. Ends with `sequence:done`; a run in progress stops where it is when the panel ends.
 
 ## listbox
 

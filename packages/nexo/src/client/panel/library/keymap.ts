@@ -6,7 +6,8 @@ import { emit } from './hold'
  * A key map (Archive): keys → action names, declared, emitted as
  * `keymap:action` with `{ action, key }`. Keys are written as
  * `ctrl+k`, `shift+arrowdown`, `?`, `space` (modifiers `ctrl`, `alt`,
- * `shift`, `meta`; a single printed character carries its own shift).
+ * `shift`, `meta`; a single printed character carries its own shift, so
+ * `?` matches Shift+/ and `ctrl+shift+k` still beats `ctrl+k`).
  * While typing in a field, only combinations with Ctrl, Alt or Meta count.
  * On `<html>` it hears the whole page.
  *
@@ -23,8 +24,9 @@ function press(
   keys: Map<string, string>,
   el: Element,
 ): void {
-  const key = keyOf(event)
-  const action = keys.get(key)
+  if (typeof event.key !== 'string') return // autofill keydowns have none
+  const key = keysOf(event).find((k) => keys.has(k))
+  const action = key && keys.get(key)
   if (!action || (typing(event) && !hasCommandModifier(event))) return
   event.preventDefault()
   emit(el, 'keymap:action', { action, key })
@@ -43,13 +45,19 @@ function canonical(key: string): string {
   return [...parts.sort(), main].join('+')
 }
 
-function keyOf(event: KeyboardEvent): string {
+/**
+ * The names this press may go by, most specific first: with every
+ * modifier (`ctrl+shift+k`), then, for a printed character, without
+ * `shift`, which the character already carries (`?`).
+ */
+function keysOf(event: KeyboardEvent): string[] {
   const main = event.key === ' ' ? 'space' : event.key.toLowerCase()
-  const printed = main.length === 1
   const mods = (['alt', 'ctrl', 'meta', 'shift'] as const).filter(
-    (m) => event[`${m}Key`] && !(printed && m === 'shift'),
+    (m) => event[`${m}Key`],
   )
-  return [...mods, main].join('+')
+  const full = [...mods, main].join('+')
+  if (main.length !== 1 || !event.shiftKey) return [full]
+  return [full, [...mods.filter((m) => m !== 'shift'), main].join('+')]
 }
 
 function hasCommandModifier(event: KeyboardEvent): boolean {

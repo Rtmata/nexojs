@@ -171,7 +171,8 @@ class Menu {
     const role = item.getAttribute('role')!
     if (role === 'menuitemradio') this.uncheckGroup(item)
     if (CHECKABLE.has(role))
-      item.setAttribute(
+      this.marks.set(
+        item,
         'aria-checked',
         String(!isChecked(item) || role === 'menuitemradio'),
       )
@@ -183,7 +184,7 @@ class Menu {
     const group = item.closest('[role=group], [role=menu], [role=menubar]')!
     for (const other of group.querySelectorAll('[role=menuitemradio]'))
       if (other.closest('[role=group], [role=menu], [role=menubar]') === group)
-        other.setAttribute('aria-checked', 'false')
+        this.marks.set(other, 'aria-checked', 'false')
   }
 
   /**

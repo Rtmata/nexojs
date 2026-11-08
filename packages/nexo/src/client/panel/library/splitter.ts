@@ -78,7 +78,7 @@ class Splitter {
     marks.set(el, 'aria-orientation', this.params.orientation)
     marks.set(el, 'aria-valuemin', '0')
     marks.set(el, 'aria-valuemax', '100')
-    el.style.touchAction = 'none'
+    marks.style(el, 'touch-action', 'none')
   }
 
   private listen(signal: AbortSignal): void {
@@ -129,8 +129,8 @@ class Splitter {
   private grab(event: PointerEvent): void {
     if (event.button !== 0) return
     this.el.setPointerCapture(event.pointerId)
-    this.el.setAttribute('data-dragging', '')
-    const release = () => this.el.removeAttribute('data-dragging')
+    this.marks.toggle(this.el, 'data-dragging', true)
+    const release = () => this.marks.toggle(this.el, 'data-dragging', false)
     this.el.addEventListener('pointerup', release, { once: true })
   }
 
@@ -142,38 +142,39 @@ class Splitter {
     )
   }
 
-  /** Enter: to nothing, remembering the size; again, back to it. */
+  /** Enter: to nothing (below `min` too), remembering the size; again, back to it. */
   private collapse(): void {
-    if (this.before !== undefined) {
-      this.resize(this.before)
-      this.before = undefined
-      return
-    }
+    const before = this.before
+    if (before !== undefined) return this.apply(before)
     this.before = this.size()
-    this.resize(0)
+    this.apply(0)
   }
 
+  /** A size the visitor chose: what was collapsed is forgotten. */
   private resize(px: number): void {
-    const size = Math.round(Math.min(this.max(), Math.max(this.params.min, px)))
-    this.container.style.setProperty('--splitter-size', `${size}px`)
-    this.el.toggleAttribute('data-collapsed', size === 0)
+    this.before = undefined
+    this.apply(Math.min(this.max(), Math.max(this.params.min, px)))
+  }
+
+  private apply(px: number): void {
+    const size = Math.round(px)
+    this.marks.style(this.container, '--splitter-size', `${size}px`)
+    this.marks.toggle(this.el, 'data-collapsed', size === 0)
     this.announce()
     emit(this.el, 'splitter:resize', { size, value: this.value() })
   }
 
+  /** The pane's share of the container; nothing to share (0 wide) is 0. */
   private value(): number {
-    return Math.round((this.size() / this.span()) * 100)
+    const span = this.span()
+    return span ? Math.round((this.size() / span) * 100) : 0
   }
 
   private announce(): void {
-    this.el.setAttribute('aria-valuenow', String(this.value()))
+    this.marks.set(this.el, 'aria-valuenow', String(this.value()))
   }
 
   private end(): void {
-    this.container.style.removeProperty('--splitter-size')
-    this.el.style.touchAction = ''
-    this.el.removeAttribute('aria-valuenow')
-    this.el.removeAttribute('data-collapsed')
     this.marks.restore()
   }
 }

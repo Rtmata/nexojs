@@ -1,4 +1,5 @@
 import { panel } from '../panel'
+import { Marks } from './marks'
 
 /**
  * `focusgroup` (Open UI scoped-focusgroup explainer; shipped in Chrome 150):
@@ -74,18 +75,39 @@ const EDGES: Record<string, number> = { Home: -Infinity, End: Infinity }
 const FOCUSABLE =
   'a[href], button, input, select, textarea, [tabindex], summary, [contenteditable="true"]'
 
-/** One group: its items, one tab stop among them, arrow keys between them. */
+/** Where arrows and Home / End move the caret, not the focus. */
+const TYPING =
+  'input:not([type=button],[type=submit],[type=reset],[type=checkbox],[type=radio],[type=range],[type=color],[type=file]), textarea, select, [contenteditable="true"]'
+
+/**
+ * One group: its items, one tab stop among them, arrow keys between them.
+ * Items that come later get into the roving order too (a MutationObserver).
+ */
 export class FocusGroup {
+  private readonly marks = new Marks()
+  private current?: HTMLElement
+
   constructor(
     private readonly el: HTMLElement,
     private readonly spec: FocusSpec,
     signal: AbortSignal,
   ) {
-    if (!el.hasAttribute('role')) el.setAttribute('role', ROLES[spec.behavior]!)
+    this.marks.default(el, 'role', ROLES[spec.behavior]!)
     this.settle(this.start())
     el.addEventListener('keydown', (e) => this.key(e), { signal })
     el.addEventListener('focusin', (e) => this.focused(e), { signal })
     el.addEventListener('focusout', (e) => this.left(e), { signal })
+    this.watch(signal)
+  }
+
+  private watch(signal: AbortSignal): void {
+    const observer = new MutationObserver(() => this.settle(this.current))
+    observer.observe(this.el, { childList: true, subtree: true })
+    signal.addEventListener(
+      'abort',
+      () => (observer.disconnect(), this.marks.restore()),
+      { once: true },
+    )
   }
 
   /** Items: focusable, enabled, not inside a nested group that opts out or is its own. */
@@ -110,12 +132,15 @@ export class FocusGroup {
 
   /** The one tab stop: `tabindex=0` on it, `-1` on the rest (roving tabindex). */
   settle(current: HTMLElement | undefined): void {
-    for (const item of this.items()) item.tabIndex = item === current ? 0 : -1
+    const items = this.items()
+    this.current = current && items.includes(current) ? current : items[0]
+    for (const item of items)
+      this.marks.set(item, 'tabindex', item === this.current ? '0' : '-1')
   }
 
   private focused(event: FocusEvent): void {
-    const item = event.target as HTMLElement
-    if (this.items().includes(item)) this.settle(item)
+    const item = this.itemAround(event.target as Element)
+    if (item) this.settle(item)
   }
 
   /** Leaving the group with `nomemory`: the next entry starts over. */
@@ -124,11 +149,19 @@ export class FocusGroup {
     if (!this.spec.memory) this.settle(this.start())
   }
 
+  /** The item of this group the target is (or is inside); none for a nested group's. */
+  private itemAround(target: Element): HTMLElement | undefined {
+    const group = target.closest('[focusgroup]')
+    if (group !== this.el) return undefined
+    return this.items().find((item) => item.contains(target))
+  }
+
   private key(event: KeyboardEvent): void {
+    const from = this.itemAround(event.target as Element)
     const step = this.stepFor(event.key)
-    if (step === undefined || event.altKey || event.ctrlKey || event.metaKey)
-      return
-    const next = this.target(step, event.target as HTMLElement)
+    if (!from || step === undefined || typing(event.target as Element)) return
+    if (event.altKey || event.ctrlKey || event.metaKey) return
+    const next = this.target(step, from)
     if (!next) return
     event.preventDefault()
     this.settle(next)
@@ -158,4 +191,8 @@ export class FocusGroup {
       ? items[(at + items.length) % items.length]
       : undefined
   }
+}
+
+function typing(target: Element): boolean {
+  return target.matches(TYPING)
 }

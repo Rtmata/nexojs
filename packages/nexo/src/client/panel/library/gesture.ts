@@ -1,15 +1,19 @@
 import { panel } from '../panel'
 import { boolean, number, oneOf } from '../params'
-import { emit } from './hold'
+import { emit, followPointer } from './hold'
+import { Marks } from './marks'
 
 /**
  * Gestures (Archive's swipe, and more): a tap, a swipe in four directions,
  * and optionally the element following the pointer meanwhile. Pointer
- * Events for touch, pen and mouse alike. `touch-action` is set by `axis` so
- * the browser keeps scrolling the other way (`x` → `pan-y`); when it takes
- * the pointer over (`pointercancel`) the gesture ends with nothing.
- * Velocity is a least-squares fit over the last 100 ms (Android's
- * VelocityTracker window); a pointer still for 40 ms has none.
+ * Events for touch, pen and mouse alike, one pointer at a time (a second
+ * finger is ignored). `touch-action` is set by `axis` so the browser keeps
+ * scrolling the other way (`x` → `pan-y`); when it takes the pointer over
+ * (`pointercancel`) the gesture ends with nothing. The pointer is followed
+ * on the document, not captured: a capture would redirect the click to the
+ * element and take it from the buttons and links inside. Velocity is a
+ * least-squares fit over the last 100 ms (Android's VelocityTracker
+ * window); a pointer still for 40 ms has none.
  *
  * Events: `gesture:tap`, `gesture:swipe` with `{ direction, distance,
  * velocity }`. With `follow`, CSS sees `--gesture-x` / `--gesture-y` and
@@ -25,12 +29,7 @@ export const gesture = panel({
   },
   connect: (el, params, { signal }) =>
     new Gesture(el as HTMLElement, params, signal),
-  events: {
-    pointerdown: (e, ctx) => ctx.down(e as PointerEvent),
-    pointermove: (e, ctx) => ctx.move(e as PointerEvent),
-    pointerup: (e, ctx) => ctx.up(e as PointerEvent),
-    pointercancel: (_e, ctx) => ctx.end(),
-  },
+  events: { pointerdown: (e, ctx) => ctx.down(e as PointerEvent) },
 })
 
 interface Params {
@@ -48,46 +47,62 @@ const WINDOW = 100
 const STILL = 40
 
 class Gesture {
+  private readonly marks = new Marks()
   private samples: Sample[] = []
+  private pointer?: number
 
   constructor(
     private readonly el: HTMLElement,
     private readonly params: Params,
-    signal: AbortSignal,
+    private readonly signal: AbortSignal,
   ) {
-    el.style.touchAction = { x: 'pan-y', y: 'pan-x', both: 'none' }[params.axis]
-    el.addEventListener('lostpointercapture', () => this.end(), { signal })
+    const action = { x: 'pan-y', y: 'pan-x', both: 'none' }[params.axis]
+    this.marks.style(el, 'touch-action', action)
+    signal.addEventListener('abort', () => this.abort(), { once: true })
   }
 
   down(event: PointerEvent): void {
-    if (event.button !== 0) return
-    this.el.setPointerCapture(event.pointerId)
+    if (event.button !== 0 || this.pointer !== undefined) return
+    this.pointer = event.pointerId
     this.samples = [sample(event)]
-    this.el.toggleAttribute('data-flung', false)
+    this.marks.toggle(this.el, 'data-flung', false)
+    const on = {
+      move: (e: PointerEvent) => this.move(e),
+      up: (e: PointerEvent) => this.up(e),
+    }
+    followPointer(event.pointerId, on, this.signal)
   }
 
-  move(event: PointerEvent): void {
-    if (this.samples.length === 0) return
+  private move(event: PointerEvent): void {
     for (const e of event.getCoalescedEvents?.() ?? [event])
       this.samples.push(sample(e))
     if (this.params.follow) this.follow()
   }
 
-  up(event: PointerEvent): void {
-    if (this.samples.length === 0) return
+  /** Released or cancelled: a tap, a swipe, or nothing (`pointercancel`). */
+  private up(event: PointerEvent): void {
+    if (event.type === 'pointerup') this.finish(event)
+    this.end()
+  }
+
+  private finish(event: PointerEvent): void {
     this.samples.push(sample(event))
     const [dx, dy] = this.distance()
     if (Math.hypot(dx, dy) < SLOP) emit(this.el, 'gesture:tap')
     else this.swipe(dx, dy)
-    this.end()
   }
 
-  /** Released, cancelled or lost: nothing more from this pointer. */
-  end(): void {
+  private end(): void {
+    this.pointer = undefined
     this.samples = []
-    this.el.style.removeProperty('--gesture-x')
-    this.el.style.removeProperty('--gesture-y')
-    this.el.toggleAttribute('data-gesturing', false)
+    this.marks.style(this.el, '--gesture-x', '')
+    this.marks.style(this.el, '--gesture-y', '')
+    this.marks.toggle(this.el, 'data-gesturing', false)
+  }
+
+  private abort(): void {
+    this.end()
+    this.marks.restore()
   }
 
   private swipe(dx: number, dy: number): void {
@@ -97,7 +112,7 @@ class Gesture {
     if (distance < this.params.threshold && velocity < this.params.velocity)
       return
     const direction = directionOf(horizontal, horizontal ? dx : dy)
-    this.el.toggleAttribute('data-flung', true)
+    this.marks.toggle(this.el, 'data-flung', true)
     emit(this.el, 'gesture:swipe', { direction, distance, velocity })
   }
 
@@ -114,15 +129,11 @@ class Gesture {
 
   private follow(): void {
     const [dx, dy] = this.distance()
-    this.el.style.setProperty(
-      '--gesture-x',
-      `${this.params.axis === 'y' ? 0 : dx}px`,
-    )
-    this.el.style.setProperty(
-      '--gesture-y',
-      `${this.params.axis === 'x' ? 0 : dy}px`,
-    )
-    this.el.toggleAttribute('data-gesturing', true)
+    const x = this.params.axis === 'y' ? 0 : dx
+    const y = this.params.axis === 'x' ? 0 : dy
+    this.marks.style(this.el, '--gesture-x', `${x}px`)
+    this.marks.style(this.el, '--gesture-y', `${y}px`)
+    this.marks.toggle(this.el, 'data-gesturing', true)
   }
 }
 
