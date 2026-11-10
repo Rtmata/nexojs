@@ -1,15 +1,19 @@
+import {
+  allFinished,
+  ENTERING,
+  EXITING,
+  fallbackFor,
+  FIXED_WAIT,
+  markLeaving,
+} from '../settle/settle'
+
 /** An element's own `enter` / `exit` (C.15c, item 36): awaited instead of its CSS. */
 export type MotionFn = (
   el: Element,
   run: { signal: AbortSignal; reducedMotion: boolean },
 ) => unknown
 
-/** A JS motion or an infinite animation: how long to wait at most (Angular's 4 s). */
-const FIXED_WAIT = 4000
-/** Over the longest finite CSS animation. */
-const MARGIN = 500
-
-const MOTION_STATE = { enter: 'data-entering', exit: 'data-exiting' } as const
+const MOTION_STATE = { enter: ENTERING, exit: EXITING } as const
 
 type Kind = keyof typeof MOTION_STATE
 
@@ -77,7 +81,7 @@ export class Motions {
     if (fn) return this.atMost(el, FIXED_WAIT, this.run(fn, el, signal))
     const animations = el.getAnimations({ subtree: true })
     if (animations.length === 0) return undefined
-    return this.atMost(el, fallbackFor(animations), finished(animations))
+    return this.atMost(el, fallbackFor(animations), allFinished(animations))
   }
 
   /** The author's motion as a promise: a synchronous throw rejects, like an async one. */
@@ -107,29 +111,6 @@ function elementsOf(nodes: Node[]): Element[] {
   return nodes.filter(
     (node): node is Element => node.nodeType === Node.ELEMENT_NODE,
   )
-}
-
-function markLeaving(el: Element): void {
-  el.setAttribute(MOTION_STATE.exit, '')
-  if ('inert' in el) (el as HTMLElement).inert = true
-  if (el.contains(document.activeElement))
-    (document.activeElement as HTMLElement).blur()
-}
-
-/** A cancelled animation counts as finished. */
-function finished(animations: Animation[]): Promise<unknown> {
-  return Promise.all(animations.map((a) => a.finished.catch(() => {})))
-}
-
-/** The longest finite animation left, plus a margin; infinite ones get the fixed wait. */
-function fallbackFor(animations: Animation[]): number {
-  let longest = 0
-  for (const animation of animations) {
-    const end = Number(animation.effect?.getComputedTiming().endTime ?? 0)
-    if (!Number.isFinite(end)) return FIXED_WAIT
-    longest = Math.max(longest, end - Number(animation.currentTime ?? 0))
-  }
-  return Math.min(longest + MARGIN, FIXED_WAIT) // a 30 s decoration never holds the next page 30 s
 }
 
 /** Live: read when each motion starts. */

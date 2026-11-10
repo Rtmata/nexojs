@@ -16,6 +16,8 @@ export type {
 export type { Playback, ValueTarget } from './playback'
 export { inView } from './in-view'
 export type { InViewOptions, Visit } from './in-view'
+export { finished } from './finished'
+export type { FinishedOptions } from './finished'
 export { flip, layout, measure, moves } from './layout'
 export type { Measured, MoveFn } from './layout'
 export { parallax } from './parallax'

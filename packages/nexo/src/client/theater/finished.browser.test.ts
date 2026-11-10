@@ -1,0 +1,57 @@
+/** `finished` (C.2) in Chrome, on the test clock. */
+import { afterAll, beforeAll, describe, expect, test } from 'bun:test'
+import { chromium, type Browser } from 'playwright'
+import { bundle, chrome, clockedPage } from './page.fixture'
+
+let browser: Browser
+let code: string
+
+const PAGE =
+  '<style>@keyframes turn { to { opacity: 0.5 } } @keyframes glow { to { color: red } } #p { animation: turn 300ms, glow 2000ms }</style><p id="p">p</p>'
+
+describe.skipIf(!chrome)('finished in Chrome', () => {
+  beforeAll(async () => {
+    browser = await chromium.launch({ channel: 'chrome' })
+    code = await bundle()
+  })
+
+  afterAll(async () => {
+    await browser?.close()
+  })
+
+  test('waits for the named CSS animation only', async () => {
+    const { page, clock } = await clockedPage(browser, code, PAGE)
+    await page.evaluate(() => {
+      const w = window as any
+      w.theater
+        .finished(document.getElementById('p'), { name: 'turn' })
+        .then(() => (w.turned = true))
+    })
+    await clock.advance(320)
+    expect(await page.evaluate(() => (window as any).turned)).toBe(true)
+  })
+
+  test('with nothing to wait for it resolves at once', async () => {
+    const { page } = await clockedPage(browser, code, '<p id="q">q</p>')
+    const result = await page.evaluate(async () => {
+      await (window as any).theater.finished(document.getElementById('q'))
+      return 'done'
+    })
+    expect(result).toBe('done')
+  })
+
+  test('the signal stops the wait', async () => {
+    const { page } = await clockedPage(browser, code, PAGE)
+    const result = await page.evaluate(async () => {
+      const stop = new AbortController()
+      const wait = (window as any).theater.finished(
+        document.getElementById('p'),
+        { signal: stop.signal },
+      )
+      stop.abort()
+      await wait
+      return 'stopped'
+    })
+    expect(result).toBe('stopped')
+  })
+})

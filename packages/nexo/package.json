@@ -175,6 +175,13 @@
       },
       "default": "./src/shared/theater/easing/sine.ts"
     },
+    "./theater/finished": {
+      "nexo-built": {
+        "types": "./src/client/theater/finished.ts",
+        "default": "./dist/client/theater/finished.js"
+      },
+      "default": "./src/client/theater/finished.ts"
+    },
     "./theater/in-view": {
       "nexo-built": {
         "types": "./src/client/theater/in-view.ts",
