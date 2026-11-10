@@ -262,6 +262,10 @@ for (const [name, engine] of engines) {
       })
     })
 
+    test('For move: a new row whose ref scrolls does not make the others slide', async () => {
+      expect(await play('newRowScrolls')).toEqual([false, false, false])
+    })
+
     test('For move: a row leaving while the others slide keeps its exit', async () => {
       expect(await play('leaveDuringMove')).toEqual(['3', '1', '2'])
     })

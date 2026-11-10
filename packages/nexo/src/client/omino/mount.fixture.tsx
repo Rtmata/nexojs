@@ -714,6 +714,29 @@ export async function moveHoldsNewRows() {
   return { before, after: texts(el), connected }
 }
 
+/** A new row whose ref scrolls the page: the kept rows did not move, so they don't slide. */
+export function newRowScrolls() {
+  document.body.style.minHeight = '3000px'
+  const items = signal([1, 2])
+  const { el } = run(
+    <ul>
+      <For each={items} move>
+        {(n) => (
+          <li ref={() => void (n.get() === 3 && window.scrollTo(0, 100))}>{n}</li>
+        )}
+      </For>
+    </ul>,
+  )
+  items.set([1, 2, 3])
+  flush()
+  const sliding = [...el.querySelectorAll('li')].map((li) =>
+    li.hasAttribute('data-moving'),
+  )
+  window.scrollTo(0, 0)
+  document.body.style.minHeight = ''
+  return sliding
+}
+
 /** Review: a row leaving while the others slide keeps its exit transition. */
 export async function leaveDuringMove() {
   const { items, el } = slidingRows([1, 2, 3])

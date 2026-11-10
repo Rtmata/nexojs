@@ -55,29 +55,39 @@ export class ForList<T> {
     const phase = first ?? new InsertedPhase()
     const next = this.reactivity.batch(() => this.rowsFor(items, phase))
     const fresh = next.filter((row) => row.fresh)
-    // New rows are welcomed once they are in the DOM: a move may hold the reorder.
+    // New rows are welcomed once the move lets go: they are in the DOM, and its measures are done.
     const welcome = first ? () => {} : () => this.welcome(fresh, phase)
     this.reconcile(next, welcome)
   }
 
-  private reconcile(next: Row<T>[], placed: () => void): void {
-    const reorder = once(() => this.reorderTo(next, placed))
-    this.waiting = reorder
+  private reconcile(next: Row<T>[], welcome: () => void): void {
+    const reorder = once(() => this.reorderTo(next))
+    const settle = once(() => this.settle(reorder, welcome))
+    this.waiting = settle
     const move = this.props.move
     const moving =
       move && this.order.length > 0
         ? this.moveRows(move, next, reorder)
         : undefined
-    afterMove(moving, reorder)
+    afterMove(moving, settle)
+  }
+
+  /**
+   * Once the move lets go: the reorder (if it didn't run it), then the new
+   * rows' welcome — after the move, never between its measures, where a
+   * ref that scrolls or focuses would read as the others moving.
+   */
+  private settle(reorder: () => void, welcome: () => void): void {
+    reorder()
+    if (!this.owner.signal.aborted) welcome()
   }
 
   /** The DOM in `next`'s order, and the list's with it — unless the list ended while a move held it. */
-  private reorderTo(next: Row<T>[], placed: () => void): void {
+  private reorderTo(next: Row<T>[]): void {
     if (this.owner.signal.aborted) return
     this.leave(next)
     this.place(next)
     this.order = next
-    placed()
   }
 
   /** E.2: the kept rows slide, by CSS (`move`) or by the given function. Leaving rows are not handed over: holding them still for a slide would cancel their exit. */
@@ -259,10 +269,10 @@ function view<T>(value: ReactiveValue<T>) {
  * once. A move function that never calls it still leaves the
  * DOM in order.
  */
-function afterMove(moving: unknown, reorder: () => void): void {
+function afterMove(moving: unknown, settle: () => void): void {
   const held = heldBy(moving)
-  if (!held) return reorder()
-  held.then(reorder, (error: unknown) => (reorder(), reportError(error)))
+  if (!held) return settle()
+  held.then(settle, (error: unknown) => (settle(), reportError(error)))
 }
 
 /**
