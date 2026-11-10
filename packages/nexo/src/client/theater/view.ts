@@ -1,0 +1,94 @@
+import type { AnimateOptions } from '../../shared/theater/options'
+import { curveTiming } from './element'
+import { measure, flip } from './layout'
+import { reducedMotion } from './reduce'
+import { speedOf } from './speed'
+
+/** A change to show: a function (sync or async), or a transition already started. */
+export type ViewChange = (() => unknown) | ViewTransition
+
+/** The animations a View Transition runs, on its `::view-transition-*` pseudo-elements. */
+function partsOf(): Animation[] {
+  return document.getAnimations().filter((animation) => {
+    const pseudo = (animation.effect as KeyframeEffect | null)?.pseudoElement
+    return pseudo?.startsWith('::view-transition') ?? false
+  })
+}
+
+/** Did the options choose a curve? If not, the site's CSS keeps its own. */
+function choseCurve(options: AnimateOptions): boolean {
+  const { duration, easing, spring } = options
+  return duration !== undefined || easing !== undefined || spring !== undefined
+}
+
+/**
+ * Gives a View Transition theater's curve (B.3, B.4) and the page's speed
+ * (C.1b): once its pseudo-elements exist (`ready`), their animations get
+ * the timing; then it waits for the end.
+ */
+async function shape(
+  transition: ViewTransition,
+  options: AnimateOptions,
+): Promise<void> {
+  await transition.ready
+  const speed = speedOf(document.documentElement)
+  const timing = choseCurve(options) ? curveTiming(options, speed) : {}
+  for (const part of partsOf()) {
+    part.effect?.updateTiming(timing as OptionalEffectTiming)
+    part.playbackRate = choseCurve(options) ? 1 : speed
+  }
+  await transition.finished
+}
+
+/** Every element the page names for a View Transition, by name. */
+function named(): Map<string, Element> {
+  const found = new Map<string, Element>()
+  for (const el of document.querySelectorAll('*')) {
+    const name = getComputedStyle(el).viewTransitionName
+    if (name && name !== 'none') found.set(name, el)
+  }
+  return found
+}
+
+/**
+ * Without View Transitions (R.5): the change, then FLIP for each name —
+ * the new element with a name starts from where the old one with that
+ * name was (E.3).
+ */
+async function flipByName(
+  change: () => unknown,
+  options: AnimateOptions,
+): Promise<void> {
+  const before = named()
+  const boxes = measure(before.values())
+  await change()
+  const after = named()
+  const moved = [...before].flatMap(([name, old]) => {
+    const now = after.get(name)
+    return now ? [[now, boxes.boxes.get(old)!] as const] : []
+  })
+  await flip({ boxes: new Map(moved) }, options).finished
+}
+
+/**
+ * Shows a change as a View Transition (E.3, E.4): shared elements are the
+ * ones with the same `view-transition-name` before and after. theater
+ * gives it its curve and the page's speed. Where there are no View
+ * Transitions, the named elements FLIP instead (R.5). Under reduced
+ * motion the change just happens (C.1: shared elements move). Pass a
+ * transition already started (bridge's) to shape it.
+ *
+ *   await animateView(() => showDetail(game), { spring: { duration: 500, bounce: 0.15 } })
+ */
+export async function animateView(
+  change: ViewChange,
+  options: AnimateOptions = {},
+): Promise<void> {
+  if (typeof change !== 'function') return shape(change, options)
+  if (reducedMotion() && options.reduce !== false) return void (await change())
+  if (!document.startViewTransition) return flipByName(change, options)
+  return shape(
+    document.startViewTransition(change as () => Promise<void>),
+    options,
+  )
+}

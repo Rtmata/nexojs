@@ -182,6 +182,13 @@
       },
       "default": "./src/client/theater/in-view.ts"
     },
+    "./theater/layout": {
+      "nexo-built": {
+        "types": "./src/client/theater/layout.ts",
+        "default": "./dist/client/theater/layout.js"
+      },
+      "default": "./src/client/theater/layout.ts"
+    },
     "./theater/parallax": {
       "nexo-built": {
         "types": "./src/client/theater/parallax.ts",
@@ -224,6 +231,13 @@
         "default": "./dist/client/theater/tween.js"
       },
       "default": "./src/client/theater/tween.ts"
+    },
+    "./theater/view": {
+      "nexo-built": {
+        "types": "./src/client/theater/view.ts",
+        "default": "./dist/client/theater/view.js"
+      },
+      "default": "./src/client/theater/view.ts"
     },
     "./voices": {
       "nexo-built": {

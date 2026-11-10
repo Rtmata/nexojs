@@ -4,6 +4,7 @@ import { InsertedPhase, type Life } from './life'
 import type { ReactiveValue, Reactivity } from './reactivity'
 import type { Motions } from './motions'
 import { rangeFragment, rangeOf, type BuildInto } from './region'
+import { cssMove, elementsIn } from './row-moves'
 
 /** One row: made once per key, its nodes between `first` and `last`. */
 interface Row<T> {
@@ -56,9 +57,21 @@ export class ForList<T> {
   }
 
   private reconcile(next: Row<T>[]): void {
-    this.leave(next)
-    this.place(next)
+    const reorder = () => (this.leave(next), this.place(next))
+    const move = this.props.move
+    if (move && this.order.length > 0) this.moveRows(move, reorder)
+    else reorder()
     this.order = next
+  }
+
+  /** E.2: the kept rows slide, by CSS (`move`) or by the given function. */
+  private moveRows(
+    move: NonNullable<ForProps<T>['move']>,
+    reorder: () => void,
+  ): void {
+    const rows = this.order.flatMap((row) => elementsIn(rangeOf(row)))
+    if (typeof move === 'function') move(rows, reorder)
+    else cssMove(rows, reorder)
   }
 
   /** New rows after the first update: their refs run, then their entry. */

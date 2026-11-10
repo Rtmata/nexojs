@@ -12,6 +12,13 @@ export interface ForProps<T> {
    * `For`); `(_, i) => i` lists by position (Solid `Index`).
    */
   key?: (item: T, index: number) => unknown
+  /**
+   * Reordered rows slide to their new place (E.2). `move` lets CSS do it
+   * (`[data-moving] { transition: translate 0.3s }`); a function gets the
+   * rows' elements and the reorder to run (theater's `moves(…)`). omino
+   * imports nothing for it: the function is a plain value.
+   */
+  move?: boolean | ((rows: Element[], update: () => void) => unknown)
   /** Called once per row, untracked; `item` and `index` change in place. */
   children: (item: ReadableLike<T>, index: ReadableLike<number>) => Child
   if?: unknown

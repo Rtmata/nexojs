@@ -28,7 +28,7 @@ function timingOf(
   return { ...base, ...curveTiming(options, speed) }
 }
 
-function curveTiming(
+export function curveTiming(
   options: AnimateOptions,
   speed: number,
 ): KeyframeAnimationOptions {

@@ -23,6 +23,7 @@ const FRAME_MS = 16
 class PageClock {
   private readonly ownPauses = new WeakSet<Animation>()
   private readonly pause = Animation.prototype.pause
+  private readonly times = new WeakMap<Animation, number>()
 
   /** Wraps the methods that pause and resume, to tell the page's pauses from the clock's. */
   watchPauses(): void {
@@ -74,10 +75,23 @@ class PageClock {
   private move(animation: Animation, ms: number): void {
     const rate = animation.playbackRate
     const end = Number(animation.effect?.getComputedTiming().endTime ?? 0)
-    const now = Number(animation.currentTime ?? 0) + ms * rate
+    const now = this.timeOf(animation) + ms * rate
     this.pause.call(animation)
+    this.times.set(animation, now)
     if (rate > 0 ? now >= end : now <= 0) animation.finish()
     else animation.currentTime = now
+  }
+
+  /**
+   * Where the clock last put it. The first time it is seen it starts at 0
+   * (it began at the last moment the clock stood at), so the real time it
+   * ran before is not counted; if the page moved it since, the page's.
+   */
+  private timeOf(animation: Animation): number {
+    const current = Number(animation.currentTime ?? 0)
+    const set = this.times.get(animation)
+    if (set === undefined) return animation.playbackRate < 0 ? current : 0
+    return Math.abs(current - set) > 0.5 ? current : set
   }
 }
 
