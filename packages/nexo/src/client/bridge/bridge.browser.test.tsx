@@ -2269,6 +2269,29 @@ describe.if(chrome)('hooks for the page', () => {
     ])
   })
 
+  test('snapshots run at the page speed (C.1b: --theater-speed on <html>)', async () => {
+    await open('/shelf/1?transition=zoom')
+    await page.evaluate(() =>
+      document.documentElement.style.setProperty('--theater-speed', '0.5'),
+    )
+    await page.click('#next')
+    const rate = await page.waitForFunction(
+      () => {
+        const parts = document
+          .getAnimations()
+          .filter((a) =>
+            (a.effect as KeyframeEffect).pseudoElement?.startsWith(
+              '::view-transition',
+            ),
+          )
+        return parts.length > 0 ? parts[0]!.playbackRate : null
+      },
+      undefined,
+      { timeout: 10_000 },
+    )
+    expect(await rate.jsonValue()).toBe(0.5)
+  })
+
   test('data-bridge-transition wraps the swap in a view transition', async () => {
     await open('/shelf/1?transition=true')
     await page.evaluate(() => {
@@ -2279,7 +2302,11 @@ describe.if(chrome)('hooks for the page', () => {
         const update = typeof arg === 'function' ? arg : arg.update // with types where the browser has them (E.4)
         update()
         const done = Promise.resolve()
-        return { updateCallbackDone: done, finished: done } as ViewTransition
+        return {
+          updateCallbackDone: done,
+          finished: done,
+          ready: done,
+        } as ViewTransition
       }) as typeof document.startViewTransition
     })
     await page.click('#next')

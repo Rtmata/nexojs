@@ -91,10 +91,16 @@ export class ViewChange {
       this.mark() // a whole-page swap copies the new <html>'s attributes over
     })
     this.announce(transition)
-    const unmark = () => this.unmark()
-    transition.finished.then(unmark, unmark)
+    this.follow(transition)
     await transition.updateCallbackDone
     return elements
+  }
+
+  /** At the page's speed once it runs; its marks cleared when it ends. */
+  private follow(transition: ViewTransition): void {
+    transition.ready.then(atPageSpeed, () => {})
+    const unmark = () => this.unmark()
+    transition.finished.then(unmark, unmark)
   }
 
   /** With its types where the browser takes them (else `<html>` carries them anyway). */
@@ -140,5 +146,28 @@ export class ViewChange {
     document.documentElement.removeAttribute(DIRECTION)
     document.documentElement.removeAttribute(TYPES)
     latest = null
+  }
+}
+
+/** The page's speed (C.1b): the inherited `--theater-speed` on `<html>`, 1 when unset or not a positive number. */
+function pageSpeed(): number {
+  const text = getComputedStyle(document.documentElement)
+    .getPropertyValue('--theater-speed')
+    .trim()
+  const speed = Number(text)
+  return text !== '' && Number.isFinite(speed) && speed > 0 ? speed : 1
+}
+
+/**
+ * Snapshots run at the page's speed (C.1b): bridge reads the CSS property
+ * itself — it imports no theater — and sets each View Transition
+ * animation's rate once they exist.
+ */
+function atPageSpeed(): void {
+  const speed = pageSpeed()
+  if (speed === 1) return
+  for (const animation of document.getAnimations()) {
+    const pseudo = (animation.effect as KeyframeEffect | null)?.pseudoElement
+    if (pseudo?.startsWith('::view-transition')) animation.playbackRate = speed
   }
 }
