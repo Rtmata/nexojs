@@ -106,7 +106,8 @@ export class InertiaPath {
   }
 
   valueAt(ms: number): number {
-    const t = Math.min(Math.max(ms, 0), this.duration) / 1000
+    if (ms >= this.duration) return this.to // exactly where it rests: on the snap point, on the edge
+    const t = Math.max(ms, 0) / 1000
     if (this.bounce && t >= this.bounce.start) {
       return (
         this.bounce.edge + this.bounce.oscillator.offset(t - this.bounce.start)

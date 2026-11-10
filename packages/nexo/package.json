@@ -98,6 +98,13 @@
       },
       "default": "./src/client/theater/animate.ts"
     },
+    "./theater/drag": {
+      "nexo-built": {
+        "types": "./src/client/theater/drag.ts",
+        "default": "./dist/client/theater/drag.js"
+      },
+      "default": "./src/client/theater/drag.ts"
+    },
     "./theater/easing": {
       "nexo-built": {
         "types": "./src/shared/theater/easing/index.ts",
@@ -202,6 +209,13 @@
         "default": "./dist/client/theater/parallax.js"
       },
       "default": "./src/client/theater/parallax.ts"
+    },
+    "./theater/pinch": {
+      "nexo-built": {
+        "types": "./src/client/theater/pinch.ts",
+        "default": "./dist/client/theater/pinch.js"
+      },
+      "default": "./src/client/theater/pinch.ts"
     },
     "./theater/reduce": {
       "nexo-built": {

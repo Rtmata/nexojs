@@ -2,6 +2,7 @@ import { panel } from '../panel'
 import { boolean, number, oneOf } from '../params'
 import { emit, followPointer } from './hold'
 import { Marks } from './marks'
+import { speed, type Sample } from '../../../shared/theater/velocity'
 
 /**
  * Gestures (Archive's swipe, and more): a tap, a swipe in four directions,
@@ -39,12 +40,8 @@ interface Params {
   follow: boolean
 }
 
-type Sample = { t: number; x: number; y: number }
-
 /** A press that hardly moves is a tap (Android's touch slop, 8 dp). */
 const SLOP = 8
-const WINDOW = 100
-const STILL = 40
 
 class Gesture {
   private readonly marks = new Marks()
@@ -147,24 +144,4 @@ function sample(event: PointerEvent): Sample {
   return { t: event.timeStamp, x: event.clientX, y: event.clientY }
 }
 
-/** px/s along one axis: a least-squares line over the last 100 ms; none if the pointer stood still. */
-export function speed(samples: Sample[], axis: 'x' | 'y'): number {
-  const last = samples.at(-1)
-  if (!last) return 0
-  const recent = samples.filter((s) => last.t - s.t <= WINDOW)
-  const previous = recent.at(-2)
-  if (recent.length < 2 || (previous && last.t - previous.t > STILL)) return 0
-  return slope(recent.map((s) => [s.t, s[axis]] as const)) * 1000
-}
-
-function slope(points: readonly (readonly [number, number])[]): number {
-  const mean = (i: 0 | 1) =>
-    points.reduce((sum, p) => sum + p[i], 0) / points.length
-  const [mt, mv] = [mean(0), mean(1)]
-  const covariance = points.reduce(
-    (sum, [t, v]) => sum + (t - mt) * (v - mv),
-    0,
-  )
-  const variance = points.reduce((sum, [t]) => sum + (t - mt) ** 2, 0)
-  return variance === 0 ? 0 : covariance / variance
-}
+export { speed }
