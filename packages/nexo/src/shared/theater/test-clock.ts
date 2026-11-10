@@ -178,6 +178,11 @@ class PageClock {
 /** The script that puts a PageClock in the page before its own scripts. */
 const INSTALL = `window.theaterClock = new (${PageClock})(); window.theaterClock.watch()`
 
+/** Runs in the page: resolves once a real frame was presented. */
+function paintedOnce(): Promise<number> {
+  return new Promise((resolve) => requestAnimationFrame(resolve))
+}
+
 /** Runs in the page: one step of the element clock. */
 function seekInPage(ms: number): void {
   const clock = (window as unknown as { theaterClock?: PageClock }).theaterClock
@@ -207,9 +212,13 @@ export class TestClock {
   /**
    * Installs Playwright's clock and the page's half on `page`: for every
    * navigation (an init script), and in the document open now, since
-   * `setContent` rewrites that one without navigating.
+   * `setContent` rewrites that one without navigating. The page paints
+   * one real frame first: Chrome can't capture a screenshot of a page
+   * that never presented one, and once the clock holds
+   * `requestAnimationFrame` nothing asks for it.
    */
   static async on(page: ClockPage): Promise<TestClock> {
+    await page.evaluate(paintedOnce, undefined)
     await page.clock.install()
     await page.addInitScript({ content: INSTALL })
     await page.evaluate((code) => (0, eval)(code), INSTALL)
