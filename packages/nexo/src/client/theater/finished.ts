@@ -16,13 +16,23 @@ function nameOf(animation: Animation): string | undefined {
   return undefined
 }
 
-/** When the signal aborts: a promise that resolves then (never, without one). */
-function aborted(signal?: AbortSignal): Promise<void> {
-  if (!signal) return new Promise(() => {})
-  if (signal.aborted) return Promise.resolve()
-  return new Promise((done) =>
-    signal.addEventListener('abort', () => done(), { once: true }),
+/**
+ * `done`, or the signal's abort if that comes first. The abort listener
+ * goes either way: a long-lived signal must not keep every wait alive.
+ */
+function untilAborted(
+  done: Promise<void>,
+  signal?: AbortSignal,
+): Promise<void> {
+  if (signal?.aborted) return Promise.resolve()
+  const listening = new AbortController()
+  const aborted = new Promise<void>((stop) =>
+    signal?.addEventListener('abort', () => stop(), {
+      once: true,
+      signal: listening.signal,
+    }),
   )
+  return Promise.race([done, aborted]).finally(() => listening.abort())
 }
 
 /**
@@ -43,5 +53,5 @@ export function finished(
     ? all.filter((a) => nameOf(a) === options.name)
     : all
   const done = settled(animations) ?? Promise.resolve()
-  return Promise.race([done, aborted(options.signal)])
+  return untilAborted(done, options.signal)
 }

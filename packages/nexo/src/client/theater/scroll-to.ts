@@ -51,7 +51,15 @@ export function scrollTo(
   const down = vertical(options.axis)
   const from = down ? container.scrollTop : container.scrollLeft
   const to = positionOf(target, container, down) - (options.offset ?? 0)
-  const write = (v: number) =>
-    down ? (container.scrollTop = v) : (container.scrollLeft = v)
+  const write = (v: number) => container.scrollTo(instantlyTo(v, down))
   return animate([from, to], write, { ...options, reduce: 'jump' })
+}
+
+/** `instant`: under `scroll-behavior: smooth` each frame's write would start the browser's own glide. */
+function instantlyTo(
+  position: number,
+  down: boolean,
+): { top?: number; left?: number; behavior: ScrollBehavior } {
+  const at = down ? { top: position } : { left: position }
+  return { ...at, behavior: 'instant' }
 }

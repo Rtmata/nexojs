@@ -38,13 +38,28 @@ function vertical(axis: ScrollAxis = 'block'): boolean {
   return axis === 'block' || axis === 'y'
 }
 
-/** The nearest ancestor that scrolls, else the page's scroller. */
+/**
+ * The nearest scroll container above it, else the page's scroller: the
+ * one a `ViewTimeline` picks, so the fallback (R.5) follows the same box.
+ */
 function scrollerOf(el: Element): Element {
-  for (let at = el.parentElement; at; at = at.parentElement) {
-    const { overflowX, overflowY } = getComputedStyle(at)
-    if (/(auto|scroll)/.test(overflowX + overflowY)) return at
-  }
+  for (let at = el.parentElement; at; at = at.parentElement)
+    if (isScrollContainer(at)) return at
   return document.scrollingElement ?? document.documentElement
+}
+
+/** Any overflow but `visible` / `clip` makes one, `hidden` too (CSS Overflow 3). */
+function isScrollContainer(el: Element): boolean {
+  if (el === document.documentElement || givesOverflowToPage(el)) return false
+  const { overflowX, overflowY } = getComputedStyle(el)
+  return /(auto|scroll|hidden)/.test(overflowX + overflowY)
+}
+
+/** `<body>`'s overflow goes to the page's viewport while `<html>` keeps its own visible. */
+function givesOverflowToPage(el: Element): boolean {
+  if (el !== document.body) return false
+  const { overflowX, overflowY } = getComputedStyle(document.documentElement)
+  return overflowX === 'visible' && overflowY === 'visible'
 }
 
 /** One scroll direction's measures (pattern: strategy, vertical or horizontal). */
@@ -172,28 +187,43 @@ function seekersOf(
 }
 
 /** Follows the scroll: reads it in a frame's read phase, writes in render. */
-function follow(
-  seekers: ((p: number) => void)[],
-  gauge: Gauge,
-  signal?: AbortSignal,
-): void {
-  const update = () =>
+class Follower {
+  constructor(
+    private readonly seekers: ((p: number) => void)[],
+    private readonly gauge: Gauge,
+    private readonly signal?: AbortSignal,
+  ) {}
+
+  listen(): void {
+    const update = () => this.update()
+    const page = this.gauge.source === document.scrollingElement
+    const listen = { passive: true, signal: this.signal }
+    const source = page ? window : this.gauge.source
+    source.addEventListener('scroll', update, listen)
+    window.addEventListener('resize', update, listen)
+    update()
+  }
+
+  private update(): void {
     frames().next('read', () => {
-      const progress = gauge.progress()
-      frames().next('render', () => seekers.forEach((seek) => seek(progress)))
+      const progress = this.gauge.progress()
+      frames().next('render', () => this.seek(progress))
     })
-  const page = gauge.source === document.scrollingElement
-  const listen = { passive: true, signal }
-  ;(page ? window : gauge.source).addEventListener('scroll', update, listen)
-  window.addEventListener('resize', update, listen)
-  update()
+  }
+
+  /** A frame already asked for when the signal aborts must not bring back what was let go. */
+  private seek(progress: number): void {
+    if (this.signal?.aborted) return
+    for (const seek of this.seekers) seek(progress)
+  }
 }
 
-/** On abort, element members are unlinked and kept where they are (B.5b). */
+/** On abort (or already aborted), element members are unlinked and kept where they are (B.5b). */
 function unlinkOnAbort(target: Playback, signal?: AbortSignal): void {
   const members = target instanceof AnimationGroup ? target.members : [target]
   const unlink = () =>
     members.forEach((m) => m instanceof Animation && unlinkFromScroll(m))
+  if (signal?.aborted) return unlink()
   signal?.addEventListener('abort', unlink, { once: true })
 }
 
@@ -215,6 +245,7 @@ export function scroll(
   const seekers =
     typeof target === 'function' ? [target] : seekersOf(target, options)
   if (typeof target !== 'function') unlinkOnAbort(target, options.signal)
-  if (seekers.length > 0)
-    follow(seekers, new Gauge(options.subject, options), options.signal)
+  if (seekers.length === 0) return
+  const gauge = new Gauge(options.subject, options)
+  new Follower(seekers, gauge, options.signal).listen()
 }

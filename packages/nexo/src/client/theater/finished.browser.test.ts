@@ -1,6 +1,6 @@
 /** `finished` (C.2) in Chrome, on the test clock. */
 import { afterAll, beforeAll, describe, expect, test } from 'bun:test'
-import { chromium, type Browser } from 'playwright'
+import { chromium, type Browser, type Page } from 'playwright'
 import { bundle, chrome, clockedPage } from './page.fixture'
 
 let browser: Browser
@@ -8,6 +8,16 @@ let code: string
 
 const PAGE =
   '<style>@keyframes turn { to { opacity: 0.5 } } @keyframes glow { to { color: red } } #p { animation: turn 300ms, glow 2000ms }</style><p id="p">p</p>'
+
+/** How many listeners the page's `window.<name>` has, read through DevTools. */
+async function listenersOf(page: Page, name: string): Promise<number> {
+  const cdp = await page.context().newCDPSession(page)
+  const { result } = await cdp.send('Runtime.evaluate', { expression: name })
+  const { listeners } = await cdp.send('DOMDebugger.getEventListeners', {
+    objectId: result.objectId!,
+  })
+  return listeners.length
+}
 
 describe.skipIf(!chrome)('finished in Chrome', () => {
   beforeAll(async () => {
@@ -53,5 +63,18 @@ describe.skipIf(!chrome)('finished in Chrome', () => {
       return 'stopped'
     })
     expect(result).toBe('stopped')
+  })
+  test('a wait that ends lets go of its signal', async () => {
+    const { page, clock } = await clockedPage(browser, code, PAGE)
+    await page.evaluate(() => {
+      const w = window as any
+      w.sig = new AbortController().signal
+      w.theater
+        .finished(document.getElementById('p'), { name: 'turn', signal: w.sig })
+        .then(() => (w.turned = true))
+    })
+    await clock.advance(320)
+    expect(await page.evaluate(() => (window as any).turned)).toBe(true)
+    expect(await listenersOf(page, 'sig')).toBe(0)
   })
 })

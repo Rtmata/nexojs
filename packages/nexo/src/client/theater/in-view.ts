@@ -51,9 +51,19 @@ class Visits {
     this.visit = null
   }
 
+  /**
+   * `enter` is the page's code, called by the browser: a throw is reported
+   * (as the frame loop does) and the rest of the batch still runs. The
+   * visit stays started, so whatever `enter` hooked to its signal before
+   * throwing still ends when the element leaves.
+   */
   private start(entry: IntersectionObserverEntry): boolean {
     this.visit = new AbortController()
-    this.enter(entry, { signal: this.visit.signal })
+    try {
+      this.enter(entry, { signal: this.visit.signal })
+    } catch (error) {
+      reportError(error)
+    }
     return true
   }
 }
@@ -73,6 +83,7 @@ export function inView(
   enter: Visit,
   options: InViewOptions = {},
 ): void {
+  if (options.signal?.aborted) return // stopped before it started: nothing to watch
   new Watch(listOf(targets), enter, options)
 }
 

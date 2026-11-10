@@ -34,18 +34,39 @@ function inverseOf(first: DOMRect, last: DOMRect): Keyframe[] | null {
   ]
 }
 
+/** What FLIP animates, and so writes inline at its end (B.5b). */
+const OFFSETS = ['translate', 'scale'] as const
+
 /**
- * FLIP ends in "no offset": the inline `translate` / `scale` written at
- * the end (B.5b) are removed, so the element's own CSS rules again. An
- * aborted one keeps where it stopped, as any animation.
+ * How to put the element's inline `translate` / `scale` back as they are
+ * now (none, or a drag's own). FLIP ends in "no offset": what its end
+ * writes inline (B.5b) is replaced by this, so whatever ruled before
+ * rules again. An aborted FLIP keeps where it stopped, as any animation.
  */
-function clearWhenDone(el: Element, animation: Playback): void {
-  const clear = () => {
-    const style = (el as HTMLElement).style
-    style.removeProperty('translate')
-    style.removeProperty('scale')
-  }
-  animation.finished.then(clear, () => {})
+function inlineOffsetsOf(el: Element): () => void {
+  const style = (el as HTMLElement).style
+  const putBacks = OFFSETS.map((name) => putBack(style, name))
+  return () => putBacks.forEach((put) => put())
+}
+
+/** How to write one inline property back as it is now ('' removes it). */
+function putBack(style: CSSStyleDeclaration, name: string): () => void {
+  const value = style.getPropertyValue(name)
+  const priority = style.getPropertyPriority(name)
+  return () => style.setProperty(name, value, priority)
+}
+
+/**
+ * Module-level on purpose: each element's FLIP in flight. A newer FLIP of
+ * the same element replaces it: measured with the old one still running,
+ * its "last" box would carry the old offset, and the old one's end would
+ * write over the new one's.
+ */
+const inFlight = new WeakMap<Element, Playback>()
+
+function land(el: Element): void {
+  inFlight.get(el)?.cancel()
+  inFlight.delete(el)
 }
 
 /**
@@ -55,6 +76,7 @@ function clearWhenDone(el: Element, animation: Playback): void {
  * the page, are skipped.
  */
 export function flip(before: Measured, options: AnimateOptions = {}): Playback {
+  for (const el of before.boxes.keys()) land(el)
   const animations = [...before.boxes].flatMap(([el, first]) => {
     const keyframes = el.isConnected
       ? inverseOf(first, el.getBoundingClientRect())
@@ -69,8 +91,10 @@ function flipOne(
   keyframes: Keyframe[],
   options: AnimateOptions,
 ): Playback {
+  const restore = inlineOffsetsOf(el)
   const animation = animate(el, keyframes, options)
-  clearWhenDone(el, animation)
+  animation.finished.then(restore, () => {})
+  inFlight.set(el, animation)
   return animation
 }
 

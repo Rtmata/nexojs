@@ -54,6 +54,24 @@ describe.skipIf(!chrome)('follow, scrollTo, smoothWheel in Chrome', () => {
     expect(await page.evaluate(() => scrollY)).toBe(1900)
   })
 
+  test('scrollTo under scroll-behavior: smooth: each frame lands where the curve says', async () => {
+    const { page, clock } = await clockedPage(
+      browser,
+      code,
+      `<style>html { scroll-behavior: smooth }</style>${TALL}`,
+    )
+    await page.evaluate(() =>
+      (window as any).theater.scrollTo(2000, {
+        duration: 400,
+        easing: 'linear',
+      }),
+    )
+    await clock.advance(200)
+    const mid = await page.evaluate(() => scrollY)
+    expect(mid).toBeGreaterThan(900) // the browser's own glide would still be near the start
+    expect(mid).toBeLessThan(1100)
+  })
+
   test('scrollTo under reduced motion: there at once', async () => {
     const { page, clock } = await clockedPage(browser, code, TALL)
     await page.emulateMedia({ reducedMotion: 'reduce' })
@@ -62,6 +80,82 @@ describe.skipIf(!chrome)('follow, scrollTo, smoothWheel in Chrome', () => {
     )
     await clock.advance(16)
     expect(await page.evaluate(() => scrollY)).toBe(2000)
+  })
+
+  test('smoothWheel: sideways, shift and no-room wheels stay native', async () => {
+    const page = await pageWith(browser, code, TALL)
+    const prevented = await page.evaluate(() => {
+      ;(window as any).theater.smoothWheel({
+        signal: new AbortController().signal,
+      })
+      const wheel = (init: WheelEventInit) => {
+        const event = new WheelEvent('wheel', {
+          ...init,
+          cancelable: true,
+          bubbles: true,
+        })
+        document.body.dispatchEvent(event)
+        return event.defaultPrevented
+      }
+      return [
+        wheel({ deltaX: 400 }),
+        wheel({ deltaY: 400, shiftKey: true }),
+        wheel({ deltaY: -400 }), // already at the top
+      ]
+    })
+    expect(prevented).toEqual([false, false, false])
+  })
+
+  test('smoothWheel: glides under scroll-behavior: smooth, and lets go when the page moves on its own', async () => {
+    const page = await pageWith(
+      browser,
+      code,
+      `<style>html { scroll-behavior: smooth }</style>${TALL}`,
+    )
+    const result = await page.evaluate(async () => {
+      const frames = async (n: number) => {
+        for (let i = 0; i < n; i++) await new Promise(requestAnimationFrame)
+      }
+      const wheel = (deltaY: number) =>
+        document.body.dispatchEvent(
+          new WheelEvent('wheel', { deltaY, cancelable: true, bubbles: true }),
+        )
+      ;(window as any).theater.smoothWheel({
+        signal: new AbortController().signal,
+      })
+      wheel(400)
+      await frames(60)
+      const glided = scrollY
+      wheel(400)
+      await frames(2)
+      window.scrollTo({ top: 3000, behavior: 'instant' }) // an anchor jump mid-glide
+      await frames(30)
+      const jumped = scrollY
+      wheel(100)
+      await frames(60)
+      return [glided, jumped, scrollY]
+    })
+    expect(result[0]).toBeCloseTo(400, 0)
+    expect(result[1]).toBe(3000)
+    expect(result[2]).toBeCloseTo(3100, 0)
+  })
+
+  test('smoothWheel: a negative or NaN smoothing throws', async () => {
+    const page = await pageWith(browser, code, TALL)
+    const errors = await page.evaluate(() =>
+      [-1, NaN].map((smoothing) => {
+        try {
+          ;(window as any).theater.smoothWheel({
+            signal: new AbortController().signal,
+            smoothing,
+          })
+          return 'none'
+        } catch (error) {
+          return (error as Error).name
+        }
+      }),
+    )
+    expect(errors).toEqual(['RangeError', 'RangeError'])
   })
 
   test('smoothWheel: a wheel glides the page instead of jumping; reduced motion keeps it native', async () => {

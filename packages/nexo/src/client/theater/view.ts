@@ -23,21 +23,46 @@ function choseCurve(options: AnimateOptions): boolean {
 
 /**
  * Gives a View Transition theater's curve (B.3, B.4) and the page's speed
- * (C.1b): once its pseudo-elements exist (`ready`), their animations get
- * the timing; then it waits for the end.
+ * (C.1b) once its pseudo-elements exist (`ready`), then waits for the end.
+ * Success is the change having run (`updateCallbackDone`): a skipped
+ * transition (a hidden tab, a newer one) never gets `ready`, yet the
+ * change happened — as settle's rule says, cancelled counts as finished.
  */
 async function shape(
   transition: ViewTransition,
   options: AnimateOptions,
 ): Promise<void> {
-  await transition.ready
+  markHandled(transition)
+  const timed = transition.ready.then(
+    () => giveTiming(options),
+    countsAsFinished,
+  )
+  await transition.updateCallbackDone // rejects only with the change's own error
+  await timed
+  await transition.finished
+}
+
+/** A transition's promises reject together when the change fails; one rejection is enough. */
+function markHandled(transition: ViewTransition): void {
+  const { ready, updateCallbackDone, finished } = transition
+  for (const promise of [ready, updateCallbackDone, finished])
+    promise.catch(countsAsFinished)
+}
+
+/**
+ * Skipped, cancelled, or a failed change already told through
+ * `updateCallbackDone`: nothing to do (settle's rule).
+ */
+function countsAsFinished(): void {}
+
+/** The transition's animations get theater's timing, at the page's speed. */
+function giveTiming(options: AnimateOptions): void {
   const speed = speedOf(document.documentElement)
   const timing = choseCurve(options) ? curveTiming(options, speed) : {}
   for (const part of partsOf()) {
     part.effect?.updateTiming(timing as OptionalEffectTiming)
     part.playbackRate = choseCurve(options) ? 1 : speed
   }
-  await transition.finished
 }
 
 /** Every element the page names for a View Transition, by name. */
@@ -51,23 +76,55 @@ function named(): Map<string, Element> {
 }
 
 /**
+ * Module-level on purpose: a browser that can't read the names is said
+ * once per page, not on every change.
+ */
+let toldNoNames = false
+
+/**
+ * Without View Transitions a browser most likely can't read
+ * `view-transition-name` either: nothing would be shared, so it is
+ * reported (once) rather than silently animating nothing.
+ */
+function tellIfNoNames(): void {
+  if (toldNoNames || CSS.supports('view-transition-name', 'none')) return
+  toldNoNames = true
+  reportError(
+    new Error(
+      'theater: animateView: this browser has neither View Transitions nor `view-transition-name`, so no element is shared; the change happens without motion',
+    ),
+  )
+}
+
+/**
  * Without View Transitions (R.5): the change, then FLIP for each name —
  * the new element with a name starts from where the old one with that
- * name was (E.3).
+ * name was (E.3). A FLIP its signal stopped counts as finished: the
+ * change ran (settle's rule).
  */
 async function flipByName(
   change: () => unknown,
   options: AnimateOptions,
 ): Promise<void> {
+  tellIfNoNames()
   const before = named()
-  const boxes = measure(before.values())
+  const { boxes } = measure(before.values())
   await change()
-  const after = named()
+  const moved = movedByName(before, boxes, named())
+  await flip({ boxes: moved }, options).finished.catch(countsAsFinished)
+}
+
+/** Each name's new element, with the box its old one had. */
+function movedByName(
+  before: Map<string, Element>,
+  boxes: ReadonlyMap<Element, DOMRect>,
+  after: Map<string, Element>,
+): Map<Element, DOMRect> {
   const moved = [...before].flatMap(([name, old]) => {
     const now = after.get(name)
-    return now ? [[now, boxes.boxes.get(old)!] as const] : []
+    return now ? [[now, boxes.get(old)!] as const] : []
   })
-  await flip({ boxes: new Map(moved) }, options).finished
+  return new Map(moved)
 }
 
 /**

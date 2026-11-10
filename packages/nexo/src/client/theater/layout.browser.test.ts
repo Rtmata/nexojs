@@ -49,6 +49,56 @@ describe.skipIf(!chrome)('layout in Chrome', () => {
     ).toBe('')
   })
 
+  test('layout: an inline translate set before (a drag) is there again at the end', async () => {
+    const { page, clock } = await clockedPage(
+      browser,
+      code,
+      '<style>body { margin: 0 }</style><p id="a" style="margin:0; translate: 30px 0">a</p>',
+    )
+    await page.evaluate(() => {
+      const a = document.getElementById('a')!
+      ;(window as any).theater.layout(
+        [a],
+        () => (a.style.marginTop = '200px'),
+        { duration: 400, easing: 'linear' },
+      )
+    })
+    await clock.advance(420)
+    const style = await page.evaluate(() => {
+      const { translate, scale } = document.getElementById('a')!.style
+      return [translate, scale]
+    })
+    expect(style).toEqual(['30px', ''])
+  })
+
+  test('layout: a newer FLIP of the same element takes over from where it is', async () => {
+    const { page, clock } = await clockedPage(
+      browser,
+      code,
+      '<style>body { margin: 0 }</style><p id="a" style="margin:0">a</p>',
+    )
+    const move = (top: number) =>
+      page.evaluate((top) => {
+        const a = document.getElementById('a')!
+        ;(window as any).theater.layout(
+          [a],
+          () => (a.style.marginTop = `${top}px`),
+          { duration: 400, easing: 'linear' },
+        )
+      }, top)
+    await move(200)
+    await clock.advance(200) // halfway: seen at 100
+    await move(0)
+    expect(
+      await page.evaluate(
+        () => document.getElementById('a')!.getAnimations().length,
+      ),
+    ).toBe(1)
+    expect(await top(page, 'a')).toBeCloseTo(100, 0)
+    await clock.advance(420)
+    expect(await top(page, 'a')).toBeCloseTo(0, 0)
+  })
+
   test('measure before, flip after a change made elsewhere', async () => {
     const { page, clock } = await clockedPage(
       browser,
@@ -168,6 +218,90 @@ describe.skipIf(!chrome)('layout in Chrome', () => {
     })
     expect(result.flipping).toBe(1)
     expect(result.top).toBeLessThan(300)
+  })
+
+  test('animateView: a skipped transition still counts, and nothing goes unhandled', async () => {
+    const page = await pageWith(
+      browser,
+      code,
+      '<p id="a" style="view-transition-name: cover; margin: 0">a</p>',
+    )
+    const result = await page.evaluate(async () => {
+      const w = window as any
+      let unhandled = 0
+      addEventListener('unhandledrejection', () => unhandled++)
+      const a = document.getElementById('a')!
+      const done = w.theater.animateView(() => (a.style.marginTop = '300px'), {
+        duration: 700,
+      })
+      const newer = document.startViewTransition(() => {}) // skips the first
+      await newer.finished
+      const outcome = await done.then(
+        () => 'resolved',
+        (error: Error) => error.name,
+      )
+      const failed = await w.theater
+        .animateView(() => {
+          throw new Error('change broke')
+        })
+        .catch((error: Error) => error.message)
+      for (let i = 0; i < 5; i++) await new Promise(requestAnimationFrame)
+      return { outcome, moved: a.style.marginTop, failed, unhandled }
+    })
+    expect(result).toEqual({
+      outcome: 'resolved',
+      moved: '300px',
+      failed: 'change broke',
+      unhandled: 0,
+    })
+  })
+
+  test('animateView without View Transitions: an aborted FLIP still resolves', async () => {
+    const page = await pageWith(
+      browser,
+      code,
+      '<style>body { margin: 0 }</style><p id="a" style="view-transition-name: cover; margin: 0">a</p>',
+    )
+    const outcome = await page.evaluate(async () => {
+      delete (Document.prototype as any).startViewTransition
+      const a = document.getElementById('a')!
+      const stop = new AbortController()
+      const done = (window as any).theater.animateView(
+        () => (a.style.marginTop = '300px'),
+        { duration: 400, signal: stop.signal },
+      )
+      await new Promise((r) => setTimeout(r, 20))
+      stop.abort()
+      return done.then(
+        () => 'resolved',
+        (error: Error) => error.name,
+      )
+    })
+    expect(outcome).toBe('resolved')
+  })
+
+  test('animateView without view-transition-name either: reported once', async () => {
+    const page = await pageWith(
+      browser,
+      code,
+      '<p id="a" style="margin: 0">a</p>',
+    )
+    const reported = await page.evaluate(async () => {
+      delete (Document.prototype as any).startViewTransition
+      const supports = CSS.supports.bind(CSS) as (...a: string[]) => boolean
+      CSS.supports = ((...a: string[]) =>
+        a[0] !== 'view-transition-name' && supports(...a)) as any
+      const errors: string[] = []
+      addEventListener('error', (e) => errors.push((e as ErrorEvent).message))
+      const a = document.getElementById('a')!
+      const { animateView } = (window as any).theater
+      await animateView(() => (a.style.marginTop = '100px'))
+      await animateView(() => (a.style.marginTop = '200px'))
+      return { errors, moved: a.style.marginTop }
+    })
+    expect(reported.errors).toHaveLength(1)
+    expect(reported.errors[0]).toContain('theater: animateView:')
+    expect(reported.moved).toBe('200px')
   })
 
   test('animateView under reduced motion: the change just happens', async () => {

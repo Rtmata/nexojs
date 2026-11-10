@@ -47,9 +47,14 @@ export function curveTiming(
  */
 function keepWhatIsSeen(animation: Animation, signal?: AbortSignal): void {
   const retire = () => settle(animation)
-  animation.finished.then(retire, () => {})
-  if (signal?.aborted) retire()
-  signal?.addEventListener('abort', retire, { once: true })
+  if (signal?.aborted) return retire()
+  // A long-lived signal (a page's, a mount's) must not keep every ended animation alive.
+  const listening = new AbortController()
+  signal?.addEventListener('abort', retire, {
+    once: true,
+    signal: listening.signal,
+  })
+  animation.finished.then(retire, () => {}).finally(() => listening.abort())
 }
 
 /**
@@ -73,17 +78,28 @@ export function settle(animation: Animation): void {
   if (scrollLinked.has(animation) || animation.playState === 'idle') return
   const pseudo = (animation.effect as KeyframeEffect | null)?.pseudoElement
   if (pseudo) return // a pseudo-element has no style attribute: it keeps its fill
-  commitIfRendered(animation)
-  animation.cancel()
+  try {
+    commitIfRendered(animation)
+  } finally {
+    animation.cancel() // whatever happened, a fill-forwards animation never stays behind
+  }
 }
 
-/** An element no longer rendered (an exit just removed it) has nothing to keep. */
+/**
+ * What `commitStyles` throws where there is nothing to keep: an element no
+ * longer rendered (an exit removed it, `display: none` hid it) or one with
+ * no style attribute to write to.
+ */
+const NOTHING_TO_KEEP = new Set([
+  'InvalidStateError',
+  'NoModificationAllowedError',
+])
+
 function commitIfRendered(animation: Animation): void {
   try {
     animation.commitStyles()
   } catch (error) {
-    if ((error as DOMException).name !== 'NoModificationAllowedError')
-      throw error
+    if (!NOTHING_TO_KEEP.has((error as DOMException).name)) throw error
   }
 }
 
