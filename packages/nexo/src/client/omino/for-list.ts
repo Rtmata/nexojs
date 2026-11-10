@@ -55,12 +55,13 @@ export class ForList<T> {
     const phase = first ?? new InsertedPhase()
     const next = this.reactivity.batch(() => this.rowsFor(items, phase))
     const fresh = next.filter((row) => row.fresh)
-    this.reconcile(next)
-    if (!first) this.welcome(fresh, phase)
+    // New rows are welcomed once they are in the DOM: a move may hold the reorder.
+    const welcome = first ? () => {} : () => this.welcome(fresh, phase)
+    this.reconcile(next, welcome)
   }
 
-  private reconcile(next: Row<T>[]): void {
-    const reorder = once(() => this.reorderTo(next))
+  private reconcile(next: Row<T>[], placed: () => void): void {
+    const reorder = once(() => this.reorderTo(next, placed))
     this.waiting = reorder
     const move = this.props.move
     const moving =
@@ -71,11 +72,12 @@ export class ForList<T> {
   }
 
   /** The DOM in `next`'s order, and the list's with it — unless the list ended while a move held it. */
-  private reorderTo(next: Row<T>[]): void {
+  private reorderTo(next: Row<T>[], placed: () => void): void {
     if (this.owner.signal.aborted) return
     this.leave(next)
     this.place(next)
     this.order = next
+    placed()
   }
 
   /** E.2: the kept rows slide, by CSS (`move`) or by the given function. Leaving rows are not handed over: holding them still for a slide would cancel their exit. */
@@ -252,14 +254,27 @@ function view<T>(value: ReactiveValue<T>) {
 }
 
 /**
- * The reorder once the move let go of it: when the promise it returned
- * settles (it may call `update` later — `startViewTransition(update)`),
- * else at once. A move function that never calls it still leaves the
+ * The reorder once the move let go of it: when what it returned settles
+ * (it may call `update` later — `startViewTransition(update)`), else at
+ * once. A move function that never calls it still leaves the
  * DOM in order.
  */
 function afterMove(moving: unknown, reorder: () => void): void {
-  if (!isThenable(moving)) return reorder()
-  moving.then(reorder, (error: unknown) => (reorder(), reportError(error)))
+  const held = heldBy(moving)
+  if (!held) return reorder()
+  held.then(reorder, (error: unknown) => (reorder(), reportError(error)))
+}
+
+/**
+ * What holds the reorder: a promise, or a View Transition's
+ * `updateCallbackDone` (`startViewTransition` returns no promise itself).
+ * Read as plain values: omino imports nothing for it.
+ */
+function heldBy(moving: unknown): PromiseLike<unknown> | undefined {
+  if (isThenable(moving)) return moving
+  const done = (moving as { updateCallbackDone?: unknown } | null)
+    ?.updateCallbackDone
+  return isThenable(done) ? done : undefined
 }
 
 function isThenable(value: unknown): value is PromiseLike<unknown> {

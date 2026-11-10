@@ -685,6 +685,35 @@ export async function moveUpdatesLater() {
   return { before, after: texts(el) }
 }
 
+/** A held reorder: a new row's ref runs once the row is in the page; a View Transition's shape holds it too. */
+export async function moveHoldsNewRows() {
+  const items = signal([1, 2])
+  const connected: boolean[] = []
+  let release!: () => void
+  const held = new Promise<void>((done) => (release = done))
+  const { el } = run(
+    <ul>
+      <For
+        each={items}
+        move={(_rows, update) => ({ updateCallbackDone: held.then(update) })}
+      >
+        {(n) => (
+          <li ref={(li: HTMLLIElement) => void connected.push(li.isConnected)}>
+            {n}
+          </li>
+        )}
+      </For>
+    </ul>,
+  )
+  connected.length = 0
+  items.set([2, 1, 3])
+  flush()
+  const before = texts(el)
+  release()
+  await wait(10)
+  return { before, after: texts(el), connected }
+}
+
 /** Review: a row leaving while the others slide keeps its exit transition. */
 export async function leaveDuringMove() {
   const { items, el } = slidingRows([1, 2, 3])

@@ -17,8 +17,10 @@ export interface ForProps<T> {
    * (`[data-moving] { transition: translate 0.3s }`); a function gets the
    * rows' elements and the reorder to run (theater's `moves(…)`), so it
    * picks the moment: measure, `update()`, animate. If it returns a
-   * promise, the list waits for it (`startViewTransition(update)` calls it
-   * later); then, or at once, if `update` wasn't called the list runs it. omino
+   * promise or a View Transition (`startViewTransition(update)` calls it
+   * later), the list waits for it; then, or at once, if `update` wasn't
+   * called the list runs it. Rows read their new `item` and `index` from
+   * the start, also while a move holds them in their old places. omino
    * imports nothing for it: the function is a plain value.
    */
   move?: boolean | ((rows: Element[], update: () => void) => unknown)

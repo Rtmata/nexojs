@@ -254,6 +254,14 @@ for (const [name, engine] of engines) {
       })
     })
 
+    test('For move: a held reorder (a View Transition) welcomes new rows once they are in the page', async () => {
+      expect(await play('moveHoldsNewRows')).toEqual({
+        before: ['1', '2'],
+        after: ['2', '1', '3'],
+        connected: [true],
+      })
+    })
+
     test('For move: a row leaving while the others slide keeps its exit', async () => {
       expect(await play('leaveDuringMove')).toEqual(['3', '1', '2'])
     })
