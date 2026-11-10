@@ -1,0 +1,79 @@
+import { describe, expect, test } from 'bun:test'
+import { InertiaPath } from './inertia'
+
+describe('InertiaPath', () => {
+  test('starts at the release speed times power, and slows down', () => {
+    const path = new InertiaPath(0, {
+      velocity: 1000,
+      power: 1,
+      timeConstant: 500,
+    })
+    expect(path.velocityAt(0)).toBeCloseTo(1000, 6)
+    expect(path.velocityAt(500)).toBeCloseTo(1000 / Math.E, 6)
+    expect(path.to).toBeCloseTo(500, 6) // velocity × time constant
+  })
+
+  test('defaults: power 0.8, time constant 700 ms', () => {
+    const path = new InertiaPath(100, { velocity: 1800 })
+    expect(path.to).toBeCloseTo(100 + 0.8 * 1800 * 0.7, 6)
+  })
+
+  test('rests when the gap left is under half a pixel', () => {
+    const path = new InertiaPath(0, {
+      velocity: 1000,
+      power: 1,
+      timeConstant: 500,
+    })
+    expect(Math.abs(path.valueAt(path.duration) - path.to)).toBeLessThanOrEqual(
+      0.5,
+    )
+    expect(
+      Math.abs(path.valueAt(path.duration - 50) - path.to),
+    ).toBeGreaterThan(0.5)
+  })
+
+  test('snap moves the target: to the nearest point, or by a function', () => {
+    const points = new InertiaPath(0, {
+      velocity: 1000,
+      power: 1,
+      timeConstant: 500,
+      snap: [0, 440, 660],
+    })
+    expect(points.to).toBe(440)
+    const grid = new InertiaPath(0, {
+      velocity: 1000,
+      power: 1,
+      timeConstant: 500,
+      snap: (x) => Math.round(x / 220) * 220,
+    })
+    expect(grid.to).toBe(440)
+  })
+
+  test('at an edge it hands its speed to the edge spring and rests on the edge', () => {
+    const path = new InertiaPath(-100, {
+      velocity: 1800,
+      bounds: { min: -4000, max: 0 },
+    })
+    expect(path.to).toBe(0)
+    const samples = path.samples()
+    expect(Math.max(...samples)).toBeGreaterThan(0) // it overshoots the edge…
+    expect(samples.at(-1)!).toBeCloseTo(0, 0) // …and comes back to it
+  })
+
+  test('starting outside the bounds springs straight back', () => {
+    const path = new InertiaPath(50, { velocity: 0, bounds: { max: 0 } })
+    expect(path.to).toBe(0)
+    expect(path.valueAt(0)).toBe(50)
+    expect(path.valueAt(path.duration)).toBeCloseTo(0, 0)
+  })
+
+  test('the speed is continuous where the decay meets the edge spring', () => {
+    const path = new InertiaPath(-100, { velocity: 1800, bounds: { max: 0 } })
+    const hit = path.samples().findIndex((v) => v >= 0) * 10
+    expect(path.velocityAt(hit - 1)).toBeCloseTo(path.velocityAt(hit + 1), -2)
+  })
+
+  test('no velocity inside the bounds: already resting', () => {
+    expect(new InertiaPath(10, {}).duration).toBe(0)
+  })
+})

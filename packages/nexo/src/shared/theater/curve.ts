@@ -1,0 +1,50 @@
+import type { Easing } from './easing/easing'
+import { toCss } from './easing/to-css'
+
+/**
+ * An animation's shape over time, the central concept of theater (A.2):
+ * progress from 0 (start) to 1 (end), which may overshoot. The target only
+ * decides which clock reads it — the browser's (an element, through CSS
+ * `linear()`) or theater's frame loop (a value, through `at`).
+ */
+export interface Curve {
+  /** How long it runs, in ms (a spring: until it rests). */
+  readonly duration: number
+  /** Progress at `ms` after the start; past `duration` it is 1. */
+  at(ms: number): number
+  /** Progress per second at `ms`, so a new target can keep the motion. */
+  velocityAt(ms: number): number
+  /** The curve as CSS, for the browser to run on an element. */
+  toCss(): string
+}
+
+/** Small enough for a derivative, large enough for floating point. */
+const STEP_MS = 0.01
+
+/**
+ * An easing over a fixed duration (B.4): a CSS string read into a
+ * function, or a function.
+ *
+ *   const curve = new EasedCurve(cubicOut, 400)
+ *   curve.at(200) // 0.875
+ */
+export class EasedCurve implements Curve {
+  constructor(
+    private readonly easing: Easing,
+    readonly duration: number,
+  ) {}
+
+  at(ms: number): number {
+    if (ms >= this.duration) return 1
+    return this.easing(Math.max(ms, 0) / this.duration)
+  }
+
+  velocityAt(ms: number): number {
+    const later = this.at(ms + STEP_MS)
+    return ((later - this.at(ms)) / STEP_MS) * 1000
+  }
+
+  toCss(): string {
+    return toCss(this.easing, this.duration)
+  }
+}
