@@ -50,6 +50,23 @@ describe.skipIf(!chrome)('finished in Chrome', () => {
     expect(result).toBe('done')
   })
 
+  test('an endless animation is not waited for, unless it is the one named', async () => {
+    const SPINNER =
+      '<style>@keyframes spin { to { rotate: 1turn } } #s { animation: spin 1s infinite }</style><p id="s">s</p>'
+    const { page, clock } = await clockedPage(browser, code, SPINNER)
+    await page.evaluate(() => {
+      const w = window as any
+      const s = document.getElementById('s')
+      w.theater.finished(s).then(() => (w.all = true))
+      w.theater.finished(s, { name: 'spin' }).then(() => (w.named = true))
+    })
+    await clock.advance(16)
+    expect(await page.evaluate(() => (window as any).all)).toBe(true)
+    expect(await page.evaluate(() => (window as any).named)).toBeUndefined()
+    await clock.advance(4000)
+    expect(await page.evaluate(() => (window as any).named)).toBe(true)
+  })
+
   test('the signal stops the wait', async () => {
     const { page } = await clockedPage(browser, code, PAGE)
     const result = await page.evaluate(async () => {

@@ -232,6 +232,10 @@ for (const [name, engine] of engines) {
       expect(await play('exitTimeout')).toEqual({ during: true, after: true })
     })
 
+    test('an endless animation inside a leaving element does not hold it', async () => {
+      expect(await play('exitPastSpinner')).toBe(true)
+    })
+
     test('For move: a reorder during a slide keeps the new slide going', async () => {
       expect(await play('moveDuringMove')).toEqual([true, true, true])
     })

@@ -460,7 +460,8 @@ function motionStyles(): void {
     @keyframes fade { from { opacity: 1 } to { opacity: 0 } }
     @keyframes spin { to { rotate: 1turn } }
     .anim[data-exiting], .anim[data-entering] { animation: fade 80ms linear }
-    .forever[data-exiting] { animation: spin 1s linear infinite }
+    .slow[data-exiting] { animation: fade 10s linear }
+    .spinner { animation: spin 1s linear infinite }
   `
   document.head.append(style)
 }
@@ -562,7 +563,7 @@ export async function exitTimeout() {
   const open = signal(true)
   const { el } = run(
     <div>
-      <p class="forever" if={open} exit-timeout={60} />
+      <p class="slow" if={open} exit-timeout={60} />
     </div>,
   )
   open.set(false)
@@ -571,6 +572,23 @@ export async function exitTimeout() {
   const during = el.querySelector('p') !== null
   await wait(150)
   return { during, after: el.querySelector('p') === null }
+}
+
+/** A spinner inside a leaving element is no exit: it doesn't hold the removal. */
+export async function exitPastSpinner() {
+  motionStyles()
+  const open = signal(true)
+  const { el } = run(
+    <div>
+      <p if={open}>
+        <span class="spinner" />
+      </p>
+    </div>,
+  )
+  open.set(false)
+  flush()
+  await wait(50)
+  return el.querySelector('p') === null
 }
 
 export async function rowsComeAndGo() {

@@ -1,5 +1,6 @@
 import {
   allFinished,
+  ending,
   ENTERING,
   EXITING,
   fallbackFor,
@@ -79,7 +80,7 @@ export class Motions {
   ): Promise<unknown> | undefined {
     const fn = this.own[kind].get(el)
     if (fn) return this.atMost(el, FIXED_WAIT, this.run(fn, el, signal))
-    const animations = el.getAnimations({ subtree: true })
+    const animations = ending(el.getAnimations({ subtree: true })) // a spinner is no exit
     if (animations.length === 0) return undefined
     return this.atMost(el, fallbackFor(animations), allFinished(animations))
   }

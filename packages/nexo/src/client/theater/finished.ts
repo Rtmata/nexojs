@@ -1,4 +1,4 @@
-import { settled } from '../settle/settle'
+import { ending, settled } from '../settle/settle'
 
 export interface FinishedOptions {
   /** Only this CSS animation (`animation-name`) or transition (its property). */
@@ -37,9 +37,10 @@ function untilAborted(
 
 /**
  * Waits for an element's animations — CSS and WAAPI — to end (C.2): all
- * of them, or the one `name`d. A cancelled animation counts as ended; one
- * that never ends is let go after a fallback (the longest left plus
- * 500 ms, endless ones 4 s, C.15c). With nothing to wait for (reduced
+ * of them, or the one `name`d. A cancelled animation counts as ended. An
+ * endless one is not waited for (a spinner is no exit), unless it is the
+ * one `name`d: then it is let go after 4 s (C.15c); a finite one after
+ * the longest left plus 500 ms. With nothing to wait for (reduced
  * motion removed it) it resolves at once.
  *
  *   await finished(page, { name: 'page-turn', signal })
@@ -51,7 +52,7 @@ export function finished(
   const all = el.getAnimations({ subtree: options.subtree ?? false })
   const animations = options.name
     ? all.filter((a) => nameOf(a) === options.name)
-    : all
+    : ending(all)
   const done = settled(animations) ?? Promise.resolve()
   return untilAborted(done, options.signal)
 }
