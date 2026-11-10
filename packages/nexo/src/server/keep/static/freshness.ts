@@ -4,8 +4,8 @@
  * deploy). `'immutable'` is for files whose name changes with their
  * content (a hash): a year, and the browser never asks. A number is
  * milliseconds, as every Nexo time (`24 * 60 * 60 * 1000`: a day), sent
- * as `max-age` in whole seconds. `false` sends no `Cache-Control` at all, and the browser
- * guesses from the date.
+ * as `max-age` in whole seconds, rounded up. `false` sends no
+ * `Cache-Control` at all, and the browser guesses from the date.
  */
 export type CacheOption = 'immutable' | number | false
 
@@ -16,7 +16,7 @@ export function cacheControlOf(cache: CacheOption | undefined): string | null {
   if (cache === undefined) return 'no-cache'
   if (cache === false) return null
   if (cache === 'immutable') return `public, max-age=${A_YEAR}, immutable`
-  return `public, max-age=${Math.floor(cache / 1000)}`
+  return `public, max-age=${Math.ceil(cache / 1000)}` // up, as idleTimeout: 1–999 ms keeps it a second, not 0
 }
 
 /** A mistake in the option throws at setup, with the forms it takes. */
@@ -26,6 +26,6 @@ export function ensureCacheOption(cache: unknown): CacheOption | undefined {
   if (typeof cache === 'number' && Number.isInteger(cache) && cache >= 0)
     return cache
   throw new Error(
-    `keep: cache takes 'immutable', a number of seconds or false, not ${JSON.stringify(cache)}`,
+    `keep: cache takes 'immutable', a number of milliseconds or false, not ${JSON.stringify(cache)}`,
   )
 }

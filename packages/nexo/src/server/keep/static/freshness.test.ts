@@ -10,6 +10,12 @@ describe('cacheControlOf', () => {
     expect(cacheControlOf(60 * 60 * 1000)).toBe('public, max-age=3600') // ms in, seconds out
     expect(cacheControlOf(false)).toBeNull()
   })
+
+  test('part of a second rounds up: it never becomes max-age=0', () => {
+    expect(cacheControlOf(1)).toBe('public, max-age=1')
+    expect(cacheControlOf(1500)).toBe('public, max-age=2')
+    expect(cacheControlOf(0)).toBe('public, max-age=0')
+  })
 })
 
 describe('ensureCacheOption', () => {
@@ -23,7 +29,7 @@ describe('ensureCacheOption', () => {
   test('anything else is a setup mistake', () => {
     for (const bad of ['forever', -1, 1.5, true, null])
       expect(() => ensureCacheOption(bad)).toThrow(
-        `keep: cache takes 'immutable', a number of seconds or false, not ${JSON.stringify(bad)}`,
+        `keep: cache takes 'immutable', a number of milliseconds or false, not ${JSON.stringify(bad)}`,
       )
   })
 })

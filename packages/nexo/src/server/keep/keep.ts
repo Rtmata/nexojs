@@ -157,6 +157,8 @@ class KeepServer implements Server {
   /** While `listen()` prepares: a second call fails, and `stop()` waits for it. */
   private starting: Promise<Listening> | null = null
   private readonly idleTimeout: number
+  /** Ends the listener on `listen()`'s signal, if one was given. */
+  private unwatch: AbortController | null = null
 
   constructor(options: KeepOptions) {
     const { router } = options
@@ -212,11 +214,19 @@ class KeepServer implements Server {
     }
   }
 
-  /** The `{ signal }` rule: aborting stops the server, as `stop()` does. */
+  /** The `{ signal }` rule: aborting stops the server, as `stop()` does. The listener goes with `stop()`: a later abort must not stop the next `listen()`. */
   private stopsWith(signal?: AbortSignal): void {
-    const stop = () => void this.stop()
-    if (signal?.aborted) return stop()
-    signal?.addEventListener('abort', stop, { once: true })
+    if (signal?.aborted) return this.stopOnAbort()
+    this.unwatch = new AbortController()
+    const options = { once: true, signal: this.unwatch.signal }
+    signal?.addEventListener('abort', () => this.stopOnAbort(), options)
+  }
+
+  /** Nobody awaits a stop an abort asked for: its failure is reported, not dropped. */
+  private stopOnAbort(): void {
+    this.stop().catch((error) =>
+      console.error('keep: stopping on abort failed\n', error),
+    )
   }
 
   /** Run the start hooks, index the folders, then listen. A failure (port taken…) leaves nothing watched. */
@@ -261,6 +271,7 @@ class KeepServer implements Server {
 
   async stop({ grace = 5000 }: StopOptions = {}): Promise<void> {
     await this.starting?.catch(() => null) // a listen() under way finishes first
+    this.unwatch?.abort()
     this.folders.stop()
     const running = this.running
     this.running = null

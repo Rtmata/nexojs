@@ -93,7 +93,9 @@ describe('static files: validators and freshness', () => {
         router: boat(),
         static: { dir: folder, at: '/x', cache: 'forever' as never },
       }),
-    ).toThrow("keep: cache takes 'immutable', a number of seconds or false")
+    ).toThrow(
+      "keep: cache takes 'immutable', a number of milliseconds or false",
+    )
     expect(() => files(folder, { cache: -5 })).toThrow('keep: cache takes')
   })
 })

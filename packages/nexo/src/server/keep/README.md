@@ -62,12 +62,12 @@ static: [
 
 Every file comes with a weak `ETag` and `Last-Modified`, answers `304` to `If-None-Match` and `If-Modified-Since`, serves byte ranges (`Range`, with `If-Range`), and never leaves its folder: hidden files, paths with `..` and symlinks pointing out are 404.
 
-| `cache`       | `Cache-Control`                       | For                                                             |
-| ------------- | ------------------------------------- | --------------------------------------------------------------- |
-| unset         | `no-cache`                            | Files that change on deploy: the browser asks, a 304 answers.   |
-| `'immutable'` | `public, max-age=31536000, immutable` | Files named by their content: the browser never asks again.     |
-| ms (a number) | `public, max-age=<whole seconds>`     | Files that may be a little old: `24 * 60 * 60 * 1000` is a day. |
-| `false`       | none                                  | The browser guesses from the date.                              |
+| `cache`       | `Cache-Control`                         | For                                                             |
+| ------------- | --------------------------------------- | --------------------------------------------------------------- |
+| unset         | `no-cache`                              | Files that change on deploy: the browser asks, a 304 answers.   |
+| `'immutable'` | `public, max-age=31536000, immutable`   | Files named by their content: the browser never asks again.     |
+| ms (a number) | `public, max-age=<seconds, rounded up>` | Files that may be a little old: `24 * 60 * 60 * 1000` is a day. |
+| `false`       | none                                    | The browser guesses from the date.                              |
 
 While listening, the files of each folder are known from memory and the folder is watched for changes, at one inotify watch per folder (Bun 1.4; Bun 1.3 took one per file): a miss answers 404 from memory, and the startup report says which files a route shadows. A folder whose files never change while the server runs sets `watch: false`: no index and no watcher at all, every request asks the disk (as Express's serve-static and Caddy's file_server always do), the server starts as fast with 70 files as with 70,000, and the shadow report leaves that folder out.
 

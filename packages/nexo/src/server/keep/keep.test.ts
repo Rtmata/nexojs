@@ -425,6 +425,20 @@ describe('keep and the { signal } rule', () => {
     await Bun.sleep(50)
     expect(server.url).toBeNull()
   })
+
+  test('after stop(), the old signal no longer stops the next listen()', async () => {
+    const log = spyOn(console, 'log').mockImplementation(() => {})
+    const first = new AbortController()
+    const server = keep({ router: boat().get('/', () => new Response('hi')) })
+    await server.listen(0, { signal: first.signal })
+    await server.stop()
+    await server.listen(0)
+    first.abort()
+    await Bun.sleep(50)
+    expect(server.url).not.toBeNull()
+    await server.stop()
+    log.mockRestore()
+  })
 })
 
 describe('keep, edge cases', () => {
