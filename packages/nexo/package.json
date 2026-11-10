@@ -189,6 +189,14 @@
       },
       "default": "./src/client/theater/finished.ts"
     },
+    "./theater/flashes": "./src/shared/theater/flashes-measured.ts",
+    "./theater/flashes-predicted": {
+      "nexo-built": {
+        "types": "./src/client/theater/flashes.ts",
+        "default": "./dist/client/theater/flashes.js"
+      },
+      "default": "./src/client/theater/flashes.ts"
+    },
     "./theater/in-view": {
       "nexo-built": {
         "types": "./src/client/theater/in-view.ts",
