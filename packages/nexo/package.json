@@ -49,19 +49,19 @@
       },
       "default": "./src/client/omino/index.ts"
     },
-    "./omino/jsx-runtime": {
-      "nexo-built": {
-        "types": "./src/shared/omino/jsx-runtime.ts",
-        "default": "./dist/shared/omino/jsx-runtime.js"
-      },
-      "default": "./src/shared/omino/jsx-runtime.ts"
-    },
     "./omino/jsx-dev-runtime": {
       "nexo-built": {
         "types": "./src/shared/omino/jsx-dev-runtime.ts",
         "default": "./dist/shared/omino/jsx-dev-runtime.js"
       },
       "default": "./src/shared/omino/jsx-dev-runtime.ts"
+    },
+    "./omino/jsx-runtime": {
+      "nexo-built": {
+        "types": "./src/shared/omino/jsx-runtime.ts",
+        "default": "./dist/shared/omino/jsx-runtime.js"
+      },
+      "default": "./src/shared/omino/jsx-runtime.ts"
     },
     "./panel": {
       "nexo-built": {
@@ -84,6 +84,105 @@
       },
       "default": "./src/shared/terminal/index.ts"
     },
+    "./theater": {
+      "nexo-built": {
+        "types": "./src/client/theater/index.ts",
+        "default": "./dist/client/theater/index.js"
+      },
+      "default": "./src/client/theater/index.ts"
+    },
+    "./theater/easing": {
+      "nexo-built": {
+        "types": "./src/shared/theater/easing/index.ts",
+        "default": "./dist/shared/theater/easing/index.js"
+      },
+      "default": "./src/shared/theater/easing/index.ts"
+    },
+    "./theater/easing/back": {
+      "nexo-built": {
+        "types": "./src/shared/theater/easing/back.ts",
+        "default": "./dist/shared/theater/easing/back.js"
+      },
+      "default": "./src/shared/theater/easing/back.ts"
+    },
+    "./theater/easing/bounce": {
+      "nexo-built": {
+        "types": "./src/shared/theater/easing/bounce.ts",
+        "default": "./dist/shared/theater/easing/bounce.js"
+      },
+      "default": "./src/shared/theater/easing/bounce.ts"
+    },
+    "./theater/easing/circ": {
+      "nexo-built": {
+        "types": "./src/shared/theater/easing/circ.ts",
+        "default": "./dist/shared/theater/easing/circ.js"
+      },
+      "default": "./src/shared/theater/easing/circ.ts"
+    },
+    "./theater/easing/cubic": {
+      "nexo-built": {
+        "types": "./src/shared/theater/easing/cubic.ts",
+        "default": "./dist/shared/theater/easing/cubic.js"
+      },
+      "default": "./src/shared/theater/easing/cubic.ts"
+    },
+    "./theater/easing/elastic": {
+      "nexo-built": {
+        "types": "./src/shared/theater/easing/elastic.ts",
+        "default": "./dist/shared/theater/easing/elastic.js"
+      },
+      "default": "./src/shared/theater/easing/elastic.ts"
+    },
+    "./theater/easing/expo": {
+      "nexo-built": {
+        "types": "./src/shared/theater/easing/expo.ts",
+        "default": "./dist/shared/theater/easing/expo.js"
+      },
+      "default": "./src/shared/theater/easing/expo.ts"
+    },
+    "./theater/easing/quad": {
+      "nexo-built": {
+        "types": "./src/shared/theater/easing/quad.ts",
+        "default": "./dist/shared/theater/easing/quad.js"
+      },
+      "default": "./src/shared/theater/easing/quad.ts"
+    },
+    "./theater/easing/quart": {
+      "nexo-built": {
+        "types": "./src/shared/theater/easing/quart.ts",
+        "default": "./dist/shared/theater/easing/quart.js"
+      },
+      "default": "./src/shared/theater/easing/quart.ts"
+    },
+    "./theater/easing/quint": {
+      "nexo-built": {
+        "types": "./src/shared/theater/easing/quint.ts",
+        "default": "./dist/shared/theater/easing/quint.js"
+      },
+      "default": "./src/shared/theater/easing/quint.ts"
+    },
+    "./theater/easing/sine": {
+      "nexo-built": {
+        "types": "./src/shared/theater/easing/sine.ts",
+        "default": "./dist/shared/theater/easing/sine.js"
+      },
+      "default": "./src/shared/theater/easing/sine.ts"
+    },
+    "./theater/reduce": {
+      "nexo-built": {
+        "types": "./src/client/theater/reduce.ts",
+        "default": "./dist/client/theater/reduce.js"
+      },
+      "default": "./src/client/theater/reduce.ts"
+    },
+    "./theater/speed": {
+      "nexo-built": {
+        "types": "./src/client/theater/speed.ts",
+        "default": "./dist/client/theater/speed.js"
+      },
+      "default": "./src/client/theater/speed.ts"
+    },
+    "./theater/test-clock": "./src/shared/theater/test-clock.ts",
     "./voices": {
       "nexo-built": {
         "types": "./src/shared/voices/index.ts",

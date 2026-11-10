@@ -1,0 +1,13 @@
+/** Every easing piece: the families, and the shape they share. */
+export { inOut, linear, out } from './easing'
+export type { Easing } from './easing'
+export * from './back'
+export * from './bounce'
+export * from './circ'
+export * from './cubic'
+export * from './elastic'
+export * from './expo'
+export * from './quad'
+export * from './quart'
+export * from './quint'
+export * from './sine'
