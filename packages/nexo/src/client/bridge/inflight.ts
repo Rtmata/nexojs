@@ -74,6 +74,7 @@ export class Flight {
 
   /** The `{ signal }` rule: the caller's abort cancels it, as a newer navigation would — while it flies; the listener goes when it ends. */
   cancelsWith(signal?: AbortSignal): void {
+    if (signal?.aborted) return this.cancel() // aborted meanwhile (a bridge:fetch listener): no event comes again
     const options = { once: true, signal: this.over.signal }
     signal?.addEventListener('abort', () => this.cancel(), options)
   }

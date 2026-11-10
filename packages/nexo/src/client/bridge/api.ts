@@ -74,14 +74,16 @@ function ended(outcome: Outcome, url: URL): void {
   throw new Error(`bridge: the visit to ${url} was ${outcome}`)
 }
 
-/** Waits for `work`, or stops waiting when `signal` aborts (one already aborted asked for no work). */
+/** Waits for `work`, or stops waiting when `signal` aborts; either way the signal is let go. */
 function untilAborted(
   work: Promise<void>,
   signal?: AbortSignal,
 ): Promise<void> {
   if (!signal) return work
+  const listening = new AbortController()
+  const options = { once: true, signal: listening.signal }
   const aborted = new Promise<void>((done) =>
-    signal.addEventListener('abort', () => done(), { once: true }),
+    signal.addEventListener('abort', () => done(), options),
   )
-  return Promise.race([work, aborted])
+  return Promise.race([work, aborted]).finally(() => listening.abort())
 }

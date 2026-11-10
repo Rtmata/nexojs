@@ -127,7 +127,7 @@ html[data-bridge-direction='back'] [data-entering] {
 }
 ```
 
-`bridge:transition` fires before the change with `{ transition, types, direction, from, to }` — `transition` is the `ViewTransition` with snapshots (it fires as that starts), `null` when live (it fires before the leave). theater gives it a curve and the page's speed without bridge importing it:
+`bridge:transition` fires before the change with `{ transition, types, direction, from, to }` — `transition` is the `ViewTransition` with snapshots (it fires as that starts), `null` when live (it fires before the leave; if the navigation is then cancelled during the leave, `bridge:cancel` follows on the trigger and the `<html>` marks go). theater gives it a curve and the page's speed without bridge importing it:
 
 ```js
 document.addEventListener('bridge:transition', (event) => {

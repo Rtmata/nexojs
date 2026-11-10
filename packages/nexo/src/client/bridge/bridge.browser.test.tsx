@@ -2411,6 +2411,17 @@ describe.if(chrome)('changes cut short, and other edges', () => {
     expect(await log()).not.toContain('bridge:cancel')
   })
 
+  test('a signal aborted by a bridge:fetch listener cancels the visit', async () => {
+    await open('/shelf/1')
+    const outcome = await call(`(() => {
+      const stop = new AbortController()
+      document.addEventListener('bridge:fetch', () => stop.abort(), { once: true })
+      return bridge.visit('/shelf/2', { target: 'shelf', signal: stop.signal }).catch((e) => e.message)
+    })()`)
+    expect(outcome).toContain('was cancelled')
+    expect(await page.textContent('body')).not.toContain('game 2')
+  })
+
   test('a cancelled leave does not bring back what a newer navigation is leaving now', async () => {
     await open('/shelf/1')
     await exitOf(400)
@@ -2499,6 +2510,22 @@ describe.if(chrome)('changes cut short, and other edges', () => {
     await page.unrouteAll({ behavior: 'ignoreErrors' })
     expect(outcome).toContain('was cancelled')
     expect(await page.$('h2:has-text("Account")')).toBeNull()
+  })
+
+  test('a finished prefetch lets go of its signal', async () => {
+    await open('/shelf/1')
+    await call(`(() => {
+      window.pageLife = new AbortController()
+      return bridge.prefetch('/shelf/4', { target: 'shelf', signal: window.pageLife.signal })
+    })()`)
+    const cdp = await page.context().newCDPSession(page)
+    const { result } = await cdp.send('Runtime.evaluate', {
+      expression: 'window.pageLife.signal',
+    })
+    const { listeners } = await cdp.send('DOMDebugger.getEventListeners', {
+      objectId: result.objectId!,
+    })
+    expect(listeners).toEqual([])
   })
 
   test('a prefetch whose signal is already aborted asks nothing', async () => {
