@@ -7,4 +7,5 @@ export type {
   ResultOf,
   Table,
 } from '../contract'
-export { Terminal, terminal } from '../terminal'
+export { terminal } from '../terminal'
+export type { Terminal } from '../terminal' // made by terminal() (audit item 12)

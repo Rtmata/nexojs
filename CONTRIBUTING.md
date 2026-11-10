@@ -27,7 +27,7 @@ This guide describes how Nexo's code is written. It applies to every module.
 
 ## Structure
 
-- **Public API:** one entry function per module, named after it (`boat()`, `keep()`, `quarry()`, `voices()`), or classes when users extend them (`Component`).
+- **Public API:** one entry function per module, named after it (`boat()`, `keep()`, `quarry()`, `voices()`), or classes when users extend them (`Component`) or construct them as they would the platform's own (`new SignalArray()`, like `new Map()`). A class a function returns is exported as a type only (`type ClientRouter`): one way to create each thing.
 - **Public imports:** per module (`@nexoamigos/nexo/panel`) or per piece (`@nexoamigos/nexo/panel/tabs`) — A.1b. A piece's path is a small file in the module's `pieces/` folder that re-exports only what is public; the module's index only lists its pieces. Nothing acts on import (`sideEffects` names bridge's script, the one exception), so a bundler keeps only what you use; `scripts/pieces.test.ts` guards it.
 - **Inside a module:** small classes, each with one responsibility, composed by the module's entry function. A class that needs two sentences to describe does two things: split it.
 - **Composition by default.** Inheritance only for a real "is a" relationship (a component is a `Component`).

@@ -2,7 +2,8 @@
 export { attach, PANEL_ATTRIBUTE } from '../attach'
 export type { Registry } from '../attach'
 export { observe } from '../observe'
-export { PanelRegistry, registry } from '../registry'
+export { registry } from '../registry'
+export type { PanelRegistry } from '../registry' // made by registry() (audit item 12)
 export type { Markup, PanelParams } from '../registry'
 export { panel } from '../panel'
 export type { EventHandler, Panel, PanelOptions } from '../panel'
