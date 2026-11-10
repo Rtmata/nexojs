@@ -160,10 +160,10 @@ class Critical implements Oscillator {
     return Math.exp(-this.natural * t) * (this.slope - this.natural * line)
   }
 
-  /** Past its one turning point it only comes closer; before it, the turn is the farthest. */
+  /** At most one turning point: past it, it only comes closer. */
   reach(t: number): number {
-    const turn = 1 / this.natural - this.start / this.slope
-    return Math.abs(this.offset(turn > t ? turn : t))
+    const turn = 1 / this.natural - this.start / this.slope // ±Infinity or NaN when it has none
+    return farthest(this, t, turn)
   }
 }
 
@@ -193,12 +193,23 @@ class Overdamped implements Oscillator {
     return slow + this.fastPart * this.fast * Math.exp(this.fast * t)
   }
 
-  /** Past its one turning point (if any) it only comes closer; before it, the turn is the farthest. */
+  /** At most one turning point: past it, it only comes closer. */
   reach(t: number): number {
     const ratio = -(this.slowPart * this.slow) / (this.fastPart * this.fast)
-    const turn = Math.log(ratio) / (this.fast - this.slow)
-    return Math.abs(this.offset(turn > t ? turn : t))
+    const turn = Math.log(ratio) / (this.fast - this.slow) // NaN when it has none
+    return farthest(this, t, turn)
   }
+}
+
+/**
+ * The farthest an oscillator with at most one turning point gets from
+ * `t` on: where it is now, or the turn still ahead, whichever is
+ * farther (it may cross rest before turning). No finite turn ahead: now.
+ */
+function farthest(oscillator: Oscillator, t: number, turn: number): number {
+  const now = Math.abs(oscillator.offset(t))
+  if (!(Number.isFinite(turn) && turn > t)) return now
+  return Math.max(now, Math.abs(oscillator.offset(turn)))
 }
 
 /** Close enough to 1 to solve as critical: the formulas meet there. */

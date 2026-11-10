@@ -90,12 +90,30 @@ describe.skipIf(!chrome)('testClock in Chrome', () => {
     await clock.advance(16)
     const [a, b] = await page.evaluate(() =>
       ['a', 'b'].map((id) => {
-        const animation = document.getElementById(id)!.getAnimations()[0]
-        return [animation?.playState, animation?.currentTime]
+        const el = document.getElementById(id)!
+        const animation = el.getAnimations()[0]
+        return [
+          animation?.playState,
+          animation?.currentTime,
+          getComputedStyle(el).opacity,
+        ]
       }),
     )
-    expect(a).toEqual(['finished', 300])
+    expect(a![0]).toBe('finished')
+    expect(a![2]).toBe('1') // at its end, whatever its time reads past it
     expect(b![1]).toBeCloseTo(116, 0)
+  })
+
+  test("a page's finish stays finished at once: its finished resolves without an advance", async () => {
+    const { page } = await clockedPage(browser, code, '<p id="a">a</p>')
+    const seen = await page.evaluate(async () => {
+      const a = document.getElementById('a')!.animate({ opacity: [0, 1] }, 300)
+      a.finish()
+      const state = a.playState
+      await a.finished
+      return state
+    })
+    expect(seen).toBe('finished')
   })
 
   test('an animation at playback rate 0 stands still, and the others still move', async () => {

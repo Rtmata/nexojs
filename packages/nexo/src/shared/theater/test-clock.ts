@@ -80,17 +80,20 @@ class PageClock {
   }
 
   /**
-   * A page's `finish`, and its seeks below, are where the clock goes on
-   * from — held there, like `play`, as the real timeline would carry them
-   * on.
+   * A page's `finish` is where the clock goes on from. Not held: pausing
+   * would take it out of `finished` (a new, pending promise). Past its end
+   * a finished animation shows its end whatever its time reads (WAAPI
+   * keeps the larger of its last time and its end).
    */
   private watchFinish(): void {
     const clock = this
     Animation.prototype.finish = function (this: Animation) {
       clock.finish.call(this)
-      clock.hold(this)
+      clock.times.set(this, Number(this.currentTime ?? 0))
     }
   }
+
+  /** A page's seeks, held there like `play`, as the real timeline would carry them on. */
 
   private watchSeeks(): void {
     const clock = this

@@ -123,6 +123,17 @@ describe('SpringCurve', () => {
     }
   })
 
+  test('critical damping released at exactly -natural · offset (no turning point) still rests', () => {
+    const curve = new SpringCurve({
+      stiffness: 100,
+      damping: 20,
+      mass: 1,
+      velocity: 10,
+    })
+    expect(curve.duration).toBeGreaterThan(0)
+    expect(curve.duration).toBeLessThan(2000)
+  })
+
   test('a spring that never rests is refused', () => {
     expect(() => new SpringCurve({ stiffness: 100, damping: 0 })).toThrow(
       'still moving after 20 s',
