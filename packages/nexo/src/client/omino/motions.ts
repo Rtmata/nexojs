@@ -115,9 +115,7 @@ function elementsOf(nodes: Node[]): Element[] {
 
 /** Live: read when each motion starts. */
 function reducedMotion(): boolean {
-  return (
-    globalThis.matchMedia?.('(prefers-reduced-motion: reduce)').matches ?? false
-  )
+  return matchMedia('(prefers-reduced-motion: reduce)').matches // every browser has it (R.5: no silent fallback)
 }
 
 /** `exit-timeout` in ms: a non-negative number, else an error (NaN would be "no wait at all"). */
