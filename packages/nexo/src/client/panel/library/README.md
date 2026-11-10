@@ -368,6 +368,45 @@ APG Window Splitter: a separator that resizes the pane its `aria-controls` names
 
 The panel writes `--splitter-size` (px) on the container and keeps `aria-valuenow` as the pane's share of it (0–100). Drag it, or: ← → (↑ ↓ with `data-splitter-orientation="horizontal"`, panes stacked) by `data-splitter-step` px (10; ×10 with Shift), Home / End to `data-splitter-min` / `-max` (px; max defaults to the container), Enter collapses the pane (`data-collapsed`) and restores it. `splitter:resize` carries `{ size, value }`.
 
+## reveal, parallax, drag, pinch (theater's pieces as markup)
+
+The markup layer over theater (A.1): each wraps the piece of the same name, with its fallback, reduced motion and signal.
+
+```html
+<!-- data-in-view while it is in view: CSS animates its arrival -->
+<section data-panel="reveal" data-reveal-amount="0.3">…</section>
+
+<!-- lags the scroll; nothing under reduced motion -->
+<div data-panel="parallax" data-parallax-depth="0.3">…</div>
+
+<!-- follows the pointer, flings with inertia, rests on a 220 px grid -->
+<ul
+  data-panel="drag"
+  data-drag-axis="x"
+  data-drag-min="-4000"
+  data-drag-max="0"
+  data-drag-snap="220"
+>
+  …
+</ul>
+
+<!-- two fingers or a trackpad zoom it, 1× to 4× -->
+<div data-panel="pinch" data-pinch-max="4" data-pinch-pan>…</div>
+```
+
+```css
+[data-in-view] {
+  animation: rise 0.4s both;
+}
+@media (prefers-reduced-motion: reduce) {
+  [data-in-view] {
+    animation-name: fade-in;
+  }
+}
+```
+
+Dragging and pinching need a way without them (WCAG 2.5.7): give buttons, or use theater's `drag(…).set()` / `pinch(…).set()` from JS.
+
 ## Native already: markup and docs, no panel (R.33)
 
 These APG patterns are the platform's own; write the element and style it.

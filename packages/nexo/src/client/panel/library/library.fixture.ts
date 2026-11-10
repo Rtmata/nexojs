@@ -34,6 +34,10 @@ import {
   requestCloseTop,
   slider,
   tabs,
+  reveal,
+  parallax,
+  drag,
+  pinch,
 } from '../index'
 
 const panels = registry({
@@ -65,6 +69,10 @@ const panels = registry({
   tree,
   carousel,
   splitter,
+  reveal,
+  parallax,
+  drag,
+  pinch,
 })
 
 /** The panels of the previous scenario end with it: no listener outlives its markup. */

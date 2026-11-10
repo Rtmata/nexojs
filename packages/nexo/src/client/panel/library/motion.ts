@@ -1,28 +1,25 @@
-/** Shared by the effect panels: the visitor's motion preference, and waiting for animations. */
+/**
+ * Shared by the effect panels: the visitor's motion preference, and
+ * waiting for animations — theater's pieces underneath (A.1: panels wrap
+ * theater), so the rule is written once.
+ */
+import { finished } from '../../theater/finished'
+import { FIXED_WAIT } from '../../settle/settle'
 
-/** Live: read each time an effect starts (WAAPI and timers ignore CSS @media). */
-export function reducedMotion(): boolean {
-  return (
-    globalThis.matchMedia?.('(prefers-reduced-motion: reduce)').matches ?? false
-  )
-}
+export { reducedMotion } from '../../theater/reduce'
 
-/** At most this long for an animation (or a promise) that never ends (C.15c's fallback). */
-const AT_MOST = 4000
-
+/** At most this long for a promise that never ends (C.15c's fallback). */
 export function atMost<T>(promise: Promise<T>): Promise<T | void> {
   let timer: ReturnType<typeof setTimeout>
-  const cap = new Promise<void>((done) => (timer = setTimeout(done, AT_MOST)))
+  const cap = new Promise<void>(
+    (done) => (timer = setTimeout(done, FIXED_WAIT)),
+  )
   return Promise.race([promise, cap]).finally(() => clearTimeout(timer))
 }
 
-/** The element's animations (its subtree's too) finished, or none to wait for. */
+/** The element's animations (its subtree's too) finished, or none to wait for: theater's `finished` (C.2). */
 export function animationsDone(el: Element): Promise<void> {
-  const animations = el.getAnimations({ subtree: true })
-  const finished = Promise.all(
-    animations.map((a) => a.finished.catch(() => {})),
-  )
-  return atMost(finished).then(() => {})
+  return finished(el, { subtree: true })
 }
 
 /**

@@ -684,6 +684,87 @@ for (const [name, engine] of engines) {
       expect(await call('styleOf', '#t', '--accent')).toBe('')
     })
 
+    test('reveal: data-in-view while the element is in view (theater inView)', async () => {
+      await call(
+        'setup',
+        '<div style="height: 3000px"></div><section id="s" data-panel="reveal">s</section>',
+      )
+      const marked = () =>
+        page.evaluate(() =>
+          document.getElementById('s')!.hasAttribute('data-in-view'),
+        )
+      expect(await marked()).toBe(false)
+      await page.evaluate(() => document.getElementById('s')!.scrollIntoView())
+      await page.waitForFunction(() =>
+        document.getElementById('s')!.hasAttribute('data-in-view'),
+      )
+      await page.evaluate(() => window.scrollTo(0, 0))
+      await page.waitForFunction(
+        () => !document.getElementById('s')!.hasAttribute('data-in-view'),
+      )
+    })
+
+    test('drag: the element follows the pointer along its axis (theater drag)', async () => {
+      await call(
+        'setup',
+        '<div id="d" data-panel="drag" data-drag-axis="x" style="width: 200px; height: 80px; background: #ccc">d</div>',
+      )
+      const box = (await page.locator('#d').boundingBox())!
+      await page.mouse.move(box.x + 20, box.y + 20)
+      await page.mouse.down()
+      await page.mouse.move(box.x + 80, box.y + 60, { steps: 4 })
+      const translate = await page.evaluate(
+        () => document.getElementById('d')!.style.translate,
+      )
+      await page.mouse.up()
+      expect(translate).toBe('60px') // browsers write '60px 0px' as '60px'
+    })
+
+    test('pinch: two pointers twice as far apart double the scale (theater pinch)', async () => {
+      await call(
+        'setup',
+        '<div id="z" data-panel="pinch" style="width: 200px; height: 200px">z</div>',
+      )
+      const scale = await page.evaluate(() => {
+        const z = document.getElementById('z')!
+        const touch = (
+          target: EventTarget,
+          type: string,
+          id: number,
+          x: number,
+        ) =>
+          target.dispatchEvent(
+            new PointerEvent(type, {
+              pointerId: id,
+              clientX: x,
+              clientY: 50,
+              pointerType: 'touch',
+              bubbles: true,
+            }),
+          )
+        touch(z, 'pointerdown', 1, 10)
+        touch(z, 'pointerdown', 2, 60)
+        touch(document, 'pointermove', 2, 110)
+        return z.style.scale
+      })
+      expect(scale).toBe('2')
+    })
+
+    test('parallax: the layer lags as the page scrolls (theater parallax)', async () => {
+      await call(
+        'setup',
+        '<div style="height: 1200px"></div><div id="p" data-panel="parallax" data-parallax-depth="0.2" style="height: 100px">p</div><div style="height: 2000px"></div>',
+      )
+      await page.evaluate(async () => {
+        document.getElementById('p')!.scrollIntoView({ block: 'center' })
+        for (let i = 0; i < 3; i++) await new Promise(requestAnimationFrame)
+      })
+      const translate = await page.evaluate(
+        () => getComputedStyle(document.getElementById('p')!).translate,
+      )
+      expect(translate).not.toBe('none')
+    })
+
     test('replay: the animation starts over on its event', async () => {
       await call(
         'setup',

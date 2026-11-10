@@ -1,8 +1,9 @@
 import { panel } from '../panel'
 import { boolean, number, oneOf } from '../params'
-import { emit, followPointer } from './hold'
+import { emit } from './hold'
 import { Marks } from './marks'
-import { speed, type Sample } from '../../../shared/theater/velocity'
+import { speed } from '../../../shared/theater/velocity'
+import { PointerTrack } from '../../theater/pointer'
 
 /**
  * Gestures (Archive's swipe, and more): a tap, a swipe in four directions,
@@ -45,8 +46,7 @@ const SLOP = 8
 
 class Gesture {
   private readonly marks = new Marks()
-  private samples: Sample[] = []
-  private pointer?: number
+  private track: PointerTrack | null = null
 
   constructor(
     private readonly el: HTMLElement,
@@ -58,40 +58,32 @@ class Gesture {
     signal.addEventListener('abort', () => this.abort(), { once: true })
   }
 
+  /** One pointer at a time, followed by theater's `PointerTrack` (F.1: one tracker, one velocity). */
   down(event: PointerEvent): void {
-    if (event.button !== 0 || this.pointer !== undefined) return
-    this.pointer = event.pointerId
-    this.samples = [sample(event)]
+    if (event.button !== 0 || this.track) return
     this.marks.toggle(this.el, 'data-flung', false)
-    const on = {
-      move: (e: PointerEvent) => this.move(e),
-      up: (e: PointerEvent) => this.up(e),
+    const events = {
+      move: (track: PointerTrack) => this.params.follow && this.follow(track),
+      end: (track: PointerTrack, released: boolean) =>
+        this.ended(track, released),
     }
-    followPointer(event.pointerId, on, this.signal)
-  }
-
-  private move(event: PointerEvent): void {
-    for (const e of event.getCoalescedEvents?.() ?? [event])
-      this.samples.push(sample(e))
-    if (this.params.follow) this.follow()
+    this.track = new PointerTrack(event, events, this.signal)
   }
 
   /** Released or cancelled: a tap, a swipe, or nothing (`pointercancel`). */
-  private up(event: PointerEvent): void {
-    if (event.type === 'pointerup') this.finish(event)
+  private ended(track: PointerTrack, released: boolean): void {
+    if (released) this.finish(track)
     this.end()
   }
 
-  private finish(event: PointerEvent): void {
-    this.samples.push(sample(event))
-    const [dx, dy] = this.distance()
+  private finish(track: PointerTrack): void {
+    const { x: dx, y: dy } = track.offset
     if (Math.hypot(dx, dy) < SLOP) emit(this.el, 'gesture:tap')
-    else this.swipe(dx, dy)
+    else this.swipe(dx, dy, track)
   }
 
   private end(): void {
-    this.pointer = undefined
-    this.samples = []
+    this.track = null
     if (!this.params.follow) return
     this.marks.style(this.el, '--gesture-x', '')
     this.marks.style(this.el, '--gesture-y', '')
@@ -103,10 +95,10 @@ class Gesture {
     this.marks.restore()
   }
 
-  private swipe(dx: number, dy: number): void {
+  private swipe(dx: number, dy: number, track: PointerTrack): void {
     const horizontal = this.isHorizontal(dx, dy)
     const distance = Math.abs(horizontal ? dx : dy)
-    const velocity = Math.abs(speed(this.samples, horizontal ? 'x' : 'y'))
+    const velocity = Math.abs(track.velocity[horizontal ? 'x' : 'y'])
     if (distance < this.params.threshold && velocity < this.params.velocity)
       return
     const direction = directionOf(horizontal, horizontal ? dx : dy)
@@ -119,14 +111,8 @@ class Gesture {
     return Math.abs(dx) >= Math.abs(dy)
   }
 
-  private distance(): [number, number] {
-    const first = this.samples[0]!
-    const last = this.samples.at(-1)!
-    return [last.x - first.x, last.y - first.y]
-  }
-
-  private follow(): void {
-    const [dx, dy] = this.distance()
+  private follow(track: PointerTrack): void {
+    const { x: dx, y: dy } = track.offset
     const x = this.params.axis === 'y' ? 0 : dx
     const y = this.params.axis === 'x' ? 0 : dy
     this.marks.style(this.el, '--gesture-x', `${x}px`)
@@ -138,10 +124,6 @@ class Gesture {
 function directionOf(horizontal: boolean, delta: number): string {
   if (horizontal) return delta < 0 ? 'left' : 'right'
   return delta < 0 ? 'up' : 'down'
-}
-
-function sample(event: PointerEvent): Sample {
-  return { t: event.timeStamp, x: event.clientX, y: event.clientY }
 }
 
 export { speed }
