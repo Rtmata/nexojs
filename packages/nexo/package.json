@@ -715,6 +715,13 @@
       },
       "default": "./src/client/theater/flashes.ts"
     },
+    "./theater/follow": {
+      "nexo-built": {
+        "types": "./src/client/theater/follow.ts",
+        "default": "./dist/client/theater/follow.js"
+      },
+      "default": "./src/client/theater/follow.ts"
+    },
     "./theater/in-view": {
       "nexo-built": {
         "types": "./src/client/theater/in-view.ts",
@@ -756,6 +763,20 @@
         "default": "./dist/client/theater/scroll.js"
       },
       "default": "./src/client/theater/scroll.ts"
+    },
+    "./theater/scroll-to": {
+      "nexo-built": {
+        "types": "./src/client/theater/scroll-to.ts",
+        "default": "./dist/client/theater/scroll-to.js"
+      },
+      "default": "./src/client/theater/scroll-to.ts"
+    },
+    "./theater/smooth-wheel": {
+      "nexo-built": {
+        "types": "./src/client/theater/smooth-wheel.ts",
+        "default": "./dist/client/theater/smooth-wheel.js"
+      },
+      "default": "./src/client/theater/smooth-wheel.ts"
     },
     "./theater/speed": {
       "nexo-built": {
