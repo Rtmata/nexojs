@@ -1,7 +1,7 @@
 import { Languages, type LangFrom } from './language'
 import { Links } from './links'
 import { NameBook } from './name-book'
-import { isNotFound } from './not-found'
+import { isNotFound } from '../http/not-found'
 import type { Pattern } from './pattern'
 import { redirect, type RedirectStatus } from './redirect'
 import { RedirectSource, Redirects } from './redirects'

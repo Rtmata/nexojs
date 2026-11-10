@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'bun:test'
-import { notFound } from './not-found'
+import { notFound } from '../http/not-found'
 import { route } from './route'
 import { boat } from './router'
 import type { Handler } from './types'

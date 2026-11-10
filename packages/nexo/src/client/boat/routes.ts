@@ -1,5 +1,5 @@
 import type { PathParams } from '../../shared/http/types'
-import type { NotFound } from '../../shared/boat/not-found'
+import type { NotFound } from '../../shared/http/not-found'
 import { Pattern } from '../../shared/boat/pattern'
 import type { Params } from '../../shared/boat/types'
 import { decodedSegments } from '../../shared/url/decode'

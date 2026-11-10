@@ -1,4 +1,4 @@
-import { isNotFound } from '../../shared/boat/not-found'
+import { isNotFound } from '../../shared/http/not-found'
 import { claimClicks } from './clicks'
 import type {
   ReactiveValue,

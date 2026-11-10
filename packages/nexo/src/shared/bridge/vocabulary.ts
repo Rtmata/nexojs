@@ -6,8 +6,8 @@
 /** Every bridge attribute starts with this: `data-bridge-target`, `data-bridge-segment`… */
 export const ATTRIBUTE_PREFIX = 'data-bridge-'
 
-/** Marks a region of the page that can be replaced on its own: `data-bridge-segment="shelf"`. */
-export const SEGMENT_ATTRIBUTE = `${ATTRIBUTE_PREFIX}segment`
+/** Shared with omino, so they live in the neutral `shared/markup` (audit item 8). */
+export { COMPONENT_STYLE, SEGMENT_ATTRIBUTE } from '../markup/vocabulary'
 
 /** Where a link or form goes: segment names, `_top` or `_none`. */
 export const TARGET_ATTRIBUTE = `${ATTRIBUTE_PREFIX}target`
@@ -23,10 +23,3 @@ export const SEGMENT_PARAM = '_segment'
 
 /** The URL the client script is served at. */
 export const CLIENT_PATH = '/_nexo/bridge.js'
-
-/**
- * The marker omino writes on a component's `<style>` (C.20a). bridge moves
- * those a segment response brings into the head, once: the attribute is the
- * whole contract, neither module imports the other.
- */
-export const COMPONENT_STYLE = 'data-scope-for'

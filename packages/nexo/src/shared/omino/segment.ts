@@ -1,4 +1,4 @@
-import { SEGMENT_ATTRIBUTE } from '../bridge/vocabulary'
+import { SEGMENT_ATTRIBUTE } from '../markup/vocabulary'
 import { Component } from './component'
 import type { Child } from './element'
 import { jsx } from './jsx-runtime'

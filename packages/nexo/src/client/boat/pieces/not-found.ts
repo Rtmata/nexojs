@@ -1,2 +1,2 @@
 /** The `not-found` piece: its own import path (A.1b), only what is public. */
-export { notFound } from '../../../shared/boat/not-found'
+export { notFound } from '../../../shared/http/not-found'

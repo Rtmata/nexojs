@@ -9,7 +9,7 @@ This guide describes how Nexo's code is written. It applies to every module.
 3. **Readability and debuggability first.** A long, clear name beats a short, clever one. Code is read and debugged far more often than it is written.
 4. **No patches.** When a fix needs a special case, a flag or an extra branch, the design is wrong: restructure instead. Code that is simple to understand is simple to test and simple to fix.
 5. **Look like the neighborhood.** New code follows the style of the code around it, even where you would have chosen differently.
-6. **Independent modules.** Every module works on its own. Modules connect through plain values visible at the call site (lists, functions, `Request`/`Response`), never by requiring each other. Shared internals that aren't public live in `src/shared/<topic>/` (e.g. `url/decode.ts`, `lang/tag.ts`).
+6. **Independent modules.** Every module works on its own. Modules connect through plain values visible at the call site (lists, functions, `Request`/`Response`), never by requiring each other. Shared internals that aren't public live in `src/shared/<topic>/` (e.g. `url/decode.ts`, `lang/tag.ts`, `http/not-found.ts`, `markup/vocabulary.ts` for the words two modules write and read in HTML) or `src/client/<topic>/` (`settle/`). The one decided exception: panel's effect panels wrap theater's pieces (Phase 6, A.1).
 7. **Explicit runtime boundaries.** Code that only runs on the server lives in `src/server/`; code that runs anywhere in `src/shared/`. Code that needs a browser lives in `src/client/`. Bun-specific code lives only in `src/server/dock/`.
 
 ## Design principles

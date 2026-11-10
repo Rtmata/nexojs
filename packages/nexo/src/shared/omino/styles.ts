@@ -1,3 +1,4 @@
+import { COMPONENT_STYLE } from '../markup/vocabulary'
 import { Element as OminoElement, Fragment, type Child } from './element'
 import { escapeHtml } from './html'
 
@@ -11,7 +12,7 @@ export type Encapsulation = 'scope' | 'shadow' | 'none'
 /** The root of a component with styles carries its name (C.20a). */
 export const SCOPE_ATTRIBUTE = 'data-scope'
 /** The `<style>` with a component's CSS, once per page: bridge dedupes by it. */
-export const STYLE_MARKER = 'data-scope-for'
+export const STYLE_MARKER = COMPONENT_STYLE
 
 /**
  * CSS as a plain string; the tag is there for editors to highlight it.

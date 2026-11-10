@@ -1,4 +1,4 @@
-import type { NotFound } from '../boat/not-found'
+import type { NotFound } from './not-found'
 /**
  * Internal, not a public module: the contract every server piece shares —
  * what a request handler receives and returns, and what a declared route
