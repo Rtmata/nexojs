@@ -39,46 +39,92 @@ function saturatedRed({ r, g, b }: Omit<ColorSample, 't'>): boolean {
   return sum > 0 && r / sum >= 0.8
 }
 
+/** Which transitions a change between two colours makes: one, both (black to red) or none. */
+interface Change {
+  general: boolean
+  red: boolean
+}
+
 /**
- * A general transition: luminance changes by 10 % of the maximum or more,
- * the darker state under 0.80. A red one: one side saturated red and the
- * chromaticity moving by more than 0.2.
+ * General: luminance changes by 10 % of the maximum or more, the darker
+ * state under 0.80. Red: one side saturated red and the chromaticity
+ * moving by more than 0.2. Judged apart, as WCAG defines them apart.
  */
-function transitionKind(
-  a: ColorSample,
-  b: ColorSample,
-): 'general' | 'red' | null {
+function changeBetween(a: ColorSample, b: ColorSample): Change {
   const [la, lb] = [luminance(a), luminance(b)]
-  if (Math.abs(la - lb) >= 0.1 && Math.min(la, lb) < 0.8) return 'general'
   const [ua, va] = chromaticity(a)
   const [ub, vb] = chromaticity(b)
   const moved = Math.hypot(ua - ub, va - vb) > 0.2
-  return moved && (saturatedRed(a) || saturatedRed(b)) ? 'red' : null
+  return {
+    general: Math.abs(la - lb) >= 0.1 && Math.min(la, lb) < 0.8,
+    red: moved && (saturatedRed(a) || saturatedRed(b)),
+  }
 }
 
-/** One counted transition: when, which kind, and which way (up or down in luminance). */
+/** One counted transition: when, whether it is red, and which way (up or down in luminance). */
 interface Transition {
   t: number
-  kind: 'general' | 'red'
+  red: boolean
   up: boolean
 }
 
 /**
- * Transitions between turning points: a change counts once it is big
- * enough, and changes on in the same direction are the same transition
- * (a gradual ramp is one change, not many).
+ * Finds transitions between turning points. A change is measured from
+ * the real turning point — the darkest colour since the last transition
+ * down, the brightest since the last one up — so a wave whose samples
+ * never sit on its peaks still counts. Changes on in the same direction
+ * are the same transition (a gradual ramp is one change, not many).
  */
-function transitionsOf(samples: ColorSample[]): Transition[] {
-  const found: Transition[] = []
-  let from = samples[0]!
-  for (const sample of samples.slice(1)) {
-    const kind = transitionKind(from, sample)
-    if (!kind) continue
-    const up = luminance(sample) > luminance(from)
-    if (found.at(-1)?.up !== up) found.push({ t: sample.t, kind, up })
-    from = sample
+class Transitions {
+  readonly found: Transition[] = []
+  private darkest: ColorSample
+  private brightest: ColorSample
+
+  constructor(first: ColorSample) {
+    this.darkest = this.brightest = first
   }
-  return found
+
+  /** Takes the next sample; counts a transition when it makes one. */
+  add(sample: ColorSample): void {
+    this.widen(sample)
+    const transition = this.transitionTo(sample)
+    if (transition) this.count(transition, sample)
+  }
+
+  private widen(sample: ColorSample): void {
+    if (luminance(sample) < luminance(this.darkest)) this.darkest = sample
+    if (luminance(sample) > luminance(this.brightest)) this.brightest = sample
+  }
+
+  /** The transition `sample` ends, if any: up from the darkest unless the last went up, else down from the brightest. */
+  private transitionTo(sample: ColorSample): Transition | null {
+    const last = this.found.at(-1)?.up
+    const up = last === true ? null : this.between(this.darkest, sample, true)
+    if (up || last === false) return up
+    return this.between(this.brightest, sample, false)
+  }
+
+  private between(
+    turn: ColorSample,
+    sample: ColorSample,
+    up: boolean,
+  ): Transition | null {
+    const change = changeBetween(turn, sample)
+    if (!change.general && !change.red) return null
+    return { t: sample.t, red: change.red, up }
+  }
+
+  /** The sample that ends a transition is where the next one is measured from. */
+  private count(transition: Transition, sample: ColorSample): void {
+    this.found.push(transition)
+    this.darkest = this.brightest = sample
+  }
+}
+
+function transitionsOf(samples: ColorSample[]): Transition[] {
+  const transitions = new Transitions(samples[0]!)
+  for (const sample of samples.slice(1)) transitions.add(sample)
+  return transitions.found
 }
 
 /** What the counter says about one region. */
@@ -105,7 +151,7 @@ export function countFlashes(samples: ColorSample[]): FlashCount {
     )
     most = Math.max(most, pairs(inWindow))
   }
-  return { perSecond: most, red: transitions.some((t) => t.kind === 'red') }
+  return { perSecond: most, red: transitions.some((t) => t.red) }
 }
 
 /** Opposing transitions taken two by two. */

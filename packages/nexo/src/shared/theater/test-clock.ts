@@ -16,32 +16,49 @@ const FRAME_MS = 16
 
 /**
  * The page's half of the clock. It runs in the page, sent there as its
- * own source text, so it may use nothing outside itself. It remembers the
- * animations the page pauses on purpose (those stay paused), and moves the
- * others on, holding them paused in between.
+ * own source text, so it may use nothing outside itself. It wraps what the
+ * page uses to pause, resume and seek an animation, to tell the page's
+ * intent from its own steps: what the page paused stays paused, what it
+ * seeked or finished stays where it put it, and everything else moves on,
+ * held paused in between so only `advance` moves it.
  */
 class PageClock {
-  private readonly ownPauses = new WeakSet<Animation>()
-  private readonly pause = Animation.prototype.pause
+  /** What the page last asked of an animation, when it paused or played it itself. */
+  private readonly intents = new WeakMap<Animation, 'paused' | 'playing'>()
   private readonly times = new WeakMap<Animation, number>()
+  private readonly pause = Animation.prototype.pause
+  private readonly finish = Animation.prototype.finish
+  /** The platform's own `currentTime`, before the page's seeks are wrapped. */
+  private readonly currentTime = Object.getOwnPropertyDescriptor(
+    Animation.prototype,
+    'currentTime',
+  )!
 
-  /** Wraps the methods that pause and resume, to tell the page's pauses from the clock's. */
-  watchPauses(): void {
-    const ownPauses = this.ownPauses
-    const { pause, play, reverse } = Animation.prototype
-    Animation.prototype.pause = function (this: Animation) {
-      ownPauses.add(this)
-      pause.call(this)
-    }
-    this.watchResume(play)
-    this.watchReverse(reverse)
+  /** Wraps the page's ways to pause, resume, finish and seek (sent in by `INSTALL`). */
+  watch(): void {
+    this.watchPause()
+    this.watchPlay()
+    this.watchReverse()
+    this.watchFinish()
+    this.watchSeeks()
   }
 
-  private watchResume(play: Animation['play']): void {
-    const ownPauses = this.ownPauses
+  private watchPause(): void {
+    const clock = this
+    Animation.prototype.pause = function (this: Animation) {
+      clock.intents.set(this, 'paused')
+      clock.pause.call(this)
+    }
+  }
+
+  /** `play` resumes on the document's real timeline: held at once, or the real time until the next advance would count. */
+  private watchPlay(): void {
+    const clock = this
+    const { play } = Animation.prototype
     Animation.prototype.play = function (this: Animation) {
-      ownPauses.delete(this)
+      clock.intents.set(this, 'playing')
       play.call(this)
+      clock.hold(this)
     }
   }
 
@@ -50,21 +67,83 @@ class PageClock {
    * on the next frame; under this clock time moves in steps, so the rate
    * is set at once (setting `playbackRate` keeps the current time).
    */
-  private watchReverse(reverse: Animation['reverse']): void {
-    const ownPauses = this.ownPauses
+  private watchReverse(): void {
+    const clock = this
+    const { reverse } = Animation.prototype
     Animation.prototype.reverse = function (this: Animation) {
       const rate = -this.playbackRate
-      ownPauses.delete(this)
+      clock.intents.set(this, 'playing')
       reverse.call(this)
       this.playbackRate = rate
+      clock.hold(this)
     }
   }
 
-  /** Every element animation (WAAPI and CSS) `ms` on, unless the page paused it. */
-  seek(ms: number): void {
-    for (const animation of document.getAnimations()) {
-      if (!this.ownPauses.has(animation)) this.move(animation, ms)
+  /**
+   * A page's `finish`, and its seeks below, are where the clock goes on
+   * from — held there, like `play`, as the real timeline would carry them
+   * on.
+   */
+  private watchFinish(): void {
+    const clock = this
+    Animation.prototype.finish = function (this: Animation) {
+      clock.finish.call(this)
+      clock.hold(this)
     }
+  }
+
+  private watchSeeks(): void {
+    const clock = this
+    Object.defineProperty(Animation.prototype, 'currentTime', {
+      ...this.currentTime,
+      set(this: Animation, time: CSSNumberish | null) {
+        clock.seekTo(this, time)
+        clock.hold(this)
+      },
+    })
+  }
+
+  private seekTo(animation: Animation, time: CSSNumberish | null): void {
+    this.currentTime.set!.call(animation, time)
+  }
+
+  /** Paused by the clock where it is now, and remembered there. */
+  private hold(animation: Animation): void {
+    this.pause.call(animation)
+    this.times.set(animation, Number(animation.currentTime ?? 0))
+  }
+
+  /** Every element animation (WAAPI and CSS) `ms` on. */
+  seek(ms: number): void {
+    for (const animation of document.getAnimations()) this.step(animation, ms)
+  }
+
+  /**
+   * One animation `ms` on — unless the page paused it, or it stands still
+   * (rate 0: nothing to move, and `finish` would throw). An animation CSS
+   * pauses is held where CSS stopped it, until CSS lets it go.
+   */
+  private step(animation: Animation, ms: number): void {
+    const intent = this.intents.get(animation)
+    if (intent === 'paused' || animation.playbackRate === 0) return
+    if (intent !== 'playing' && this.pausedByCss(animation))
+      this.hold(animation)
+    else this.move(animation, ms)
+  }
+
+  /**
+   * `animation-play-state: paused`, read from CSS every time: the clock's
+   * own `pause` detaches a CSS animation from that property, so its
+   * playState no longer says. A page's `play` overrides CSS, as WAAPI's.
+   */
+  private pausedByCss(animation: Animation): boolean {
+    const target = (animation.effect as KeyframeEffect | null)?.target
+    if (!(animation instanceof CSSAnimation) || !target) return false
+    const pseudo = (animation.effect as KeyframeEffect).pseudoElement
+    const style = getComputedStyle(target, pseudo)
+    const at = style.animationName.split(', ').indexOf(animation.animationName)
+    const states = style.animationPlayState.split(', ')
+    return states[at % states.length] === 'paused'
   }
 
   /**
@@ -78,14 +157,15 @@ class PageClock {
     const now = this.timeOf(animation) + ms * rate
     this.pause.call(animation)
     this.times.set(animation, now)
-    if (rate > 0 ? now >= end : now <= 0) animation.finish()
-    else animation.currentTime = now
+    if (rate > 0 ? now >= end : now <= 0) this.finish.call(animation)
+    else this.seekTo(animation, now)
   }
 
   /**
-   * Where the clock last put it. The first time it is seen it starts at 0
-   * (it began at the last moment the clock stood at), so the real time it
-   * ran before is not counted; if the page moved it since, the page's.
+   * Where the clock (or the page's seek) last put it. The first time it
+   * is seen it starts at 0 (it began at the last moment the clock stood
+   * at), so the real time it ran before is not counted; if something else
+   * moved it since (its start time, its timing), that.
    */
   private timeOf(animation: Animation): number {
     const current = Number(animation.currentTime ?? 0)
@@ -96,7 +176,7 @@ class PageClock {
 }
 
 /** The script that puts a PageClock in the page before its own scripts. */
-const INSTALL = `window.theaterClock = new (${PageClock})(); window.theaterClock.watchPauses()`
+const INSTALL = `window.theaterClock = new (${PageClock})(); window.theaterClock.watch()`
 
 /** Runs in the page: one step of the element clock. */
 function seekInPage(ms: number): void {

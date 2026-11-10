@@ -22,13 +22,42 @@ type RGB = Omit<ColorSample, 't'>
 const SAMPLES_PER_SECOND = 60
 const SECONDS = 2
 
-/** A CSS colour as sRGB numbers, read by the browser itself (a canvas normalizes it). */
-function rgbOf(color: string): RGB {
-  const context = new OffscreenCanvas(1, 1).getContext('2d')!
-  context.fillStyle = color
-  context.fillRect(0, 0, 1, 1)
-  const [r, g, b] = context.getImageData(0, 0, 1, 1).data
-  return { r: r!, g: g!, b: b! }
+const WHITE: RGB = { r: 255, g: 255, b: 255 }
+
+/**
+ * Reads CSS colours with the browser's own parser: a canvas takes any
+ * colour CSS does, with its alpha, and keeps its old one when given
+ * something else (`var(--x)`), which is how a value that isn't a colour
+ * is told apart.
+ */
+class ColorReader {
+  private readonly context = new OffscreenCanvas(1, 1).getContext('2d', {
+    willReadFrequently: true,
+  })!
+
+  /** `color` composited over `under`; null when it isn't a colour. */
+  over(color: string, under: RGB): RGB | null {
+    if (!this.isColor(color)) return null
+    const [r = 0, g = 0, b = 0, alpha = 0] = this.pixelOf(color)
+    return mix(under, { r, g, b }, alpha / 255)
+  }
+
+  private isColor(color: string): boolean {
+    return this.styleAfter('#000', color) === this.styleAfter('#fff', color)
+  }
+
+  private styleAfter(before: string, color: string): string {
+    this.context.fillStyle = before
+    this.context.fillStyle = color
+    return String(this.context.fillStyle)
+  }
+
+  private pixelOf(color: string): Uint8ClampedArray {
+    this.context.clearRect(0, 0, 1, 1)
+    this.context.fillStyle = color
+    this.context.fillRect(0, 0, 1, 1)
+    return this.context.getImageData(0, 0, 1, 1).data
+  }
 }
 
 function mix(a: RGB, b: RGB, share: number): RGB {
@@ -36,12 +65,54 @@ function mix(a: RGB, b: RGB, share: number): RGB {
   return { r: at(a.r, b.r), g: at(a.g, b.g), b: at(a.b, b.b) }
 }
 
+/**
+ * The colours behind one element's animation: the page under it (the
+ * body's background over the root's, over the canvas's white) and its own
+ * background over that, what a keyframe without a colour shows.
+ */
+class Backdrop {
+  readonly base: RGB
+
+  constructor(
+    private readonly reader: ColorReader,
+    private readonly style: CSSStyleDeclaration,
+    readonly page: RGB,
+  ) {
+    this.base = reader.over(style.backgroundColor, page) ?? page // computed: always a colour
+  }
+
+  /** The page behind everything (computed colours always read; the fallbacks only satisfy the type). */
+  static pageOf(reader: ColorReader): RGB {
+    const style = (el: Element) => getComputedStyle(el).backgroundColor
+    const root = reader.over(style(document.documentElement), WHITE) ?? WHITE
+    return reader.over(style(document.body), root) ?? root
+  }
+
+  /**
+   * A keyframe's colour over the page. `currentcolor` is the element's
+   * text colour (the canvas would read it as black); a value that isn't a
+   * colour is reported and the element's own background used, as WAAPI
+   * ignores it.
+   */
+  shown(color: string): RGB {
+    const own = /^currentcolor$/i.test(color) ? this.style.color : color
+    const shown = this.reader.over(own, this.page)
+    if (shown) return shown
+    reportError(
+      new TypeError(
+        `theater: predictFlashes: ${color} is not a colour; the element's background is used`,
+      ),
+    )
+    return this.base
+  }
+}
+
 /** The colour a keyframe shows: its background (or text) colour, faded by its opacity over the page. */
-function colorOf(frame: ComputedKeyframe, base: RGB, page: RGB): RGB {
+function colorOf(frame: ComputedKeyframe, backdrop: Backdrop): RGB {
   const own = frame.backgroundColor ?? frame.color
-  const color = typeof own === 'string' ? rgbOf(own) : base
+  const color = typeof own === 'string' ? backdrop.shown(own) : backdrop.base
   const opacity = frame.opacity === undefined ? 1 : Number(frame.opacity)
-  return mix(page, color, opacity)
+  return mix(backdrop.page, color, opacity)
 }
 
 /** Where the effect is at `ms` of the wall clock, as progress through its keyframes. */
@@ -81,13 +152,9 @@ function colorAt(
 }
 
 /** Two seconds of the animation's colour, sampled at 60 fps, as the counter takes it. */
-function samplesOf(
-  effect: KeyframeEffect,
-  base: RGB,
-  page: RGB,
-): ColorSample[] {
+function samplesOf(effect: KeyframeEffect, backdrop: Backdrop): ColorSample[] {
   const frames = effect.getKeyframes()
-  const colors = frames.map((frame) => colorOf(frame, base, page))
+  const colors = frames.map((frame) => colorOf(frame, backdrop))
   return Array.from({ length: SAMPLES_PER_SECOND * SECONDS }, (_, i) => {
     const t = (i * 1000) / SAMPLES_PER_SECOND
     return { t, ...colorAt(frames, colors, progressAt(effect, t)) }
@@ -95,12 +162,16 @@ function samplesOf(
 }
 
 /** An animated element's verdict. */
-function predict(animation: Animation, page: RGB): PredictedFlash | null {
+function predict(
+  animation: Animation,
+  reader: ColorReader,
+  page: RGB,
+): PredictedFlash | null {
   const effect = animation.effect
   if (!(effect instanceof KeyframeEffect) || !effect.target) return null
   const element = effect.target
-  const base = rgbOf(getComputedStyle(element).backgroundColor)
-  const counted = countFlashes(samplesOf(effect, base, page))
+  const backdrop = new Backdrop(reader, getComputedStyle(element), page)
+  const counted = countFlashes(samplesOf(effect, backdrop))
   const area = shareOf(element)
   const fails = counted.perSecond > 3 && area > SAFE_AREA_SHARE
   return { element, ...counted, area, fails }
@@ -122,14 +193,16 @@ function shareOf(element: Element): number {
  *   predictFlashes().filter((f) => f.fails)
  */
 export function predictFlashes(root: ParentNode = document): PredictedFlash[] {
-  const page = rgbOf(getComputedStyle(document.body).backgroundColor || 'white')
-  const inRoot = (a: Animation) => {
-    const target = (a.effect as KeyframeEffect | null)?.target
-    return target ? root.contains(target) : false
-  }
+  const reader = new ColorReader()
+  const page = Backdrop.pageOf(reader)
   const found = document
     .getAnimations()
-    .filter(inRoot)
-    .map((a) => predict(a, page))
+    .filter((animation) => isIn(root, animation))
+    .map((a) => predict(a, reader, page))
   return found.filter((f): f is PredictedFlash => f !== null)
+}
+
+function isIn(root: ParentNode, animation: Animation): boolean {
+  const target = (animation.effect as KeyframeEffect | null)?.target
+  return target ? root.contains(target) : false
 }

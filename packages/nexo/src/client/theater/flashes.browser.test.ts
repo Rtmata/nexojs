@@ -42,6 +42,73 @@ describe.skipIf(!chrome)('flashes in Chrome', () => {
     expect([found.perSecond, found.fails]).toEqual([1, false])
   })
 
+  test('predicted: a transparent body is the canvas white, and a transparent element shows it', async () => {
+    const page = await pageWith(
+      browser,
+      code,
+      '<style>body { margin: 0 } @keyframes blink { 50% { background: #000 } } #b { width: 900px; height: 900px; animation: blink 200ms steps(1) infinite }</style><div id="b"></div>',
+    )
+    const found = await page.evaluate(() =>
+      (window as any).theater
+        .predictFlashes()
+        .map((f: any) => [f.perSecond, f.fails]),
+    )
+    expect(found).toEqual([[5, true]])
+  })
+
+  test('predicted: a keyframe colour is composited by its alpha over the page', async () => {
+    const page = await pageWith(browser, code, '<div id="b"></div>')
+    const found = await page.evaluate(() => {
+      const b = document.getElementById('b')!
+      b.style.cssText = 'width: 900px; height: 900px'
+      const step = { easing: 'steps(1)' }
+      b.animate(
+        [
+          { backgroundColor: 'rgb(0 0 0 / 0)', ...step },
+          { backgroundColor: 'rgb(0 0 0 / 1)', offset: 0.5, ...step },
+          { backgroundColor: 'rgb(0 0 0 / 1)' },
+        ],
+        { duration: 200, iterations: Infinity },
+      )
+      return (window as any).theater.predictFlashes()[0].perSecond
+    })
+    expect(found).toBe(5)
+  })
+
+  test('predicted: currentcolor is the text colour; a value that is no colour is reported, the background used', async () => {
+    const page = await pageWith(browser, code, '<div id="b"></div>')
+    const found = await page.evaluate(() => {
+      const reported: string[] = []
+      const onError = (e: ErrorEvent) => (
+        reported.push(e.error?.message ?? e.message),
+        e.preventDefault()
+      )
+      window.addEventListener('error', onError)
+      const b = document.getElementById('b')!
+      b.style.cssText = 'width: 900px; height: 900px; color: #fff'
+      const blink = (color: string) =>
+        b.animate(
+          [
+            { backgroundColor: color, easing: 'steps(1)' },
+            { backgroundColor: '#000', offset: 0.5, easing: 'steps(1)' },
+            { backgroundColor: '#000' },
+          ],
+          { duration: 200, iterations: Infinity },
+        )
+      blink('currentcolor')
+      blink('var(--nowhere)')
+      const counts = (window as any).theater
+        .predictFlashes()
+        .map((f: any) => f.perSecond)
+      window.removeEventListener('error', onError)
+      return { counts, reported }
+    })
+    expect(found.counts).toEqual([5, 5])
+    expect(found.reported).toEqual([
+      "theater: predictFlashes: var(--nowhere) is not a colour; the element's background is used",
+    ])
+  })
+
   test('measured: the real frames of a big blinking block fail; a still page passes', async () => {
     const { page, clock } = await clockedPage(browser, code, blinking(5, 2000))
     const report = await flashes(page, { seconds: 2, clock })
@@ -51,4 +118,12 @@ describe.skipIf(!chrome)('flashes in Chrome', () => {
       (await flashes(calm.page, { seconds: 1, clock: calm.clock })).failures,
     ).toEqual([])
   }, 120_000) // a screenshot per frame: the faithful source is the slow one (C.3)
+
+  test('measured: a region is averaged in linear light (fine black and white stripes are not sRGB 127)', async () => {
+    const stripes =
+      '<style>body { margin: 0 } @keyframes blink { 50% { background: #7f7f7f } } #b { width: 2000px; height: 2000px; background: repeating-linear-gradient(90deg, #000 0 2px, #fff 2px 4px); animation: blink 200ms steps(1) infinite }</style><div id="b"></div>'
+    const { page, clock } = await clockedPage(browser, code, stripes)
+    const report = await flashes(page, { seconds: 1, clock })
+    expect(report.failures.length).toBe(9)
+  }, 120_000)
 })

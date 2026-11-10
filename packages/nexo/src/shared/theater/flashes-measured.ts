@@ -32,6 +32,12 @@ const FRAME_MS = 16
  * it may use nothing outside itself.
  */
 class PageTiles {
+  /** Each sRGB channel value in linear light, the way the eye adds light. */
+  private readonly linear = Array.from({ length: 256 }, (_, v) => {
+    const c = v / 255
+    return c <= 0.04045 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4
+  })
+
   async read(
     png: string,
     grid: number,
@@ -53,7 +59,11 @@ class PageTiles {
     return tiles
   }
 
-  /** The average colour of region `i`, every other pixel each way. */
+  /**
+   * The average colour of region `i`, every other pixel each way. Averaged
+   * in linear light, then encoded back: half black, half white is the grey
+   * of luminance 0.5 the eye sees, not sRGB 127 (luminance 0.21).
+   */
   private average(
     data: Uint8ClampedArray,
     width: number,
@@ -67,7 +77,8 @@ class PageTiles {
       for (let x = box.x0; x < box.x1; x += 2)
         this.add(sum, data, (y * width + x) * 4)
     }
-    return { r: sum.r / sum.n, g: sum.g / sum.n, b: sum.b / sum.n }
+    const encoded = (total: number) => this.encoded(total / sum.n)
+    return { r: encoded(sum.r), g: encoded(sum.g), b: encoded(sum.b) }
   }
 
   private add(
@@ -75,10 +86,17 @@ class PageTiles {
     data: Uint8ClampedArray,
     at: number,
   ): void {
-    sum.r += data[at]!
-    sum.g += data[at + 1]!
-    sum.b += data[at + 2]!
+    sum.r += this.linear[data[at]!]!
+    sum.g += this.linear[data[at + 1]!]!
+    sum.b += this.linear[data[at + 2]!]!
     sum.n++
+  }
+
+  /** Linear light back to an sRGB channel value (0–255), as the counter takes it. */
+  private encoded(light: number): number {
+    const c =
+      light <= 0.0031308 ? light * 12.92 : 1.055 * light ** (1 / 2.4) - 0.055
+    return c * 255
   }
 
   private box(width: number, height: number, grid: number, i: number) {
