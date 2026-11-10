@@ -6,6 +6,8 @@ import { abortError, Deferred, type Playback } from './playback'
 export interface Track {
   readonly duration: number
   valueAt(ms: number): number
+  /** Units per second at `ms`: what a new target starts with (B.1). */
+  velocityAt(ms: number): number
 }
 
 /**
@@ -22,6 +24,14 @@ export class KeyframeTrack implements Track {
 
   get duration(): number {
     return this.curve.duration
+  }
+
+  velocityAt(ms: number): number {
+    const gaps = this.keyframes.length - 1
+    const place = this.curve.at(ms) * gaps
+    const i = Math.min(Math.max(Math.floor(place), 0), gaps - 1)
+    const span = this.keyframes[i + 1]! - this.keyframes[i]!
+    return span * gaps * this.curve.velocityAt(ms)
   }
 
   valueAt(ms: number): number {
@@ -157,6 +167,21 @@ export class ValueAnimation implements Playback {
     const past = this.playbackRate < 0 ? this.time <= 0 : this.time >= this.end
     if (past) this.finish()
     else this.render()
+  }
+
+  /** How fast the value moves now, in units per second (0 when it isn't). */
+  get velocity(): number {
+    const local = this.time - this.timing.delay
+    if (this.state !== 'running' || local < 0) return 0
+    const within = this.iterationTime(local)
+    const sign = this.backwardsAt(local) ? -1 : 1
+    return sign * this.playbackRate * this.track.velocityAt(within)
+  }
+
+  private backwardsAt(local: number): boolean {
+    const duration = this.track.duration
+    if (duration === 0) return false
+    return this.backwards(Math.floor(local / duration))
   }
 
   private render(): void {

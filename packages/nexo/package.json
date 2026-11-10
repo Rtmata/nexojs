@@ -190,6 +190,13 @@
       "default": "./src/client/theater/speed.ts"
     },
     "./theater/test-clock": "./src/shared/theater/test-clock.ts",
+    "./theater/tween": {
+      "nexo-built": {
+        "types": "./src/client/theater/tween.ts",
+        "default": "./dist/client/theater/tween.js"
+      },
+      "default": "./src/client/theater/tween.ts"
+    },
     "./voices": {
       "nexo-built": {
         "types": "./src/shared/voices/index.ts",

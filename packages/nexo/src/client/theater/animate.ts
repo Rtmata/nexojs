@@ -113,5 +113,6 @@ function atSpeedTrack(track: Track, speed: number): Track {
   return {
     duration: track.duration / speed,
     valueAt: (ms) => track.valueAt(ms * speed),
+    velocityAt: (ms) => track.velocityAt(ms * speed) * speed,
   }
 }

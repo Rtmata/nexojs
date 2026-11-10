@@ -76,7 +76,8 @@ export function applyJumps(el: Element, jumps: Map<string, string>): void {
     style.setProperty(cssName(property), value)
 }
 
-function cssName(property: string): string {
+/** A WAAPI (camelCase) property name as CSS writes it. */
+export function cssName(property: string): string {
   if (property.startsWith('--')) return property
   return property.replace(/[A-Z]/g, (letter) => `-${letter.toLowerCase()}`)
 }
