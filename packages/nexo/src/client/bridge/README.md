@@ -108,9 +108,9 @@ await prefetch('/es/arcade', { target: '_top' })
 
 ## Changes of view (E.4)
 
-bridge is a view manager: the current view leaves, the next one enters. While it happens, `<html>` carries `data-bridge-direction` (`forward`, `back`, `replace`) and `data-bridge-types`, so CSS can choose in every browser.
+bridge is a view manager: the current view leaves, the next one enters. While it happens — from before the leave until the entry ends — `<html>` carries `data-bridge-direction` (`forward`, `back`, `replace`) and `data-bridge-types`, so CSS can choose in every browser, the exit included.
 
-- **Live** (the default): the leaving segment gets `data-exiting` (and `inert`, focus moved out) and its CSS animations are awaited before the swap; the new one has `data-entering` until its animations end — omino's rule (C.15c).
+- **Live** (the default): the leaving segment gets `data-exiting` (and `inert`, focus moved out) and its CSS animations are awaited before the swap; the new one has `data-entering` until its animations end — omino's rule (C.15c). Endless animations (a busy spinner, a pulsing badge) are not awaited: they are no exit or entry. A navigation cancelled during its leave puts the segment back as it was, its focus and its own `inert` included.
 - **Snapshots** (`data-bridge-transition`, on a link, a segment, or the `<html>` of the page that arrives): the swap runs inside `document.startViewTransition`, with the direction and the types as View Transition types where the browser has them (`:active-view-transition-type(back)`).
 
 ```css
@@ -127,7 +127,7 @@ html[data-bridge-direction='back'] [data-entering] {
 }
 ```
 
-`bridge:transition` fires before the change with `{ transition, types, direction, from, to }` — `transition` is the `ViewTransition` with snapshots, `null` when live. theater gives it a curve and the page's speed without bridge importing it:
+`bridge:transition` fires before the change with `{ transition, types, direction, from, to }` — `transition` is the `ViewTransition` with snapshots (it fires as that starts), `null` when live (it fires before the leave). theater gives it a curve and the page's speed without bridge importing it:
 
 ```js
 document.addEventListener('bridge:transition', (event) => {

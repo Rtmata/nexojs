@@ -1,4 +1,4 @@
-import { markLeaving, settled, unmarkLeaving } from '../settle/settle'
+import { ending, settled, UndoableLeave } from '../settle/settle'
 import {
   COMPONENT_STYLE,
   SEGMENT_ATTRIBUTE,
@@ -147,37 +147,69 @@ export function leavingOf(swaps: Swap[]): Element[] {
 /** At most this long for exits that never finish (C.15c, Angular's 4 s). */
 const LEAVE_WAIT = 4000
 
-/**
- * Before they're removed (C.19b): `bridge:leave` on each, and what its
- * listeners hand `detail.waitUntil(promise)` — their exits — is awaited.
- * When the change is live (E.4) each also gets omino's leaving marks
- * (`data-exiting`, inert, focus out) and its CSS animations are awaited
- * (C.15c's fallback). With snapshots the View Transition shows the leave.
- */
-export async function leave(elements: Element[], live: boolean): Promise<void> {
-  const waits: Promise<unknown>[] = []
-  const waitUntil = (promise: Promise<unknown>) =>
-    void waits.push(promise.catch(reportError))
-  for (const element of elements)
-    announce(element, 'bridge:leave', { waitUntil })
-  if (live) waits.push(liveExits(elements))
-  const atMost = new Promise((done) => setTimeout(done, LEAVE_WAIT))
-  await Promise.race([Promise.all(waits), atMost])
+/** Who holds an element's live leave, and what marking it changed. */
+interface Held {
+  owner: Leave
+  marks: UndoableLeave
 }
 
-/** omino's leaving marks on each, and their CSS animations to the end (C.15c). */
-function liveExits(elements: Element[]): Promise<void> {
-  for (const element of elements) markLeaving(element)
-  return settled(elements.flatMap(animationsOf)) ?? Promise.resolve()
+/**
+ * The live leave each element is in (module state, as `latest` in
+ * change.ts): a newer navigation on the same target takes it over, and
+ * only its holder may bring the element back. One taken over keeps the
+ * first marks, what was there before either leave.
+ */
+const held = new WeakMap<Element, Held>()
+
+/**
+ * One navigation's leave (C.19b): `bridge:leave` on each element about
+ * to go, and what its listeners hand `detail.waitUntil(promise)` — their
+ * exits — is awaited. When the change is live (E.4) each also gets
+ * omino's leaving marks (`data-exiting`, inert, focus out) and its CSS
+ * animations are awaited (C.15c's fallback), endless ones not. With
+ * snapshots the View Transition shows the leave.
+ */
+export class Leave {
+  private elements: Element[] = []
+
+  async run(elements: Element[], live: boolean): Promise<void> {
+    const waits: Promise<unknown>[] = []
+    const waitUntil = (promise: Promise<unknown>) =>
+      void waits.push(promise.catch(reportError))
+    for (const element of elements)
+      announce(element, 'bridge:leave', { waitUntil })
+    if (live) waits.push(this.exits(elements))
+    const atMost = new Promise((done) => setTimeout(done, LEAVE_WAIT))
+    await Promise.race([Promise.all(waits), atMost])
+  }
+
+  /** The leave didn't happen (cancelled meanwhile): what it still holds comes back; what a newer leave took over stays with it. */
+  stay(): void {
+    for (const element of this.elements) {
+      const holding = held.get(element)
+      if (holding?.owner !== this) continue
+      held.delete(element)
+      holding.marks.undo()
+    }
+  }
+
+  /** omino's leaving marks on each, and their CSS animations to the end (C.15c). */
+  private exits(elements: Element[]): Promise<void> {
+    this.elements = elements
+    for (const element of elements) this.hold(element)
+    const animations = ending(elements.flatMap(animationsOf))
+    return settled(animations) ?? Promise.resolve()
+  }
+
+  private hold(element: Element): void {
+    const marks = held.get(element)?.marks ?? new UndoableLeave(element)
+    if (!held.has(element)) marks.mark()
+    held.set(element, { owner: this, marks })
+  }
 }
 
 function animationsOf(element: Element): Animation[] {
   return element.getAnimations({ subtree: true })
-}
-
-/** A leave that didn't happen (cancelled meanwhile): the elements come back. */
-export function stay(elements: Element[]): void {
-  for (const element of elements) unmarkLeaving(element)
 }
 
 /** `data-bridge-persist` (C.19b): the element itself takes its twin's place in what comes in. */

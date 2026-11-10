@@ -65,16 +65,21 @@ export function optionsOf(
   return optionsRead(target, read, reported)
 }
 
-/** The options an object gives, the rest read around `from` as a link there would. */
+/** The options an object gives, the rest read around `from` as a link there would: a wrong value the script gave throws, a wrong one from the markup is reported. */
 export function optionsFrom(given: VisitOptions, from: Element): Options {
   const target = givenTarget(given.target, from)
   const own: Record<string, unknown> = { ...given }
-  const read = (role: string) => {
-    const value = own[role]
-    if (value === undefined || value === null) return inherited(from, role)
-    return value === true ? '' : String(value) // `true` reads as a bare attribute
-  }
-  return optionsRead(target, read, thrown)
+  const has = (role: string) => own[role] !== undefined && own[role] !== null
+  const read = (role: string) =>
+    has(role) ? asAttribute(own[role]) : inherited(from, role)
+  const complain: Complain = (role, message) =>
+    (has(role) ? thrown : reported)(role, message)
+  return optionsRead(target, read, complain)
+}
+
+/** `true` reads as a bare attribute. */
+function asAttribute(value: unknown): string {
+  return value === true ? '' : String(value)
 }
 
 /** `target` as written for a link (`"shelf, counter"`, `_top`); left out, like a link in `from`, but the whole page outside every segment. */
@@ -133,15 +138,18 @@ function oneOf<V extends string, D>(
   if (value === null) return fallback
   if ((allowed as readonly string[]).includes(value.trim()))
     return value.trim() as V
-  complain(`bridge: ${role} "${value}" is not one of ${allowed.join(', ')}`)
+  complain(
+    role,
+    `bridge: ${role} "${value}" is not one of ${allowed.join(', ')}`,
+  )
   return fallback
 }
 
-/** What a wrong value does (audit item 4): markup reports it and the default stands; a script's call throws. */
-type Complain = (message: string) => void
+/** What a wrong value of `role` does (audit item 4): markup reports it and the default stands; a script's call throws. Asked per role: a script's options mix its own values with the markup's around `from`. */
+type Complain = (role: string, message: string) => void
 
-const reported: Complain = (message) => reportError(new Error(message))
+const reported: Complain = (_, message) => reportError(new Error(message))
 
-const thrown: Complain = (message) => {
+const thrown: Complain = (_, message) => {
   throw new TypeError(message)
 }

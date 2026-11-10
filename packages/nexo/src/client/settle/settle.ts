@@ -22,10 +22,43 @@ export function markLeaving(el: Element): void {
     (document.activeElement as HTMLElement).blur()
 }
 
-/** A leave that didn't happen (the navigation was cancelled): back as it was. */
-export function unmarkLeaving(el: Element): void {
-  el.removeAttribute(EXITING)
-  if ('inert' in el) (el as HTMLElement).inert = false
+/**
+ * A leave that may not happen (pattern: memento): marked as
+ * `markLeaving` does, keeping what that changed — the element's own
+ * `inert`, the focus it moved out — so `undo()` puts it back as it was
+ * (a navigation cancelled during its leave).
+ */
+export class UndoableLeave {
+  private inert = false
+  private focused: HTMLElement | null = null
+
+  constructor(private readonly el: Element) {}
+
+  mark(): void {
+    this.inert = (this.el as HTMLElement).inert === true
+    const active = document.activeElement
+    this.focused = this.el.contains(active) ? (active as HTMLElement) : null
+    markLeaving(this.el)
+  }
+
+  undo(): void {
+    this.el.removeAttribute(EXITING)
+    if ('inert' in this.el) (this.el as HTMLElement).inert = this.inert
+    if (this.focusIsFree()) this.focused?.focus()
+  }
+
+  /** The focus goes back only where nothing took it meanwhile. */
+  private focusIsFree(): boolean {
+    const active = document.activeElement
+    return active === null || active === document.body
+  }
+}
+
+/** The animations that can end: an endless one (a spinner, a pulse) is no exit or entry, so waiting on it would only ever reach the fallback. */
+export function ending(animations: Animation[]): Animation[] {
+  return animations.filter((animation) =>
+    Number.isFinite(Number(animation.effect?.getComputedTiming().endTime ?? 0)),
+  )
 }
 
 /** A cancelled animation counts as finished. */

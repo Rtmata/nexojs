@@ -50,6 +50,7 @@ export class Api {
   prefetch(url: string | URL, options: VisitOptions = {}): Promise<void> {
     const read = optionsFrom(options, options.from ?? document.body)
     const segments = this.swapper(read).segments()
+    if (options.signal?.aborted) return Promise.resolve() // asks nothing: no request left to fail unheard
     const fetched = this.session.loader.prefetch(
       new URL(url, location.href),
       segments,
@@ -73,13 +74,12 @@ function ended(outcome: Outcome, url: URL): void {
   throw new Error(`bridge: the visit to ${url} was ${outcome}`)
 }
 
-/** Waits for `work`, or stops waiting when `signal` aborts. */
+/** Waits for `work`, or stops waiting when `signal` aborts (one already aborted asked for no work). */
 function untilAborted(
   work: Promise<void>,
   signal?: AbortSignal,
 ): Promise<void> {
   if (!signal) return work
-  if (signal.aborted) return Promise.resolve()
   const aborted = new Promise<void>((done) =>
     signal.addEventListener('abort', () => done(), { once: true }),
   )

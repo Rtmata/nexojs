@@ -88,7 +88,7 @@ export class HistoryKeeper {
     const kept: Entry | undefined = history.state?.bridge
     if (!kept) return null
     scrollTo(0, kept.scrollY)
-    return { ...kept, index: kept.index ?? 0, url: location.href } // entries written before E.4 have no index
+    return { ...indexed(kept), url: location.href }
   }
 
   /** A first visit starts where the browser put the page: the top, or its `#hash`. */
@@ -129,8 +129,9 @@ export class HistoryKeeper {
    * own: adopted. The scroll goes back only if no later travel took over
    * meanwhile.
    */
-  private async travel(arriving: Entry | undefined): Promise<void> {
-    if (!arriving) return this.adopt()
+  private async travel(written: Entry | undefined): Promise<void> {
+    if (!written) return this.adopt()
+    const arriving = indexed(written)
     const trip = this.depart()
     const targets = changedBetween(this.shown, arriving)
     const direction = arriving.index < this.current.index ? 'back' : 'forward'
@@ -174,6 +175,11 @@ function changedBetween(a: Entry, b: Entry): string[] {
     ? long.targets.slice(short.targets.length)
     : [...short.targets, ...long.targets]
   return [...new Set(changed)]
+}
+
+/** Entries written by a script from before E.4 have no index: the first place, so a return compares numbers. */
+function indexed(entry: Entry): Entry {
+  return { ...entry, index: entry.index ?? 0 }
 }
 
 /** An id for what the page shows: unlike any other in this tab's history, which is all it has to be. */

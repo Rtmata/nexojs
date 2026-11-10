@@ -6,8 +6,7 @@ import {
   adoptStyles,
   apply,
   errorSwap,
-  leave,
-  stay,
+  Leave,
   leavingOf,
   pairAll,
   twinNames,
@@ -47,11 +46,12 @@ export class BySegments implements Swapper {
   prepare(loaded: Loaded): Prepared {
     const swaps = this.swapsFor(loaded)
     const leaving = () => leavingOf(swaps)
+    const leave = new Leave()
     return {
       outdated: false,
       ready: async () => {},
-      leave: (live) => leave(leaving(), live),
-      stay: () => stay(leaving()),
+      leave: (live) => leave.run(leaving(), live),
+      stay: () => leave.stay(),
       apply: () => (adoptStyles(loaded.page), apply(swaps)),
     }
   }

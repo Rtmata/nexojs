@@ -50,13 +50,15 @@ export class Navigation {
   async run(): Promise<Outcome> {
     const { url, method } = this.wanted
     const detail = { url, method, targets: this.swapper.targets }
-    if (!announce(this.trigger, 'bridge:fetch', detail)) return 'cancelled'
+    if (this.stopped || !announce(this.trigger, 'bridge:fetch', detail))
+      return 'cancelled'
     await this.fly(this.start())
     return this.outcome
   }
 
   /** The page already in hand (a landing that came whole): no request, the rest the same. */
   async arrive(loaded: Loaded): Promise<Outcome> {
+    if (this.stopped) return 'cancelled'
     const flight = this.start()
     try {
       await this.show(loaded, flight)
@@ -66,12 +68,17 @@ export class Navigation {
     }
   }
 
+  /** A caller that aborted before the start: nothing starts, so no other navigation on the targets is cancelled for it. */
+  private get stopped(): boolean {
+    return this.signal?.aborted === true
+  }
+
   private start(): Flight {
     const { targets } = this.swapper
     const { inflight } = this.session
     const flight = inflight.start(targets, this.trigger, this.swapper.busy())
     this.turn = inflight.count(targets)
-    cancelsWith(flight, this.signal)
+    flight.cancelsWith(this.signal)
     return flight
   }
 
@@ -138,24 +145,23 @@ export class Navigation {
     const detail = { ...loaded, targets: this.swapper.targets, swap }
     if (!announce(this.trigger, 'bridge:swap', detail)) return
     if (!(await ready(prepared, flight))) return
-    const change = this.changeFor(loaded)
-    const before = { scrollY, focused: document.activeElement } // before a live leave moves the focus out, and before new content can shorten the page
-    if (!(await this.left(prepared, flight, !change.snapshots))) return
-    await this.present(loaded, change, before, () =>
-      flight.aborted ? null : swap(),
-    )
+    await this.change(loaded, prepared, flight)
   }
 
-  /** The leave, live or not (E.4); false when the flight was cancelled meanwhile (what left comes back). */
-  private async left(
+  /** The change of view (E.4): marked and announced, the leave, then the swap — unless the flight is cancelled meanwhile, and then what left comes back. */
+  private async change(
+    loaded: Loaded,
     prepared: Prepared,
     flight: Flight,
-    live: boolean,
-  ): Promise<boolean> {
-    await prepared.leave(live)
-    if (!flight.aborted) return true
-    prepared.stay()
-    return false
+  ): Promise<void> {
+    const change = this.changeFor(loaded)
+    const before = { scrollY, focused: document.activeElement } // before a live leave moves the focus out, and before new content can shorten the page
+    change.begin()
+    await prepared.leave(!change.snapshots)
+    if (flight.aborted) return stayed(prepared, change)
+    await this.present(loaded, change, before, () =>
+      swapUnlessCancelled(prepared, flight),
+    )
   }
 
   /** Waits for the DOM update, not the animation: history, scroll and `bridge:swapped` follow the swap, not the end of the crossfade. */
@@ -258,8 +264,9 @@ export class Navigation {
     const options: Options = { ...this.options, history, scroll: 'top' }
     const wanted = { url: this.destination(url), method: 'GET' }
     const fallback = this.fallback.landing(wanted)
-    const { trigger, session } = this
-    return new Navigation(trigger, wanted, swapper, options, session, fallback)
+    const { trigger, session, signal } = this
+    const steps = [wanted, swapper, options, session, fallback] as const
+    return new Navigation(trigger, ...steps, signal)
   }
 
   /** A stale page shown going back: when a newer one arrives, the visitor is still there and nothing else was asked for these targets meanwhile (a click on the restored content stands), it is shown as a navigation of its own. */
@@ -274,23 +281,18 @@ export class Navigation {
 
   private again(): Navigation {
     const wanted = { ...this.wanted, stale: false }
-    const { trigger, swapper, options, session, fallback } = this
-    return new Navigation(trigger, wanted, swapper, options, session, fallback)
+    const { trigger, swapper, options, session, fallback, signal } = this
+    const steps = [swapper, options, session, fallback, signal] as const
+    return new Navigation(trigger, wanted, ...steps)
   }
 
   /** The same request once more, same key, and not a third time: null when it has no key or may not. */
   private onceMore(): (() => Promise<Outcome>) | null {
     if (!this.wanted.key || !this.options.retry) return null
-    const { trigger, wanted, swapper, session, fallback } = this
+    const { trigger, wanted, swapper, session, fallback, signal } = this
     const options = { ...this.options, retry: false }
-    const next = new Navigation(
-      trigger,
-      wanted,
-      swapper,
-      options,
-      session,
-      fallback,
-    )
+    const steps = [options, session, fallback, signal] as const
+    const next = new Navigation(trigger, wanted, swapper, ...steps)
     return () => next.run()
   }
 }
@@ -319,8 +321,18 @@ function swapped(element: Element, url: URL): void {
   announce(element, 'bridge:swapped', { url, name, signal: lives.of(element) })
 }
 
-/** The caller's abort cancels the flight, as a newer navigation would. */
-function cancelsWith(flight: Flight, signal?: AbortSignal): void {
-  if (signal?.aborted) return flight.cancel()
-  signal?.addEventListener('abort', () => flight.cancel(), { once: true })
+/** A change cancelled during its leave: what left comes back, the marks on `<html>` go. */
+function stayed(prepared: Prepared, change: ViewChange): void {
+  prepared.stay()
+  change.abandon()
+}
+
+/** The swap, unless the flight was cancelled since the leave: then what left comes back, and nothing is swapped. */
+function swapUnlessCancelled(
+  prepared: Prepared,
+  flight: Flight,
+): Element[] | null {
+  if (!flight.aborted) return prepared.apply()
+  prepared.stay()
+  return null
 }

@@ -1,4 +1,4 @@
-import { ENTERING, settled } from '../settle/settle'
+import { ending, ENTERING, settled } from '../settle/settle'
 import { announce } from './events'
 
 /** Which way the visitor went: ahead (a link), back, or replacing where they are. */
@@ -71,15 +71,40 @@ export class ViewChange {
     return this.says.snapshots === true && 'startViewTransition' in document
   }
 
+  /**
+   * Before the leave: `<html>` says which way, so CSS can choose the exit
+   * (`html[data-bridge-direction=back] [data-exiting]`), and a live change
+   * is announced — the trigger may leave with the old content. Snapshots
+   * are announced once their View Transition exists.
+   */
+  begin(): void {
+    this.mark()
+    if (!this.snapshots) this.announce(null)
+  }
+
+  /** The change won't happen (cancelled during its leave): its marks go. */
+  abandon(): void {
+    this.unmark()
+  }
+
   /** The swap, shown the way this change says; the new elements as soon as they are in. */
   async run(swap: () => Element[] | null): Promise<Element[] | null> {
-    this.mark()
     if (this.snapshots) return this.withSnapshots(swap)
-    this.announce(null) // before the swap: the trigger may leave with the old content
-    const elements = swap()
-    this.mark() // a whole-page swap copies the new <html>'s attributes over
+    const elements = this.swapped(swap)
     void this.enter(elements ?? [])
     return elements
+  }
+
+  /** A live swap; one that throws leaves no marks behind, nothing will enter to clear them. */
+  private swapped(swap: () => Element[] | null): Element[] | null {
+    try {
+      const elements = swap()
+      this.mark() // a whole-page swap copies the new <html>'s attributes over
+      return elements
+    } catch (error) {
+      this.unmark()
+      throw error
+    }
   }
 
   private async withSnapshots(
@@ -118,7 +143,7 @@ export class ViewChange {
     const animations = elements.flatMap((el) =>
       el.getAnimations({ subtree: true }),
     )
-    await settled(animations)
+    await settled(ending(animations))
     for (const el of elements) el.removeAttribute(ENTERING)
     this.unmark()
   }
@@ -149,13 +174,21 @@ export class ViewChange {
   }
 }
 
-/** The page's speed (C.1b): the inherited `--theater-speed` on `<html>`, 1 when unset or not a positive number. */
+/** The page's speed (C.1b): the inherited `--theater-speed` on `<html>`, 1 when unset; anything but a positive number is reported and 1 is used, as theater's own reading does (a copy: bridge imports no theater). */
 function pageSpeed(): number {
   const text = getComputedStyle(document.documentElement)
     .getPropertyValue('--theater-speed')
     .trim()
+  if (text === '') return 1
   const speed = Number(text)
-  return text !== '' && Number.isFinite(speed) && speed > 0 ? speed : 1
+  return Number.isFinite(speed) && speed > 0 ? speed : notASpeed(text)
+}
+
+/** CSS is markup: reported, and the change still runs at 1 (audit item 4). */
+function notASpeed(text: string): number {
+  const message = `bridge: --theater-speed: ${text} is not a speed (a positive number); 1 is used`
+  reportError(new RangeError(message))
+  return 1
 }
 
 /**

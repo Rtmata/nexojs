@@ -51,6 +51,8 @@ export class Inflight {
 
 export class Flight {
   private readonly controller = new AbortController()
+  /** Aborted when the flight ends: what listens for it while it flies stops listening then. */
+  private readonly over = new AbortController()
   private ended = false
 
   constructor(
@@ -70,17 +72,25 @@ export class Flight {
     return this.controller.signal.aborted
   }
 
+  /** The `{ signal }` rule: the caller's abort cancels it, as a newer navigation would — while it flies; the listener goes when it ends. */
+  cancelsWith(signal?: AbortSignal): void {
+    const options = { once: true, signal: this.over.signal }
+    signal?.addEventListener('abort', () => this.cancel(), options)
+  }
+
   /** Clears the marks once; a cancelled flight that later settles changes nothing. */
   end(): void {
     if (this.ended) return
     this.ended = true
+    this.over.abort()
     this.trigger.removeAttribute(ACTIVE)
     for (const element of this.busy) element.removeAttribute('aria-busy')
     this.onEnd()
   }
 
+  /** `bridge:cancel` and the marks cleared; nothing once it ended: there is no request left to cancel. */
   cancel(): void {
-    if (this.aborted) return
+    if (this.aborted || this.ended) return
     this.controller.abort()
     announce(this.trigger, 'bridge:cancel', {})
     this.end()

@@ -2318,3 +2318,241 @@ describe.if(chrome)('hooks for the page', () => {
     ).toBe(1)
   })
 })
+
+describe.if(chrome)('changes cut short, and other edges', () => {
+  const api = `import('@nexoamigos/nexo/bridge/client')`
+  const call = (code: string) =>
+    page.evaluate(`${api}.then((bridge) => ${code})`) as Promise<unknown>
+  const exitOf = (ms: number) =>
+    page.addStyleTag({
+      content: `@keyframes out { to { opacity: 0 } } [data-exiting] { animation: out ${ms}ms }`,
+    })
+  const shelfState = () =>
+    page.evaluate(() => {
+      const shelf = document.querySelector('[data-bridge-segment="shelf"]')!
+      return {
+        exiting: shelf.hasAttribute('data-exiting'),
+        inert: (shelf as HTMLElement).inert,
+      }
+    })
+
+  test('an endless animation in the leaving segment (a busy spinner) does not hold the swap', async () => {
+    await open('/shelf/1')
+    await page.addStyleTag({
+      content:
+        '@keyframes spin { to { rotate: 1turn } } [aria-busy=true]::after { content: ""; display: block; animation: spin 1s infinite }',
+    })
+    const started = Date.now()
+    await page.click('#next')
+    await page.waitForSelector('text=game 2')
+    expect(Date.now() - started).toBeLessThan(2000) // the fallback is 4 s
+  })
+
+  test('a live leave already has the direction on <html>, and bridge:transition came before it', async () => {
+    await open('/shelf/1')
+    await exitOf(200)
+    await page.evaluate(() => {
+      const w = window as any
+      document.addEventListener('bridge:transition', () => (w.announced = true))
+      document.addEventListener('bridge:leave', () => {
+        w.during = {
+          direction: document.documentElement.getAttribute(
+            'data-bridge-direction',
+          ),
+          announced: w.announced === true,
+        }
+      })
+    })
+    await page.click('#next')
+    await page.waitForSelector('text=game 2')
+    expect(await page.evaluate(() => (window as any).during)).toEqual({
+      direction: 'forward',
+      announced: true,
+    })
+  })
+
+  test('a swap that throws leaves no direction on <html>', async () => {
+    await open('/shelf/1')
+    await page.evaluate(() => {
+      const original = Element.prototype.replaceWith
+      Element.prototype.replaceWith = function () {
+        Element.prototype.replaceWith = original
+        throw new Error('swap broke')
+      }
+      document.addEventListener('bridge:fail', (e) => e.preventDefault())
+    })
+    await page.click('#next')
+    await page.waitForTimeout(300)
+    expect(
+      await page.evaluate(() =>
+        document.documentElement.hasAttribute('data-bridge-direction'),
+      ),
+    ).toBe(false)
+  })
+
+  test('after a visit ends, aborting its signal cancels nothing', async () => {
+    await open('/shelf/1')
+    await call(`(() => {
+      window.stop1 = new AbortController()
+      return bridge.visit('/shelf/2', { target: 'shelf', signal: window.stop1.signal })
+    })()`)
+    await page.evaluate(() => (window as any).stop1.abort())
+    expect(await log()).not.toContain('bridge:cancel')
+  })
+
+  test('a visit whose signal is already aborted starts nothing, and cancels nothing running', async () => {
+    await open('/shelf/1')
+    await page.click('#slow') // /shelf/2?delay=300 on the same target
+    const outcome = await call(
+      `bridge.visit('/shelf/9', { target: 'shelf', signal: AbortSignal.abort() }).catch((e) => e.message)`,
+    )
+    expect(outcome).toContain('was cancelled')
+    await page.waitForSelector('text=game 2')
+    expect(await log()).not.toContain('bridge:cancel')
+  })
+
+  test('a cancelled leave does not bring back what a newer navigation is leaving now', async () => {
+    await open('/shelf/1')
+    await exitOf(400)
+    await page.click('#next') // its leave runs 400 ms
+    await page.waitForTimeout(100)
+    await page.evaluate(() =>
+      document.addEventListener('bridge:leave', (event) =>
+        (event as CustomEvent).detail.waitUntil(
+          new Promise((done) => setTimeout(done, 600)),
+        ),
+      ),
+    )
+    void call(`bridge.visit('/shelf/3', { target: 'shelf' })`) // takes over; its leave runs 600 ms
+    await page.waitForTimeout(450) // the first leave has ended, cancelled
+    expect(await shelfState()).toEqual({ exiting: true, inert: true })
+    await page.waitForSelector('text=game 3')
+  })
+
+  test('a visit aborted from bridge:transition leaves the segment as it was', async () => {
+    await open('/shelf/1')
+    const outcome = await call(`(() => {
+      const stop = new AbortController()
+      document.addEventListener('bridge:transition', () => stop.abort(), { once: true })
+      return bridge.visit('/shelf/2', { target: 'shelf', signal: stop.signal }).catch((e) => e.message)
+    })()`)
+    expect(outcome).toContain('was cancelled')
+    expect(await shelfState()).toEqual({ exiting: false, inert: false })
+    expect(await text('[data-bridge-segment="shelf"] li')).toBe('game 1')
+  })
+
+  test('a live leave cancelled gives the focus back, and keeps an inert the segment had', async () => {
+    await open('/shelf/1')
+    await exitOf(300)
+    await page.focus('#next')
+    const leave = (path: string) =>
+      call(`(() => {
+        const stop = new AbortController()
+        document.addEventListener('bridge:leave', () => setTimeout(() => stop.abort(), 50), { once: true })
+        return bridge.visit('${path}', { target: 'shelf', signal: stop.signal }).catch((e) => e.message)
+      })()`)
+    expect(await leave('/shelf/2')).toContain('was cancelled')
+    expect(await page.evaluate(() => document.activeElement?.id)).toBe('next')
+    await page.evaluate(() => {
+      const shelf = document.querySelector('[data-bridge-segment="shelf"]')
+      ;(shelf as HTMLElement).inert = true
+    })
+    expect(await leave('/shelf/3')).toContain('was cancelled')
+    expect(await shelfState()).toEqual({ exiting: false, inert: true })
+  })
+
+  test('a wrong value in the markup is reported, not thrown, by a visit or a prefetch', async () => {
+    await open('/shelf/1')
+    const outcome = await page.evaluate(`(() => {
+      document.documentElement.setAttribute('data-bridge-swap', 'morph')
+      const reported = []
+      addEventListener('error', (e) => { reported.push(e.message); e.preventDefault() })
+      return ${api}.then(async (bridge) => {
+        bridge.prefetch('/shelf/4', { target: 'shelf' })
+        await bridge.visit('/shelf/2', { target: 'shelf' })
+        return reported
+      })
+    })()`)
+    expect(new Set(outcome as string[])).toEqual(
+      new Set([
+        'Uncaught Error: bridge: swap "morph" is not one of replace, append, prepend',
+      ]),
+    )
+    expect(await text('[data-bridge-segment="shelf"] li')).toBe('game 2')
+  })
+
+  test('the landing of a visit stops with its signal', async () => {
+    await open('/shelf/1')
+    await page.route(
+      (u) => u.pathname === '/account' && !u.search.includes('_segment'),
+      async (route) => {
+        await new Promise((done) => setTimeout(done, 300))
+        await route.continue().catch(() => {})
+      },
+    )
+    const outcome = await call(`(() => {
+      const stop = new AbortController()
+      setTimeout(() => stop.abort(), 150)
+      return bridge.visit('/account', { target: 'shelf', signal: stop.signal }).catch((e) => e.message)
+    })()`)
+    await page.waitForTimeout(300)
+    await page.unrouteAll({ behavior: 'ignoreErrors' })
+    expect(outcome).toContain('was cancelled')
+    expect(await page.$('h2:has-text("Account")')).toBeNull()
+  })
+
+  test('a prefetch whose signal is already aborted asks nothing', async () => {
+    await open('/shelf/1')
+    requests.length = 0
+    await call(
+      `bridge.prefetch('/shelf/4', { target: 'shelf', signal: AbortSignal.abort() })`,
+    )
+    await page.waitForTimeout(100)
+    expect(requests).toEqual([])
+  })
+
+  test('an entry without an index (written by an older script) does not break back and forward', async () => {
+    await open('/shelf/1')
+    await page.click('#push')
+    await page.waitForSelector('text=game 2')
+    await page.evaluate(() => {
+      const { index, ...bridge } = history.state.bridge
+      history.replaceState({ ...history.state, bridge }, '')
+    })
+    await page.goBack()
+    await page.waitForSelector('text=game 1')
+    await page.goForward()
+    await page.waitForSelector('text=game 2')
+    await page.click('#push')
+    await page.waitForSelector('text=game 3')
+    await page.evaluate(() =>
+      document.addEventListener(
+        'bridge:transition',
+        (event) =>
+          ((window as any).direction = (event as CustomEvent).detail.direction),
+      ),
+    )
+    await page.goBack()
+    await page.waitForSelector('text=game 2')
+    expect(await page.evaluate(() => (window as any).direction)).toBe('back')
+  })
+
+  test('a --theater-speed that is not a speed is reported', async () => {
+    await open('/shelf/1?transition=zoom')
+    await page.evaluate(() => {
+      const w = window as any
+      w.reported = []
+      addEventListener('error', (e: ErrorEvent) => {
+        w.reported.push(e.message)
+        e.preventDefault()
+      })
+      document.documentElement.style.setProperty('--theater-speed', 'fast')
+    })
+    await page.click('#next')
+    await page.waitForSelector('text=game 2')
+    await page.waitForFunction(() => (window as any).reported.length > 0)
+    expect(await page.evaluate(() => (window as any).reported)).toEqual([
+      'Uncaught RangeError: bridge: --theater-speed: fast is not a speed (a positive number); 1 is used',
+    ])
+  })
+})
