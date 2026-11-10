@@ -94,7 +94,6 @@ class PageClock {
   }
 
   /** A page's seeks, held there like `play`, as the real timeline would carry them on. */
-
   private watchSeeks(): void {
     const clock = this
     Object.defineProperty(Animation.prototype, 'currentTime', {
@@ -123,15 +122,21 @@ class PageClock {
 
   /**
    * One animation `ms` on — unless the page paused it, or it stands still
-   * (rate 0: nothing to move, and `finish` would throw). An animation CSS
+   * (rate 0, or already finished). An animation CSS
    * pauses is held where CSS stopped it, until CSS lets it go.
    */
   private step(animation: Animation, ms: number): void {
     const intent = this.intents.get(animation)
-    if (intent === 'paused' || animation.playbackRate === 0) return
+    if (intent === 'paused' || this.standsStill(animation)) return
     if (intent !== 'playing' && this.pausedByCss(animation))
       this.hold(animation)
     else this.move(animation, ms)
+  }
+
+  /** Rate 0 (nothing to move, and `finish` would throw), or finished where it plays to: moving it would only swap its resolved `finished`. */
+  private standsStill(animation: Animation): boolean {
+    if (animation.playbackRate === 0) return true
+    return animation.playState === 'finished'
   }
 
   /**

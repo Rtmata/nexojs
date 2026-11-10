@@ -134,6 +134,20 @@ describe('SpringCurve', () => {
     expect(curve.duration).toBeLessThan(2000)
   })
 
+  test('overdamped released with no turning point ahead still rests', () => {
+    // velocity = slow root · offset: the fast part is 0, a pure slow decay
+    const [k, c] = [100, 30]
+    const slow = (-c + Math.sqrt(c * c - 4 * k)) / 2
+    const curve = new SpringCurve({
+      stiffness: k,
+      damping: c,
+      mass: 1,
+      velocity: slow * -1,
+    })
+    expect(curve.duration).toBeGreaterThan(0)
+    expect(curve.duration).toBeLessThan(5000)
+  })
+
   test('a spring that never rests is refused', () => {
     expect(() => new SpringCurve({ stiffness: 100, damping: 0 })).toThrow(
       'still moving after 20 s',

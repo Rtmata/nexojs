@@ -116,6 +116,24 @@ describe.skipIf(!chrome)('testClock in Chrome', () => {
     expect(seen).toBe('finished')
   })
 
+  test('a finished animation keeps its finished promise across advances', async () => {
+    const { page, clock } = await clockedPage(browser, code, '<p id="a">a</p>')
+    await page.evaluate(() => {
+      const w = window as any
+      w.a = document
+        .getElementById('a')!
+        .animate({ opacity: [0, 1] }, { duration: 100, fill: 'forwards' })
+    })
+    await clock.advance(120)
+    await page.evaluate(() => ((window as any).p = (window as any).a.finished))
+    await clock.advance(100)
+    expect(
+      await page.evaluate(
+        () => (window as any).p === (window as any).a.finished,
+      ),
+    ).toBe(true)
+  })
+
   test('an animation at playback rate 0 stands still, and the others still move', async () => {
     const { page, clock } = await clockedPage(
       browser,
