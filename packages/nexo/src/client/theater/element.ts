@@ -52,8 +52,25 @@ function keepWhatIsSeen(animation: Animation, signal?: AbortSignal): void {
   signal?.addEventListener('abort', retire, { once: true })
 }
 
+/**
+ * Animations driven by scroll (D.1): reaching their end is not the end of
+ * them — scrolling back runs them again — so they are only retired when
+ * unlinked (the scroll's signal aborts).
+ */
+const scrollLinked = new WeakSet<Animation>()
+
+export function linkToScroll(animation: Animation): void {
+  scrollLinked.add(animation)
+}
+
+/** Unlinks it from the scroll and retires it where it is (B.5b). */
+export function unlinkFromScroll(animation: Animation): void {
+  scrollLinked.delete(animation)
+  settle(animation)
+}
+
 export function settle(animation: Animation): void {
-  if (animation.playState === 'idle') return
+  if (scrollLinked.has(animation) || animation.playState === 'idle') return
   const pseudo = (animation.effect as KeyframeEffect | null)?.pseudoElement
   if (pseudo) return // a pseudo-element has no style attribute: it keeps its fill
   commitIfRendered(animation)

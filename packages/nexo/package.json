@@ -175,12 +175,33 @@
       },
       "default": "./src/shared/theater/easing/sine.ts"
     },
+    "./theater/in-view": {
+      "nexo-built": {
+        "types": "./src/client/theater/in-view.ts",
+        "default": "./dist/client/theater/in-view.js"
+      },
+      "default": "./src/client/theater/in-view.ts"
+    },
+    "./theater/parallax": {
+      "nexo-built": {
+        "types": "./src/client/theater/parallax.ts",
+        "default": "./dist/client/theater/parallax.js"
+      },
+      "default": "./src/client/theater/parallax.ts"
+    },
     "./theater/reduce": {
       "nexo-built": {
         "types": "./src/client/theater/reduce.ts",
         "default": "./dist/client/theater/reduce.js"
       },
       "default": "./src/client/theater/reduce.ts"
+    },
+    "./theater/scroll": {
+      "nexo-built": {
+        "types": "./src/client/theater/scroll.ts",
+        "default": "./dist/client/theater/scroll.js"
+      },
+      "default": "./src/client/theater/scroll.ts"
     },
     "./theater/speed": {
       "nexo-built": {

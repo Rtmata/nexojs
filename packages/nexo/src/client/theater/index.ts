@@ -14,7 +14,13 @@ export type {
   Targets,
 } from './animate'
 export type { Playback, ValueTarget } from './playback'
+export { inView } from './in-view'
+export type { InViewOptions, Visit } from './in-view'
+export { parallax } from './parallax'
+export type { ParallaxOptions } from './parallax'
 export { reducedMotion } from './reduce'
+export { scroll } from './scroll'
+export type { ScrollAxis, ScrollOptions } from './scroll'
 export { tween } from './tween'
 export type { Styles, Tween } from './tween'
 export { setSpeed, speedOf, SPEED_PROPERTY } from './speed'
