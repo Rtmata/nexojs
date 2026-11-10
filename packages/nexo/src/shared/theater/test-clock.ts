@@ -24,17 +24,38 @@ class PageClock {
   private readonly ownPauses = new WeakSet<Animation>()
   private readonly pause = Animation.prototype.pause
 
-  /** Wraps `pause` / `play` to tell the page's pauses from the clock's. */
+  /** Wraps the methods that pause and resume, to tell the page's pauses from the clock's. */
   watchPauses(): void {
     const ownPauses = this.ownPauses
-    const { pause, play } = Animation.prototype
+    const { pause, play, reverse } = Animation.prototype
     Animation.prototype.pause = function (this: Animation) {
       ownPauses.add(this)
       pause.call(this)
     }
+    this.watchResume(play)
+    this.watchReverse(reverse)
+  }
+
+  private watchResume(play: Animation['play']): void {
+    const ownPauses = this.ownPauses
     Animation.prototype.play = function (this: Animation) {
       ownPauses.delete(this)
       play.call(this)
+    }
+  }
+
+  /**
+   * `reverse` resumes a paused animation too. WAAPI applies its new rate
+   * on the next frame; under this clock time moves in steps, so the rate
+   * is set at once (setting `playbackRate` keeps the current time).
+   */
+  private watchReverse(reverse: Animation['reverse']): void {
+    const ownPauses = this.ownPauses
+    Animation.prototype.reverse = function (this: Animation) {
+      const rate = -this.playbackRate
+      ownPauses.delete(this)
+      reverse.call(this)
+      this.playbackRate = rate
     }
   }
 
@@ -45,12 +66,17 @@ class PageClock {
     }
   }
 
-  /** Paused at its new time; at its end it finishes, so `finished` resolves. */
+  /**
+   * Paused at its new time — forward or backward, as its playback rate
+   * says; at its end (or its start, in reverse) it finishes, so
+   * `finished` resolves.
+   */
   private move(animation: Animation, ms: number): void {
+    const rate = animation.playbackRate
     const end = Number(animation.effect?.getComputedTiming().endTime ?? 0)
-    const now = Number(animation.currentTime ?? 0) + ms
+    const now = Number(animation.currentTime ?? 0) + ms * rate
     this.pause.call(animation)
-    if (now >= end) animation.finish()
+    if (rate > 0 ? now >= end : now <= 0) animation.finish()
     else animation.currentTime = now
   }
 }

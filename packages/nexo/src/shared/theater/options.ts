@@ -4,13 +4,17 @@ import type { Easing } from './easing/easing'
 import type { InertiaOptions } from './inertia'
 import type { Reduce } from './reduce'
 import { SpringCurve, type SpringOptions } from './spring'
+import type { StaggerDelay } from './stagger'
 
 /** How an animation runs (B.1–B.5): WAAPI's timing, plus theater's own. */
 export interface AnimateOptions {
   /** In ms, before speed (C.1b). 300 by default (Motion's). */
   duration?: number
-  /** In ms, before speed. In a sequence: a shift from its place (B.2b). */
-  delay?: number
+  /**
+   * In ms, before speed. In a sequence a number shifts the segment from
+   * its place (B.2b). On a list, `stagger(…)` gives each element its own.
+   */
+  delay?: number | StaggerDelay
   /** A CSS easing or a function (B.4). `ease` by default (CSS's). */
   easing?: string | Easing
   /** A spring instead of an easing (B.3): its duration is computed. */
@@ -46,4 +50,10 @@ export function curveOf(options: AnimateOptions, speed: number): Curve {
 /** A CSS string read into a function; a function as it is. */
 export function easingOf(easing: string | Easing): Easing {
   return typeof easing === 'string' ? fromCss(easing) : easing
+}
+
+/** The delay of element `index` of `count`, in ms before speed. */
+export function delayOf(options: AnimateOptions, index = 0, count = 1): number {
+  const delay = options.delay ?? 0
+  return typeof delay === 'function' ? delay(index, count) : delay
 }

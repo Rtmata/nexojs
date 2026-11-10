@@ -189,6 +189,13 @@
       },
       "default": "./src/client/theater/speed.ts"
     },
+    "./theater/stagger": {
+      "nexo-built": {
+        "types": "./src/shared/theater/stagger.ts",
+        "default": "./dist/shared/theater/stagger.js"
+      },
+      "default": "./src/shared/theater/stagger.ts"
+    },
     "./theater/test-clock": "./src/shared/theater/test-clock.ts",
     "./theater/tween": {
       "nexo-built": {

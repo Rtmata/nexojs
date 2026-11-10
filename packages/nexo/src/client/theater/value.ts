@@ -48,6 +48,8 @@ export interface ValueTiming {
   delay: number
   iterations: number
   direction: PlaybackDirection
+  /** Held after the end, in ms: a sequence ends all its parts together. */
+  endDelay?: number
 }
 
 /**
@@ -93,7 +95,8 @@ export class ValueAnimation implements Playback {
 
   /** The whole animation, delay and every iteration included. */
   get end(): number {
-    return this.timing.delay + this.track.duration * this.timing.iterations
+    const { delay, iterations, endDelay = 0 } = this.timing
+    return delay + this.track.duration * iterations + endDelay
   }
 
   play(): void {

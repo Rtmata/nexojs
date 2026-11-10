@@ -1,11 +1,23 @@
 import { InertiaPath } from '../../shared/theater/inertia'
-import { curveOf, type AnimateOptions } from '../../shared/theater/options'
+import {
+  curveOf,
+  delayOf,
+  type AnimateOptions,
+} from '../../shared/theater/options'
 import { animateElement } from './element'
 import { AnimationGroup } from './group'
 import type { Keyframes } from './keyframes'
 import { writerOf, type Playback, type ValueTarget } from './playback'
 import { reducedMotion } from './reduce'
+import {
+  animateSequence,
+  isSequence,
+  type Sequence,
+  type SequenceItem,
+  type SequenceOptions,
+} from './sequence'
 import { speedOf } from './speed'
+import { listOf, type Targets } from './targets'
 import {
   KeyframeTrack,
   ValueAnimation,
@@ -15,9 +27,14 @@ import {
 
 export type { AnimateOptions } from '../../shared/theater/options'
 export type { Keyframes } from './keyframes'
+export type {
+  Segment,
+  SegmentOptions,
+  SequenceItem,
+  SequenceOptions,
+} from './sequence'
 
-/** What `animate` moves: one element, or a list of them. */
-export type Targets = Element | Iterable<Element>
+export type { Targets } from './targets'
 
 /**
  * A journey from A to B (B.1), on the clock its target asks for (A.2):
@@ -38,13 +55,20 @@ export function animate(
   options?: AnimateOptions,
 ): ValueAnimation
 export function animate(
-  first: Targets | number[],
-  second: Keyframes | ValueTarget<number>,
+  sequence: SequenceItem[],
+  options?: SequenceOptions,
+): Sequence
+export function animate(
+  first: Targets | number[] | SequenceItem[],
+  second?: Keyframes | ValueTarget<number> | SequenceOptions,
   options: AnimateOptions = {},
 ): Playback {
-  if (isNumbers(first))
+  if (isNumbers(first)) {
     return animateValue(first, second as ValueTarget<number>, options)
-  return animateElements(first, second as Keyframes, options)
+  }
+  if (isSequence(first))
+    return animateSequence(first, second as SequenceOptions)
+  return animateElements(first as Targets, second as Keyframes, options)
 }
 
 function isNumbers(value: unknown): value is number[] {
@@ -56,16 +80,14 @@ function animateElements(
   keyframes: Keyframes,
   options: AnimateOptions,
 ): Playback {
-  if (targets instanceof Element)
+  if (targets instanceof Element) {
     return animateElement(targets, keyframes, options)
-  if (typeof targets === 'string' || !(Symbol.iterator in Object(targets))) {
-    throw new TypeError(
-      'theater: animate takes an element, a list of elements, or numbers and a function (no selector strings: use querySelectorAll)',
-    )
   }
-  return new AnimationGroup(
-    [...targets].map((el) => animateElement(el, keyframes, options)),
-  )
+  const list = listOf(targets)
+  const delay = (i: number) => delayOf(options, i, list.length)
+  const each = (el: Element, i: number) =>
+    animateElement(el, keyframes, { ...options, delay: delay(i) })
+  return new AnimationGroup(list.map(each))
 }
 
 /** A value on theater's frame loop (A.2). Reduced motion leaves it alone unless `reduce: 'jump'` (C.1). */
@@ -87,7 +109,7 @@ function animateValue(
 /** WAAPI's timing for a value, time divided by the page's speed (C.1b). */
 function valueTiming(options: AnimateOptions, speed: number): ValueTiming {
   return {
-    delay: (options.delay ?? 0) / speed,
+    delay: delayOf(options) / speed,
     iterations: options.iterations ?? 1,
     direction: options.direction ?? 'normal',
   }

@@ -1,5 +1,9 @@
 import type { Curve } from '../../shared/theater/curve'
-import { curveOf, type AnimateOptions } from '../../shared/theater/options'
+import {
+  curveOf,
+  delayOf,
+  type AnimateOptions,
+} from '../../shared/theater/options'
 import { animate } from './animate'
 import { applyJumps, cssName, type Keyframes } from './keyframes'
 import { writerOf, type Playback, type ValueTarget } from './playback'
@@ -145,7 +149,7 @@ function tripOf(
   speed: number,
   span: number | null,
 ): Trip {
-  const [curve, delay] = [curveOf(options, speed), (options.delay ?? 0) / speed]
+  const [curve, delay] = [curveOf(options, speed), delayOf(options) / speed]
   const trip = { animation, curve, delay, span, over: false }
   const end = () => (trip.over = true)
   animation.finished.then(end, end)
