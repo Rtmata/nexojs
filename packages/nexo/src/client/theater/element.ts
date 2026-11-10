@@ -164,7 +164,9 @@ export function animateElement(
 /**
  * What reduced motion takes out goes straight to its end (C.1): written
  * inline, or — added on top of what is under it — as an instant
- * animation with the same composite, settled as any (B.5b).
+ * animation with the same composite, settled as any (B.5b). In a
+ * sequence it lands at once too, as an inline jump does: not at its
+ * part's delay, and outside the sequence's seek.
  */
 function jump(
   el: Element,
