@@ -22,6 +22,12 @@ export function markLeaving(el: Element): void {
     (document.activeElement as HTMLElement).blur()
 }
 
+/** A leave that didn't happen (the navigation was cancelled): back as it was. */
+export function unmarkLeaving(el: Element): void {
+  el.removeAttribute(EXITING)
+  if ('inert' in el) (el as HTMLElement).inert = false
+}
+
 /** A cancelled animation counts as finished. */
 export function allFinished(animations: Animation[]): Promise<unknown> {
   return Promise.all(animations.map((a) => a.finished.catch(() => {})))

@@ -7,6 +7,7 @@ import {
   apply,
   errorSwap,
   leave,
+  stay,
   leavingOf,
   pairAll,
   twinNames,
@@ -44,16 +45,22 @@ export class BySegments implements Swapper {
 
   /** A fragment brings no head to compare, so it is never outdated. */
   prepare(loaded: Loaded): Prepared {
-    const swaps =
-      loaded.status < 400
-        ? pairAll(this.targets, loaded.page, this.options.swap)
-        : this.errorSwaps(loaded.page)
+    const swaps = this.swapsFor(loaded)
+    const leaving = () => leavingOf(swaps)
     return {
       outdated: false,
       ready: async () => {},
-      leave: () => leave(leavingOf(swaps)),
+      leave: (live) => leave(leaving(), live),
+      stay: () => stay(leaving()),
       apply: () => (adoptStyles(loaded.page), apply(swaps)),
     }
+  }
+
+  /** What goes where: the targets, or the failure segment for an error. */
+  private swapsFor(loaded: Loaded): Swap[] {
+    return loaded.status < 400
+      ? pairAll(this.targets, loaded.page, this.options.swap)
+      : this.errorSwaps(loaded.page)
   }
 
   landing(): Swapper {

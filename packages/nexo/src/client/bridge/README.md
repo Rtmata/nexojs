@@ -34,7 +34,7 @@ Every attribute is inherited: its own value, else the closest ancestor's. `data-
 | `data-bridge-scroll`         | `top`, `keep`, `target`                               | After the swap. A whole page starts at the top; a segment keeps the scroll. A `#hash` in the link wins.                          |
 | `data-bridge-swap`           | `replace`, `append`, `prepend`                        | The new content in place of the segment, or inside it after or before the old (infinite lists).                                  |
 | `data-bridge-focus`          | `auto`, `keep`, `autofocus`, `target`, `none`, a name | Where the focus goes. `auto`: the hash's element, else kept by id, else `autofocus`, else the new segment if the old one had it. |
-| `data-bridge-transition`     | `true`, `false`                                       | Wrap the swap in a view transition.                                                                                              |
+| `data-bridge-transition`     | bare, types (`zoom slide`), `false`                   | Snapshots: wrap the swap in a View Transition with these types (and the direction). `false` keeps the change live.               |
 | `data-bridge-fail`           | a name                                                | The segment that shows error responses instead of the target.                                                                    |
 | `data-bridge-busy`           | a name                                                | Another segment marked `aria-busy` while loading: a global indicator.                                                            |
 | `data-bridge-src`            | a URL                                                 | On a segment: fills itself from there, when `data-bridge-load` says.                                                             |
@@ -105,3 +105,33 @@ await prefetch('/es/arcade', { target: '_top' })
 - **No response to a GET**: the browser loads the URL itself. **No response to a POST**: sent once more under the same `Idempotency-Key` (keep answers it once), then `bridge:fail` and the form stays. **A response without the segment**: an error page stays in context (its `<main>` into the target); a successful one lands as the whole page.
 - **A form whose answer redirects to another site** (a payment, a sign-in handoff) is the browser's: mark it `data-bridge-target="_none"`.
 - **Under a Content Security Policy**, `script-src` needs `'inline-speculation-rules'` for the prefetch rules bridge writes inline.
+
+## Changes of view (E.4)
+
+bridge is a view manager: the current view leaves, the next one enters. While it happens, `<html>` carries `data-bridge-direction` (`forward`, `back`, `replace`) and `data-bridge-types`, so CSS can choose in every browser.
+
+- **Live** (the default): the leaving segment gets `data-exiting` (and `inert`, focus moved out) and its CSS animations are awaited before the swap; the new one has `data-entering` until its animations end — omino's rule (C.15c).
+- **Snapshots** (`data-bridge-transition`, on a link, a segment, or the `<html>` of the page that arrives): the swap runs inside `document.startViewTransition`, with the direction and the types as View Transition types where the browser has them (`:active-view-transition-type(back)`).
+
+```css
+@keyframes out {
+  to {
+    opacity: 0;
+  }
+}
+[data-exiting] {
+  animation: out 200ms;
+}
+html[data-bridge-direction='back'] [data-entering] {
+  animation: from-left 300ms;
+}
+```
+
+`bridge:transition` fires before the change with `{ transition, types, direction, from, to }` — `transition` is the `ViewTransition` with snapshots, `null` when live. theater gives it a curve and the page's speed without bridge importing it:
+
+```js
+document.addEventListener('bridge:transition', (event) => {
+  if (event.detail.transition)
+    animateView(event.detail.transition, { spring: { duration: 500 } })
+})
+```

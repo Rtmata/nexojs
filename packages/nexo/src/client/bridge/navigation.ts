@@ -1,5 +1,9 @@
 import { samePage } from '../../shared/bridge/segment-url'
-import { SEGMENT_ATTRIBUTE } from '../../shared/bridge/vocabulary'
+import {
+  ATTRIBUTE_PREFIX,
+  SEGMENT_ATTRIBUTE,
+} from '../../shared/bridge/vocabulary'
+import { joined, transitionSays, ViewChange, type Direction } from './change'
 import { announce } from './events'
 import { lives } from './lives'
 import { BrowserFallback, type Fallback } from './fallback'
@@ -131,24 +135,53 @@ export class Navigation {
     const detail = { ...loaded, targets: this.swapper.targets, swap }
     if (!announce(this.trigger, 'bridge:swap', detail)) return
     if (!(await ready(prepared, flight))) return
-    await prepared.leave()
-    if (flight.aborted) return
-    const before = { scrollY, focused: document.activeElement } // read before the new content can shorten the page
-    const swapped = () => (flight.aborted ? null : swap())
-    const elements = await this.transition(swapped)
-    if (elements) this.outcome = this.done(loaded.url, elements, before)
+    const change = this.changeFor(loaded)
+    const before = { scrollY, focused: document.activeElement } // before a live leave moves the focus out, and before new content can shorten the page
+    if (!(await this.left(prepared, flight, !change.snapshots))) return
+    await this.present(loaded, change, before, () =>
+      flight.aborted ? null : swap(),
+    )
+  }
+
+  /** The leave, live or not (E.4); false when the flight was cancelled meanwhile (what left comes back). */
+  private async left(
+    prepared: Prepared,
+    flight: Flight,
+    live: boolean,
+  ): Promise<boolean> {
+    await prepared.leave(live)
+    if (!flight.aborted) return true
+    prepared.stay()
+    return false
   }
 
   /** Waits for the DOM update, not the animation: history, scroll and `bridge:swapped` follow the swap, not the end of the crossfade. */
-  private async transition(
+  private async present(
+    loaded: Loaded,
+    change: ViewChange,
+    before: { scrollY: number; focused: Element | null },
     swap: () => Element[] | null,
-  ): Promise<Element[] | null> {
-    if (!this.options.transition || !document.startViewTransition) return swap()
-    let elements: Element[] | null = null
-    await document.startViewTransition(() => {
-      elements = swap()
-    }).updateCallbackDone
-    return elements
+  ): Promise<void> {
+    const elements = await change.run(swap)
+    if (elements) this.outcome = this.done(loaded.url, elements, before)
+  }
+
+  /** The change of view (E.4): the trigger's word, else the arriving page's `<html>`. */
+  private changeFor(loaded: Loaded): ViewChange {
+    const root = loaded.page.documentElement
+    const arriving = root.getAttribute(`${ATTRIBUTE_PREFIX}transition`)
+    const says = joined(this.options.transition, transitionSays(arriving))
+    const where = { from: new URL(location.href), to: loaded.url }
+    return new ViewChange(this.trigger, says, {
+      direction: this.direction(),
+      ...where,
+    })
+  }
+
+  /** A return says back or forward; else a replace replaces, anything else goes forward. */
+  private direction(): Direction {
+    const { direction, history } = this.options
+    return direction ?? (history === 'replace' ? 'replace' : 'forward')
   }
 
   /** Scrolled, focused, recorded (the entry starts where the page is now) and `bridge:swapped` on each new element: the trigger may have left with the old content. `before`: the scroll and the focus as they were. */

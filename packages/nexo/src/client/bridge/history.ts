@@ -21,9 +21,15 @@ export interface Entry {
    * entries that share it have nothing to bring between them.
    */
   content: string
+  /** Its place in the line of entries: a return compares them to know back from forward (E.4). */
+  index: number
 }
 
-export type Restore = (url: URL, targets: string[]) => Promise<void>
+export type Restore = (
+  url: URL,
+  targets: string[],
+  direction: 'back' | 'forward',
+) => Promise<void>
 
 /** Milliseconds without a change before the entry is written. */
 const SETTLE = 150
@@ -65,7 +71,8 @@ export class HistoryKeeper {
     this.rememberScroll(scrollBefore)
     const swapped = [...this.current.targets, ...targets]
     const content = stamp()
-    this.current = { url: url.href, targets: swapped, scrollY, content }
+    const index = this.current.index + (mode === 'push' ? 1 : 0)
+    this.current = { url: url.href, targets: swapped, scrollY, content, index }
     this.shown = this.current
     this.write(mode === 'push' ? 'pushState' : 'replaceState', this.current)
   }
@@ -81,13 +88,13 @@ export class HistoryKeeper {
     const kept: Entry | undefined = history.state?.bridge
     if (!kept) return null
     scrollTo(0, kept.scrollY)
-    return { ...kept, url: location.href }
+    return { ...kept, index: kept.index ?? 0, url: location.href } // entries written before E.4 have no index
   }
 
   /** A first visit starts where the browser put the page: the top, or its `#hash`. */
   private fresh(): Entry {
     const content = stamp()
-    return { url: location.href, targets: [], scrollY, content }
+    return { url: location.href, targets: [], scrollY, content, index: 0 }
   }
 
   /** One write once the page settles (writing on every pixel or marker would hit the browser's rate limit): the scroll as it is then, so a reload or a return finds it — the browser's own restoration is off. While a travel is under way, the scroll is the page's on its way out, not this entry's: not written. */
@@ -126,9 +133,15 @@ export class HistoryKeeper {
     if (!arriving) return this.adopt()
     const trip = this.depart()
     const targets = changedBetween(this.shown, arriving)
+    const direction = arriving.index < this.current.index ? 'back' : 'forward'
     this.current = arriving
-    if (targets.length) await this.restore(new URL(arriving.url), targets)
-    if (this.trip !== trip) return
+    if (targets.length)
+      await this.restore(new URL(arriving.url), targets, direction)
+    if (this.trip === trip) this.arrived(arriving)
+  }
+
+  /** The travel is still the latest: what it shows is the entry's, its scroll goes back. */
+  private arrived(arriving: Entry): void {
     this.trip = null
     this.shown = arriving
     scrollTo(0, arriving.scrollY)

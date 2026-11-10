@@ -17,6 +17,7 @@ export type EventName =
   | 'bridge:leave'
   | 'bridge:fail'
   | 'bridge:cancel'
+  | 'bridge:transition'
 
 /** Dispatches the event; false when a listener cancelled it. */
 export function announce(

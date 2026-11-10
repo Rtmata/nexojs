@@ -1,3 +1,4 @@
+import { markLeaving, settled, unmarkLeaving } from '../settle/settle'
 import {
   COMPONENT_STYLE,
   SEGMENT_ATTRIBUTE,
@@ -149,16 +150,34 @@ const LEAVE_WAIT = 4000
 /**
  * Before they're removed (C.19b): `bridge:leave` on each, and what its
  * listeners hand `detail.waitUntil(promise)` — their exits — is awaited.
+ * When the change is live (E.4) each also gets omino's leaving marks
+ * (`data-exiting`, inert, focus out) and its CSS animations are awaited
+ * (C.15c's fallback). With snapshots the View Transition shows the leave.
  */
-export async function leave(elements: Element[]): Promise<void> {
+export async function leave(elements: Element[], live: boolean): Promise<void> {
   const waits: Promise<unknown>[] = []
   const waitUntil = (promise: Promise<unknown>) =>
     void waits.push(promise.catch(reportError))
   for (const element of elements)
     announce(element, 'bridge:leave', { waitUntil })
-  if (waits.length === 0) return
+  if (live) waits.push(liveExits(elements))
   const atMost = new Promise((done) => setTimeout(done, LEAVE_WAIT))
   await Promise.race([Promise.all(waits), atMost])
+}
+
+/** omino's leaving marks on each, and their CSS animations to the end (C.15c). */
+function liveExits(elements: Element[]): Promise<void> {
+  for (const element of elements) markLeaving(element)
+  return settled(elements.flatMap(animationsOf)) ?? Promise.resolve()
+}
+
+function animationsOf(element: Element): Animation[] {
+  return element.getAnimations({ subtree: true })
+}
+
+/** A leave that didn't happen (cancelled meanwhile): the elements come back. */
+export function stay(elements: Element[]): void {
+  for (const element of elements) unmarkLeaving(element)
 }
 
 /** `data-bridge-persist` (C.19b): the element itself takes its twin's place in what comes in. */

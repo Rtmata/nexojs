@@ -30,7 +30,9 @@ const CACHE_TTL = 60_000
 const session: Session = {
   loader: new Loader(new ResponseCache(CACHE_TTL)),
   inflight: new Inflight(),
-  history: new HistoryKeeper((url, targets) => restore(url, targets)),
+  history: new HistoryKeeper((url, targets, direction) =>
+    restore(url, targets, direction),
+  ),
 }
 
 const api = new Api(session)
@@ -109,9 +111,13 @@ function navigation(
 }
 
 /** Back/forward: what changed to reach that entry is swapped again (a stale copy will do), nothing recorded; whatever fails rewrites the entry, never adds one. */
-function restore(url: URL, targets: string[]): Promise<void> {
+function restore(
+  url: URL,
+  targets: string[],
+  direction: 'back' | 'forward',
+): Promise<void> {
   const root = document.documentElement
-  const options = restoreOptions(root)
+  const options = { ...restoreOptions(root), direction }
   const wanted = { url, method: 'GET', stale: true }
   const swapper: Swapper = targets.includes(TOP)
     ? new WholePage()

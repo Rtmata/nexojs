@@ -1,4 +1,5 @@
 import { enclosingSegment, inherited } from './attributes'
+import { transitionSays, type TransitionSays } from './change'
 import { focusOf, type Focus } from './focus'
 import { targetOf, type Target } from './target'
 
@@ -18,7 +19,10 @@ export interface Options {
   swap: 'replace' | 'append' | 'prepend'
   /** Where the focus goes afterwards: `auto` by default (see `FocusMove`). */
   focus: Focus
-  transition: boolean
+  /** Snapshots or live, and the types (decision 35, E.4). */
+  transition: TransitionSays
+  /** Set by a return through history; otherwise it follows `history`. */
+  direction?: 'back' | 'forward'
   /** The segment that shows error responses instead of the target. */
   fail: string | null
   /** Another segment marked busy while loading: a global indicator. */
@@ -42,7 +46,8 @@ export interface VisitOptions {
   swap?: 'replace' | 'append' | 'prepend'
   /** `auto`, `keep`, `autofocus`, `target`, `none`, or a segment name. */
   focus?: string
-  transition?: boolean
+  /** `true` snapshots, `false` live, a string: snapshots with these types. */
+  transition?: boolean | string
   fail?: string | null
   busy?: string | null
   retry?: boolean
@@ -65,7 +70,7 @@ export function optionsFrom(given: VisitOptions, from: Element): Options {
   const read = (role: string) => {
     const value = own[role]
     if (value === undefined || value === null) return inherited(from, role)
-    return String(value)
+    return value === true ? '' : String(value) // `true` reads as a bare attribute
   }
   return optionsRead(target, read)
 }
@@ -88,7 +93,7 @@ function optionsRead(target: Target, read: Reader): Options {
     target,
     ...modesRead(read, target.kind === 'top'),
     focus: focusOf(read('focus')),
-    transition: read('transition') === 'true',
+    transition: transitionSays(read('transition')),
     fail: read('fail'),
     busy: read('busy'),
     retry: read('retry') !== 'false',

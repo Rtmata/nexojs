@@ -3,7 +3,7 @@ import { HeadMerge } from './head'
 import type { Loaded } from './loader'
 import { lives } from './lives'
 import type { Prepared, Swapper } from './swapper'
-import { carryPersisted, leave } from './swaps'
+import { carryPersisted, leave, stay } from './swaps'
 
 /**
  * The response goes in as the whole page (`data-bridge-target="_top"`, or
@@ -28,7 +28,8 @@ export class WholePage implements Swapper {
     return {
       outdated: head.trackedChanged(),
       ready: (signal) => head.loadStyles(signal),
-      leave: () => leave([document.body]),
+      leave: (live) => leave([document.body], live),
+      stay: () => stay([document.body]),
       apply: () => [replace(loaded.page, head)],
     }
   }

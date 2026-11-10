@@ -2160,17 +2160,107 @@ describe.if(chrome)('hooks for the page', () => {
     expect(await text('[data-bridge-segment="inner"]')).toBe('inner 6')
   })
 
-  test('data-bridge-transition="true" wraps the swap in a view transition', async () => {
+  test('a live change: <html> says the direction meanwhile, bridge:transition says it all (E.4)', async () => {
+    await open('/shelf/1')
+    await page.evaluate(() => {
+      const w = window as any
+      document.addEventListener('bridge:transition', (event) => {
+        const { direction, types, transition } = (event as CustomEvent).detail
+        w.seen = {
+          direction,
+          types,
+          transition,
+          marked: document.documentElement.getAttribute(
+            'data-bridge-direction',
+          ),
+        }
+      })
+    })
+    await page.click('#next')
+    await page.waitForSelector('text=game 2')
+    const seen = await page.evaluate(() => (window as any).seen)
+    expect(seen).toEqual({
+      direction: 'forward',
+      types: [],
+      transition: null,
+      marked: 'forward',
+    })
+    await page.waitForFunction(
+      () => !document.documentElement.hasAttribute('data-bridge-direction'),
+    )
+  })
+
+  test('a return through history goes back (E.4)', async () => {
+    await open('/shelf/1')
+    await page.click('#push')
+    await page.waitForSelector('text=game 2')
+    await page.evaluate(() => {
+      document.addEventListener(
+        'bridge:transition',
+        (event) =>
+          ((window as any).direction = (event as CustomEvent).detail.direction),
+      )
+    })
+    await page.goBack()
+    await page.waitForSelector('text=game 1')
+    expect(await page.evaluate(() => (window as any).direction)).toBe('back')
+  })
+
+  test('a live leave is marked and its CSS animation awaited before the swap (E.4, C.15c)', async () => {
+    await open('/shelf/1')
+    await page.addStyleTag({
+      content:
+        '@keyframes out { to { opacity: 0 } } [data-exiting] { animation: out 400ms }',
+    })
+    await page.click('#next')
+    await page.waitForTimeout(150)
+    const leaving = await page.evaluate(() => {
+      const shelf = document.querySelector('[data-bridge-segment="shelf"]')!
+      return {
+        text: shelf.textContent!.includes('game 1'),
+        marked: shelf.hasAttribute('data-exiting'),
+        inert: (shelf as HTMLElement).inert,
+      }
+    })
+    expect(leaving).toEqual({ text: true, marked: true, inert: true })
+    await page.waitForSelector('text=game 2')
+  })
+
+  test('snapshots carry the direction and the declared types as View Transition types', async () => {
+    await open('/shelf/1?transition=zoom')
+    await page.evaluate(() => {
+      const w = window as any
+      document.startViewTransition = ((arg: any) => {
+        w.types = arg.types
+        arg.update()
+        const done = Promise.resolve()
+        return {
+          updateCallbackDone: done,
+          finished: done,
+          ready: done,
+        } as ViewTransition
+      }) as typeof document.startViewTransition
+    })
+    await page.click('#next')
+    await page.waitForSelector('text=game 2')
+    expect(await page.evaluate(() => (window as any).types)).toEqual([
+      'forward',
+      'zoom',
+    ])
+  })
+
+  test('data-bridge-transition wraps the swap in a view transition', async () => {
     await open('/shelf/1?transition=true')
     await page.evaluate(() => {
       const w = window as unknown as { transitions: number }
       w.transitions = 0
-      document.startViewTransition = (update: () => void) => {
+      document.startViewTransition = ((arg: any) => {
         w.transitions++
+        const update = typeof arg === 'function' ? arg : arg.update // with types where the browser has them (E.4)
         update()
         const done = Promise.resolve()
         return { updateCallbackDone: done, finished: done } as ViewTransition
-      }
+      }) as typeof document.startViewTransition
     })
     await page.click('#next')
     await page.waitForSelector('text=game 2')
