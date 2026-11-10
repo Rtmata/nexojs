@@ -595,6 +595,52 @@ export async function rowsComeAndGo() {
   return { during, after }
 }
 
+/** Rows that slide (E.2) and leave by a CSS transition, 300 ms each. */
+function slidingRows(start: number[]) {
+  if (!document.getElementById('slides')) {
+    const style = document.createElement('style')
+    style.id = 'slides'
+    style.textContent = `
+      .slide { transition: opacity 300ms linear }
+      .slide[data-exiting] { opacity: 0 }
+      .slide[data-moving] { transition: translate 300ms linear }
+    `
+    document.head.append(style)
+  }
+  const items = signal(start)
+  const { el } = run(
+    <ul>
+      <For each={items} move>
+        {(n) => <li class="slide">{n}</li>}
+      </For>
+    </ul>,
+  )
+  return { items, el }
+}
+
+/** Review: a second reorder during a slide; the first slide's cancelled end must not unmark the second. */
+export async function moveDuringMove() {
+  const { items, el } = slidingRows([1, 2, 3])
+  items.set([3, 1, 2])
+  flush()
+  await wait(50)
+  items.set([2, 3, 1])
+  flush()
+  await wait(50)
+  return [...el.querySelectorAll('li')].map(
+    (li) => li.hasAttribute('data-moving') && li.getAnimations().length > 0,
+  )
+}
+
+/** Review: a row leaving while the others slide keeps its exit transition. */
+export async function leaveDuringMove() {
+  const { items, el } = slidingRows([1, 2, 3])
+  items.set([3, 1])
+  flush()
+  await wait(50)
+  return texts(el)
+}
+
 /** What a person typing does: change the value, then the browser's event. */
 function type(
   el: HTMLInputElement | HTMLTextAreaElement,

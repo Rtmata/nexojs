@@ -48,10 +48,21 @@ function hold(el: HTMLElement, translate: string): void {
   el.style.translate = translate
 }
 
-/** Gives the row back to CSS, and drops the mark when its slide ends. */
+/**
+ * Each row's latest move (module state, one entry per sliding row): a
+ * reorder during a slide cancels the slide, and that cancelled slide's
+ * end must not take the mark off the slide that replaced it.
+ */
+const latestMove = new WeakMap<Element, object>()
+
+/** Gives the row back to CSS, and drops the mark when its slide ends, unless a newer move has it by then. */
 function release(el: HTMLElement, borrowed: Borrowed): void {
+  const move = {}
+  latestMove.set(el, move)
   el.style.transition = borrowed.transition
   el.style.translate = borrowed.translate
   const slides = el.getAnimations().map((a) => a.finished.catch(() => {}))
-  Promise.all(slides).then(() => el.removeAttribute(MOVING))
+  Promise.all(slides).then(() => {
+    if (latestMove.get(el) === move) el.removeAttribute(MOVING)
+  })
 }

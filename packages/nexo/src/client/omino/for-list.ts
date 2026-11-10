@@ -59,17 +59,20 @@ export class ForList<T> {
   private reconcile(next: Row<T>[]): void {
     const reorder = () => (this.leave(next), this.place(next))
     const move = this.props.move
-    if (move && this.order.length > 0) this.moveRows(move, reorder)
+    if (move && this.order.length > 0) this.moveRows(move, next, reorder)
     else reorder()
     this.order = next
   }
 
-  /** E.2: the kept rows slide, by CSS (`move`) or by the given function. */
+  /** E.2: the kept rows slide, by CSS (`move`) or by the given function. Leaving rows are not handed over: holding them still for a slide would cancel their exit. */
   private moveRows(
     move: NonNullable<ForProps<T>['move']>,
+    next: Row<T>[],
     reorder: () => void,
   ): void {
-    const rows = this.order.flatMap((row) => elementsIn(rangeOf(row)))
+    const staying = new Set(next)
+    const kept = this.order.filter((row) => staying.has(row))
+    const rows = kept.flatMap((row) => elementsIn(rangeOf(row)))
     if (typeof move === 'function') move(rows, reorder)
     else cssMove(rows, reorder)
   }

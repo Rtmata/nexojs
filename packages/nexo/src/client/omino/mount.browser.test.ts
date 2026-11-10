@@ -232,6 +232,14 @@ for (const [name, engine] of engines) {
       expect(await play('exitTimeout')).toEqual({ during: true, after: true })
     })
 
+    test('For move: a reorder during a slide keeps the new slide going', async () => {
+      expect(await play('moveDuringMove')).toEqual([true, true, true])
+    })
+
+    test('For move: a row leaving while the others slide keeps its exit', async () => {
+      expect(await play('leaveDuringMove')).toEqual(['3', '1', '2'])
+    })
+
     test('For rows leave with their exit and come with their entry', async () => {
       expect(await play('rowsComeAndGo')).toEqual({
         during: ['1-', '2', '3+'],
