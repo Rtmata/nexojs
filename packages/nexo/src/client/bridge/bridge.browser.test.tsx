@@ -2422,6 +2422,18 @@ describe.if(chrome)('changes cut short, and other edges', () => {
     expect(await page.textContent('body')).not.toContain('game 2')
   })
 
+  test('a visit its bridge:fetch listener aborts cancels nothing already running', async () => {
+    await open('/shelf/1')
+    await page.click('#slow') // /shelf/2?delay=300 on the same target
+    await call(`(() => {
+      const stop = new AbortController()
+      document.addEventListener('bridge:fetch', () => stop.abort(), { once: true })
+      return bridge.visit('/shelf/9', { target: 'shelf', signal: stop.signal }).catch(() => {})
+    })()`)
+    await page.waitForSelector('text=game 2')
+    expect(await log()).not.toContain('bridge:cancel')
+  })
+
   test('a cancelled leave does not bring back what a newer navigation is leaving now', async () => {
     await open('/shelf/1')
     await exitOf(400)

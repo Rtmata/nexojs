@@ -52,6 +52,7 @@ export class Navigation {
     const detail = { url, method, targets: this.swapper.targets }
     if (this.stopped || !announce(this.trigger, 'bridge:fetch', detail))
       return 'cancelled'
+    if (this.stopped) return 'cancelled' // a bridge:fetch listener aborted it: nothing starts, nothing else is cancelled
     await this.fly(this.start())
     return this.outcome
   }
