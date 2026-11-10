@@ -1,7 +1,7 @@
 import type { Context, Handler } from '../../shared/http/types'
 
 /** The URL the page listens on. Prefixed so it never clashes with a real route. */
-export const RELOAD_PATH = '/__witness/reload'
+export const RELOAD_PATH = '/_nexo/witness/reload' // every reserved path under /_nexo/ (audit item 9)
 
 /**
  * Reload the browser whenever the server restarts. Development only: add it
