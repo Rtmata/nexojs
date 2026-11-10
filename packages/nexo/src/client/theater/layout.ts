@@ -1,5 +1,5 @@
 import type { AnimateOptions } from '../../shared/theater/options'
-import { animate } from './animate'
+import { animateElement, endsAtRest } from './element'
 import { AnimationGroup } from './group'
 import type { Playback } from './playback'
 
@@ -34,28 +34,6 @@ function inverseOf(first: DOMRect, last: DOMRect): Keyframe[] | null {
   ]
 }
 
-/** What FLIP animates, and so writes inline at its end (B.5b). */
-const OFFSETS = ['translate', 'scale'] as const
-
-/**
- * How to put the element's inline `translate` / `scale` back as they are
- * now (none, or a drag's own). FLIP ends in "no offset": what its end
- * writes inline (B.5b) is replaced by this, so whatever ruled before
- * rules again. An aborted FLIP keeps where it stopped, as any animation.
- */
-function inlineOffsetsOf(el: Element): () => void {
-  const style = (el as HTMLElement).style
-  const putBacks = OFFSETS.map((name) => putBack(style, name))
-  return () => putBacks.forEach((put) => put())
-}
-
-/** How to write one inline property back as it is now ('' removes it). */
-function putBack(style: CSSStyleDeclaration, name: string): () => void {
-  const value = style.getPropertyValue(name)
-  const priority = style.getPropertyPriority(name)
-  return () => style.setProperty(name, value, priority)
-}
-
 /**
  * Module-level on purpose: each element's FLIP in flight. A newer FLIP of
  * the same element replaces it: measured with the old one still running,
@@ -86,14 +64,21 @@ export function flip(before: Measured, options: AnimateOptions = {}): Playback {
   return new AnimationGroup(animations)
 }
 
+/**
+ * Added on top of what is under it (decided 2026-11-10): a drag's inline
+ * `translate` goes on moving during the FLIP, and at the end nothing is
+ * written inline (it ends at no offset).
+ */
 function flipOne(
   el: Element,
   keyframes: Keyframe[],
   options: AnimateOptions,
 ): Playback {
-  const restore = inlineOffsetsOf(el)
-  const animation = animate(el, keyframes, options)
-  animation.finished.then(restore, () => {})
+  const animation = animateElement(el, keyframes, {
+    ...options,
+    composite: 'add',
+  })
+  endsAtRest(animation)
   inFlight.set(el, animation)
   return animation
 }

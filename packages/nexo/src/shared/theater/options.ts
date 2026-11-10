@@ -25,6 +25,12 @@ export interface AnimateOptions {
   iterations?: number
   /** WAAPI's: `normal`, `reverse`, `alternate`, `alternate-reverse`. */
   direction?: PlaybackDirection
+  /**
+   * WAAPI's: how it combines with what is under it — `'replace'` (the
+   * default), `'add'` (on top: FLIP over a drag), `'accumulate'`.
+   * Elements only: a value has nothing under it.
+   */
+  composite?: CompositeOperation
   /** Reduced motion (C.1): `false` essential, `'jump'` all jumps. */
   reduce?: Reduce
   /** Aborting stops it where it is (B.5, B.5b). */

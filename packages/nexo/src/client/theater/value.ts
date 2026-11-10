@@ -364,6 +364,7 @@ export function valueTrack(
   speed: number,
 ): Track {
   checkKeyframes(keyframes, options)
+  checkNoComposite(options)
   if (!options.inertia)
     return new KeyframeTrack(keyframes, curveOf(options, speed))
   return atSpeedTrack(new InertiaPath(keyframes[0]!, options.inertia), speed)
@@ -373,6 +374,13 @@ function checkKeyframes(keyframes: number[], options: AnimateOptions): void {
   if (keyframes.length >= (options.inertia ? 1 : 2)) return
   throw new RangeError(
     'theater: animating a value needs at least two keyframes (or inertia and a start)',
+  )
+}
+
+function checkNoComposite(options: AnimateOptions): void {
+  if (options.composite === undefined) return
+  throw new TypeError(
+    'theater: composite is for elements; a value has nothing under it to add to',
   )
 }
 

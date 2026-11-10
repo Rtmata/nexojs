@@ -23,6 +23,7 @@ function timingOf(
     delay: delayOf(options) / speed,
     iterations: options.iterations ?? 1,
     direction: options.direction ?? 'normal',
+    composite: options.composite ?? 'replace',
     fill: 'forwards' as const,
   }
   return { ...base, ...curveTiming(options, speed) }
@@ -54,7 +55,25 @@ function keepWhatIsSeen(animation: Animation, signal?: AbortSignal): void {
     once: true,
     signal: listening.signal,
   })
-  animation.finished.then(retire, () => {}).finally(() => listening.abort())
+  const ended = () => settleAtEnd(animation)
+  animation.finished.then(ended, () => {}).finally(() => listening.abort())
+}
+
+/**
+ * Animations whose end adds nothing to what is under them (FLIP, added on
+ * top and ending at no offset): at their end there is nothing to write
+ * inline, and writing would freeze what is under them (a drag's live
+ * `translate`). Stopped early, they keep where they are, as any.
+ */
+const restingAtEnd = new WeakSet<Animation>()
+
+export function endsAtRest(animation: Animation): void {
+  restingAtEnd.add(animation)
+}
+
+function settleAtEnd(animation: Animation): void {
+  if (restingAtEnd.has(animation)) animation.cancel()
+  else settle(animation)
 }
 
 /**
@@ -145,7 +164,8 @@ function timingFor(
   reduced: boolean,
   place?: Place,
 ): KeyframeAnimationOptions {
-  if (reduced && options.reduce === 'jump') return { duration: 0 }
+  if (reduced && options.reduce === 'jump')
+    return { duration: 0, composite: options.composite ?? 'replace' }
   return placed(timingOf(options, place?.speed ?? speedOf(el)), place)
 }
 

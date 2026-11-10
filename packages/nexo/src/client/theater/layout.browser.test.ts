@@ -71,6 +71,55 @@ describe.skipIf(!chrome)('layout in Chrome', () => {
     expect(style).toEqual(['30px', ''])
   })
 
+  test('layout: a drag moving during the FLIP is added to it, and its latest place stays', async () => {
+    const { page, clock } = await clockedPage(
+      browser,
+      code,
+      '<style>body { margin: 0 }</style><p id="a" style="margin:0; translate: 30px 0">a</p>',
+    )
+    await page.evaluate(() => {
+      const a = document.getElementById('a')!
+      ;(window as any).theater.layout(
+        [a],
+        () => (a.style.marginTop = '200px'),
+        { duration: 400, easing: 'linear' },
+      )
+    })
+    await clock.advance(200)
+    await page.evaluate(
+      () => (document.getElementById('a')!.style.translate = '80px 0'),
+    )
+    await clock.advance(16)
+    const left = await page.evaluate(
+      () => document.getElementById('a')!.getBoundingClientRect().left,
+    )
+    expect(left).toBeCloseTo(80, 0) // the drag shows through: the FLIP only adds its vertical offset
+    await clock.advance(220)
+    expect(
+      await page.evaluate(() => document.getElementById('a')!.style.translate),
+    ).toBe('80px')
+  })
+
+  test('composite reaches WAAPI on elements; on a value it is refused', async () => {
+    const { page } = await clockedPage(browser, code, '<p id="a">a</p>')
+    const result = await page.evaluate(() => {
+      const t = (window as any).theater
+      const a = t.animate(
+        document.getElementById('a'),
+        { opacity: [0, 1] },
+        { composite: 'add' },
+      )
+      let refused = ''
+      try {
+        t.animate([0, 1], () => {}, { composite: 'add' })
+      } catch (error) {
+        refused = (error as Error).name
+      }
+      return [a.effect.composite, refused]
+    })
+    expect(result).toEqual(['add', 'TypeError'])
+  })
+
   test('layout: a newer FLIP of the same element takes over from where it is', async () => {
     const { page, clock } = await clockedPage(
       browser,
