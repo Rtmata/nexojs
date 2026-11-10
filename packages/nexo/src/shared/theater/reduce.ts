@@ -26,8 +26,6 @@ const MOVING = new Set([
   'bottom',
   'left',
   'inset',
-  'inset-block',
-  'inset-inline',
   'width',
   'height',
   'min-width',
@@ -46,8 +44,12 @@ const MOVING = new Set([
   'background-size',
   'mask-position',
 ])
-/** `margin-top`, `padding-inline-start`…: every side of both. */
-const SIDES = /^(margin|padding)-/
+/**
+ * The longhands of the shorthands above: `margin-top`, `padding-inline-start`,
+ * `inset-block-end` (and `inset-block` itself), `border-top-left-radius`,
+ * `border-start-end-radius`… A camelCase name reaches here as kebab-case.
+ */
+const SIDES = /^(margin|padding|inset)-|^border-[a-z]+-[a-z]+-radius$/
 const BLURRING = new Set(['filter', 'backdrop-filter'])
 
 /**

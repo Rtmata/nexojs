@@ -33,8 +33,8 @@ const DEFAULT_BOUNCE = 0
 /** A thousandth of the distance: 1 px of a 1000 px move. */
 const DEFAULT_REST_DELTA = 0.001
 const DEFAULT_REST_SPEED = 0.01
-/** Motion's limit too: a spring still moving after 10 s is a mistake. */
-const LONGEST_MS = 10_000
+/** Motion's limit too (`maxGeneratorDuration`): a spring still moving after 20 s is a mistake. */
+const LONGEST_MS = 20_000
 const SETTLE_STEP_MS = 10
 
 /** Stiffness, damping and mass, however the spring was written. */
@@ -52,7 +52,7 @@ export interface Physics {
  */
 export function physicsOf(options: SpringOptions): Physics {
   if ('stiffness' in options) return physical(options)
-  const seconds = (options.duration ?? DEFAULT_DURATION) / 1000
+  const seconds = checkedDuration(options.duration ?? DEFAULT_DURATION) / 1000
   const bounce = checkedBounce(options.bounce ?? DEFAULT_BOUNCE)
   const stiffness = ((2 * Math.PI) / seconds) ** 2
   const ratio = bounce < 0 ? 1 / (1 + bounce) : 1 - bounce
@@ -66,6 +66,14 @@ function physical(options: PhysicalSpring): Physics {
   if (valid) return physics
   throw new RangeError(
     'theater: a spring needs stiffness > 0, damping ≥ 0 and mass > 0',
+  )
+}
+
+/** Squared into the stiffness, a negative duration would pass for a positive one. */
+function checkedDuration(duration: number): number {
+  if (duration > 0 && Number.isFinite(duration)) return duration
+  throw new RangeError(
+    `theater: a spring's duration is in ms and above 0, got ${duration}`,
   )
 }
 
@@ -88,6 +96,8 @@ export interface Oscillator {
   offset(t: number): number
   /** Its derivative, per second. */
   speed(t: number): number
+  /** The farthest from rest it gets from `t` on: where it may count as resting. */
+  reach(t: number): number
 }
 
 /** Bounces: it overshoots and swings back, ever smaller. */
@@ -118,6 +128,11 @@ class Underdamped implements Oscillator {
     return Math.exp(-this.decay * t) * inside
   }
 
+  /** The envelope: a bounce never swings past it, whatever the phase at `t`. */
+  reach(t: number): number {
+    return Math.exp(-this.decay * t) * Math.hypot(this.cosine, this.sine)
+  }
+
   private wave(angle: number): number {
     return this.cosine * Math.cos(angle) + this.sine * Math.sin(angle)
   }
@@ -143,6 +158,12 @@ class Critical implements Oscillator {
   speed(t: number): number {
     const line = this.start + this.slope * t
     return Math.exp(-this.natural * t) * (this.slope - this.natural * line)
+  }
+
+  /** Past its one turning point it only comes closer; before it, the turn is the farthest. */
+  reach(t: number): number {
+    const turn = 1 / this.natural - this.start / this.slope
+    return Math.abs(this.offset(turn > t ? turn : t))
   }
 }
 
@@ -170,6 +191,13 @@ class Overdamped implements Oscillator {
   speed(t: number): number {
     const slow = this.slowPart * this.slow * Math.exp(this.slow * t)
     return slow + this.fastPart * this.fast * Math.exp(this.fast * t)
+  }
+
+  /** Past its one turning point (if any) it only comes closer; before it, the turn is the farthest. */
+  reach(t: number): number {
+    const ratio = -(this.slowPart * this.slow) / (this.fastPart * this.fast)
+    const turn = Math.log(ratio) / (this.fast - this.slow)
+    return Math.abs(this.offset(turn > t ? turn : t))
   }
 }
 
@@ -235,17 +263,21 @@ export interface Rest {
   speed: number
 }
 
-/** The first 10 ms step where the oscillator is close enough and slow enough. */
+/**
+ * The first 10 ms step where the oscillator is slow enough and will stay
+ * close enough: its reach, not its offset there, since a bounce passing
+ * near rest is close for a moment and swings out again.
+ */
 export function restTime(oscillator: Oscillator, rest: Rest): number {
   for (let ms = 0; ms <= LONGEST_MS; ms += SETTLE_STEP_MS) {
     if (rests(oscillator, ms / 1000, rest)) return ms
   }
   throw new RangeError(
-    'theater: this spring is still moving after 10 s; give it more damping or a shorter duration',
+    'theater: this spring is still moving after 20 s; give it more damping or a shorter duration',
   )
 }
 
 function rests(oscillator: Oscillator, t: number, rest: Rest): boolean {
-  const close = Math.abs(oscillator.offset(t)) < rest.delta
+  const close = oscillator.reach(t) < rest.delta
   return close && Math.abs(oscillator.speed(t)) < rest.speed
 }

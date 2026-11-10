@@ -94,10 +94,45 @@ describe('SpringCurve', () => {
     expect(peak(new SpringCurve({ duration: 400 }))).toBeLessThanOrEqual(1)
   })
 
+  test('once resting it never swings back out past restDelta (it would snap)', () => {
+    const options = { duration: 2000, bounce: 0.6 }
+    const curve = new SpringCurve(options) // restDelta 0.001
+    const longer = new SpringCurve({ ...options, restDelta: 0.0001 })
+    for (let ms = curve.duration; ms < longer.duration; ms++) {
+      expect(Math.abs(longer.at(ms) - 1)).toBeLessThan(0.001)
+    }
+  })
+
+  test.each([
+    ['bouncy', { duration: 400, bounce: 0.4 }],
+    ['critical, overshooting from its speed', { duration: 400, velocity: 30 }],
+    ['overdamped, overshooting', { stiffness: 100, damping: 40, velocity: 30 }],
+  ])('%s: rests within restDelta of 1 from then on', (_, options) => {
+    const curve = new SpringCurve(options)
+    const longer = new SpringCurve({ ...options, restDelta: 1e-6 })
+    for (let ms = curve.duration; ms < longer.duration; ms++) {
+      expect(Math.abs(longer.at(ms) - 1)).toBeLessThan(0.001)
+    }
+  })
+
+  test('a duration of 0 or below, or not a number, says what it takes', () => {
+    for (const duration of [0, -500, NaN, Infinity]) {
+      expect(() => new SpringCurve({ duration })).toThrow(
+        "theater: a spring's duration is in ms and above 0",
+      )
+    }
+  })
+
   test('a spring that never rests is refused', () => {
     expect(() => new SpringCurve({ stiffness: 100, damping: 0 })).toThrow(
-      'still moving after 10 s',
+      'still moving after 20 s',
     )
+  })
+
+  test('a slow, bouncy spring that rests after 10 s is still a spring (Motion allows 20 s)', () => {
+    const curve = new SpringCurve({ duration: 5000, bounce: 0.5 })
+    expect(curve.duration).toBeGreaterThan(10_000)
+    expect(curve.at(curve.duration)).toBe(1)
   })
 
   test('as CSS, it reads back as itself', () => {
@@ -108,6 +143,20 @@ describe('SpringCurve', () => {
 })
 
 describe('EasedCurve', () => {
+  test('a duration of 0 is already at its end; before it, at its start', () => {
+    const curve = new EasedCurve(cubicOut, 0)
+    expect(curve.at(-10)).toBe(0)
+    expect(curve.at(0)).toBe(1)
+  })
+
+  test('a negative or NaN duration says what it takes', () => {
+    for (const duration of [-1, NaN]) {
+      expect(() => new EasedCurve(cubicOut, duration)).toThrow(
+        'theater: an animation lasts 0 ms or more',
+      )
+    }
+  })
+
   test('reads its easing over its duration, 1 after it', () => {
     const curve = new EasedCurve(cubicOut, 400)
     expect(curve.at(200)).toBeCloseTo(0.875, 12)

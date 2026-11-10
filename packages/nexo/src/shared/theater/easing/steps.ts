@@ -24,6 +24,7 @@ const JUMPS: Record<StepPosition, (count: number) => number> = {
  *   tick(0.3) // 0.25
  */
 export function steps(count: number, position: StepPosition = 'end'): Easing {
+  checkPosition(position)
   checkCount(count, position)
   const jumps = JUMPS[position](count)
   const startsUp = position === 'jump-start' || position === 'start'
@@ -36,6 +37,13 @@ function clampStep(step: number, t: number, jumps: number): number {
   if (t >= 0 && step < 0) return 0
   if (t <= 1 && step > jumps) return jumps
   return step
+}
+
+function checkPosition(position: string): void {
+  if (Object.hasOwn(JUMPS, position)) return
+  throw new RangeError(
+    `theater: steps() takes ${Object.keys(JUMPS).join(', ')} as its position, got ${position}`,
+  )
 }
 
 function checkCount(count: number, position: StepPosition): void {

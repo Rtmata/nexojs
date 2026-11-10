@@ -15,6 +15,19 @@ test('what changes size, shape or position is motion (WCAG 2.3.3)', () => {
   }
 })
 
+test('the longhands of inset and border-radius are motion too, in either case', () => {
+  for (const property of [
+    'insetInlineStart',
+    'inset-block-end',
+    'inset-block',
+    'borderTopLeftRadius',
+    'border-end-start-radius',
+  ]) {
+    expect(movesThings(property, [])).toBe(true)
+  }
+  expect(movesThings('borderTopColor', [])).toBe(false)
+})
+
 test('color and opacity are not motion', () => {
   for (const property of ['opacity', 'color', 'backgroundColor', '--glow']) {
     expect(movesThings(property, [])).toBe(false)

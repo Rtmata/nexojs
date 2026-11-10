@@ -1,4 +1,4 @@
-import { speed, type Sample } from '../../shared/theater/velocity'
+import { recentOf, speed, type Sample } from '../../shared/theater/velocity'
 
 /** What a track tells: each move, and its end (released, or cancelled by the browser). */
 export interface TrackEvents {
@@ -11,14 +11,16 @@ function sample(event: PointerEvent): Sample {
 }
 
 /**
- * One pointer followed from its press (F.1): its samples, so its offset
- * and its real speed (least squares over the last 100 ms, `speed`). It is
- * followed on the document, not captured: a capture would take the click
- * from the links and buttons inside. `pointercancel` (the browser took
- * the pointer to scroll) ends it unreleased.
+ * One pointer followed from its press (F.1): where it was pressed, so its
+ * offset, and its last 100 ms of samples, so its real speed (least
+ * squares, `speed`). It is followed on the document, not captured: a
+ * capture would take the click from the links and buttons inside.
+ * `pointercancel` (the browser took the pointer to scroll) ends it
+ * unreleased.
  */
 export class PointerTrack {
-  readonly samples: Sample[]
+  private readonly pressed: Sample
+  private samples: Sample[]
   private readonly done = new AbortController()
 
   constructor(
@@ -26,7 +28,8 @@ export class PointerTrack {
     private readonly events: TrackEvents,
     signal: AbortSignal,
   ) {
-    this.samples = [sample(start)]
+    this.pressed = sample(start)
+    this.samples = [this.pressed]
     this.listen(start.pointerId, AbortSignal.any([signal, this.done.signal]))
   }
 
@@ -45,8 +48,8 @@ export class PointerTrack {
 
   /** From the press to now, in px. */
   get offset(): { x: number; y: number } {
-    const [first, last] = [this.samples[0]!, this.samples.at(-1)!]
-    return { x: last.x - first.x, y: last.y - first.y }
+    const last = this.samples.at(-1)!
+    return { x: last.x - this.pressed.x, y: last.y - this.pressed.y }
   }
 
   /** Now, in px/s. */
@@ -55,14 +58,19 @@ export class PointerTrack {
   }
 
   private moved(event: PointerEvent): void {
-    for (const e of event.getCoalescedEvents?.() ?? [event])
-      this.samples.push(sample(e))
+    // Optional call: where the browser has no coalesced events (R.5), each
+    // move is one sample — fewer points for `speed`, not a wrong one.
+    this.add(event.getCoalescedEvents?.() ?? [event])
     this.events.move(this)
   }
 
   private ended(event: PointerEvent, released: boolean): void {
-    if (released) this.samples.push(sample(event))
+    if (released) this.add([event])
     this.done.abort()
     this.events.end(this, released)
+  }
+
+  private add(events: PointerEvent[]): void {
+    this.samples = recentOf([...this.samples, ...events.map(sample)])
   }
 }

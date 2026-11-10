@@ -17,8 +17,25 @@ const KEYWORDS: Record<string, () => Easing> = {
 /** The CSS easing functions, read from their arguments. */
 const FUNCTIONS: Record<string, (args: string[]) => Easing> = {
   'cubic-bezier': (args) => cubicBezier(...fourNumbers(args)),
-  steps: (args) => steps(Number(args[0]), (args[1] ?? 'end') as StepPosition),
+  steps: stepsOf,
   linear: (args) => linearPoints(args.flatMap(stopsOf)),
+}
+
+/** The positions `steps()` takes, to refuse any other before it is looked up. */
+const STEP_POSITIONS: Record<StepPosition, true> = {
+  'jump-start': true,
+  'jump-end': true,
+  'jump-none': true,
+  'jump-both': true,
+  start: true,
+  end: true,
+}
+
+/** A CSS `<number>`. `Number()` alone reads `''` as 0 and a word as NaN. */
+const NUMBER = /^[+-]?(\d+(\.\d+)?|\.\d+)(e[+-]?\d+)?$/
+
+function isNumber(text: string): boolean {
+  return NUMBER.test(text)
 }
 
 /**
@@ -33,30 +50,40 @@ export function fromCss(text: string): Easing {
   const css = text.trim().toLowerCase()
   const call = /^([a-z-]+)\((.*)\)$/s.exec(css)
   if (call) return callOf(call[1]!, call[2]!, text)
-  const keyword = KEYWORDS[css]
-  if (keyword) return keyword()
+  // Own keys only: `constructor` is on every object's prototype.
+  if (Object.hasOwn(KEYWORDS, css)) return KEYWORDS[css]!()
   throw unknown(text)
 }
 
 function callOf(name: string, inside: string, text: string): Easing {
-  const read = FUNCTIONS[name]
-  if (!read) throw unknown(text)
-  return read(inside.split(',').map((arg) => arg.trim()))
+  if (!Object.hasOwn(FUNCTIONS, name)) throw unknown(text)
+  return FUNCTIONS[name]!(inside.split(',').map((arg) => arg.trim()))
 }
 
 function fourNumbers(args: string[]): [number, number, number, number] {
-  const numbers = args.map(Number)
-  if (numbers.length === 4 && numbers.every(Number.isFinite)) {
-    return numbers as [number, number, number, number]
+  if (args.length === 4 && args.every(isNumber)) {
+    return args.map(Number) as [number, number, number, number]
   }
   throw new SyntaxError(
     `theater: cubic-bezier() takes four numbers, got "${args.join(', ')}"`,
   )
 }
 
+/** `steps(4)` or `steps(4, jump-none)`; a count that isn't whole is `steps`' own RangeError. */
+function stepsOf(args: string[]): Easing {
+  const [count = '', position = 'end'] = args
+  const known = Object.hasOwn(STEP_POSITIONS, position)
+  if (args.length <= 2 && isNumber(count) && known)
+    return steps(Number(count), position as StepPosition)
+  throw new SyntaxError(
+    `theater: steps() takes a count and one of ${Object.keys(STEP_POSITIONS).join(', ')}, got "${args.join(', ')}"`,
+  )
+}
+
 /** `0.5`, `0.5 20%` or `0.5 20% 40%` (two stops with one value). */
 function stopsOf(arg: string): LinearStop[] {
-  const [value, ...inputs] = arg.split(/\s+/)
+  const [value = '', ...inputs] = arg.split(/\s+/)
+  checkStop(arg, value, inputs)
   const stop = (at?: string): LinearStop => ({
     value: Number(value),
     at: percent(at),
@@ -64,9 +91,17 @@ function stopsOf(arg: string): LinearStop[] {
   return inputs.length === 0 ? [stop()] : inputs.map(stop)
 }
 
+function checkStop(arg: string, value: string, inputs: string[]): void {
+  if (isNumber(value) && inputs.length <= 2) return
+  throw new SyntaxError(
+    `theater: a linear() stop is a number and up to two percentages, got "${arg}"`,
+  )
+}
+
 function percent(text?: string): number | undefined {
   if (text === undefined) return undefined
-  if (text.endsWith('%')) return Number(text.slice(0, -1)) / 100
+  const number = text.slice(0, -1)
+  if (text.endsWith('%') && isNumber(number)) return Number(number) / 100
   throw new SyntaxError(
     `theater: a linear() input is a percentage, got "${text}"`,
   )

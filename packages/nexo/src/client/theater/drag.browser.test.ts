@@ -107,6 +107,67 @@ describe.skipIf(!chrome)('drag in Chrome', () => {
     expect(await translate(page)).toBe('-220px')
   })
 
+  test('wrong options say what they take', async () => {
+    const { page } = await clockedPage(browser, code, PAGE)
+    const errors = await page.evaluate(() => {
+      const { drag } = (window as any).theater
+      const shelf = document.getElementById('shelf')
+      const thrown = (options: object) => {
+        try {
+          drag(shelf, options)
+        } catch (error) {
+          return (error as Error).name
+        }
+      }
+      return [
+        thrown({ axis: 'X' }),
+        thrown({ elastic: 2 }),
+        thrown({ elastic: NaN }),
+        thrown({ bounds: { min: 10, max: 0 } }),
+        thrown({ bounds: { x: { min: NaN } } }),
+      ]
+    })
+    expect(errors).toEqual(Array(5).fill('RangeError'))
+  })
+
+  test('set refuses a key it would not move, and a place that is not a number', async () => {
+    const { page } = await clockedPage(browser, code, PAGE)
+    const errors = await page.evaluate(() => {
+      const shelf = document.getElementById('shelf')
+      const d = (window as any).theater.drag(shelf, { axis: 'x' })
+      const thrown = (to: object) => {
+        try {
+          d.set(to)
+        } catch (error) {
+          return (error as Error).name
+        }
+      }
+      return [thrown({ left: 10 }), thrown({ y: 10 }), thrown({ x: NaN })]
+    })
+    expect(errors).toEqual(['TypeError', 'TypeError', 'RangeError'])
+  })
+
+  test('aborted mid-drag, it is no longer marked as dragging', async () => {
+    const { page, clock } = await clockedPage(browser, code, PAGE)
+    await page.evaluate(() => {
+      const w = window as any
+      w.stop = new AbortController()
+      w.theater.drag(document.getElementById('shelf'), {
+        axis: 'x',
+        signal: w.stop.signal,
+      })
+    })
+    await dragBy(page, clock, -50)
+    const dragging = () =>
+      page.evaluate(() =>
+        document.getElementById('shelf')!.hasAttribute('data-dragging'),
+      )
+    expect(await dragging()).toBe(true)
+    await page.evaluate(() => (window as any).stop.abort())
+    expect(await dragging()).toBe(false)
+    await page.mouse.up()
+  })
+
   test('under reduced motion the release jumps to where it would rest', async () => {
     const { page, clock } = await clockedPage(browser, code, PAGE)
     await page.emulateMedia({ reducedMotion: 'reduce' })

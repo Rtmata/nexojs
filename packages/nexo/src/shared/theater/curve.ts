@@ -32,11 +32,15 @@ export class EasedCurve implements Curve {
   constructor(
     private readonly easing: Easing,
     readonly duration: number,
-  ) {}
+  ) {
+    checkDuration(duration)
+  }
 
+  /** Before the start it is at the start: even a duration of 0 has one. */
   at(ms: number): number {
     if (ms >= this.duration) return 1
-    return this.easing(Math.max(ms, 0) / this.duration)
+    if (ms <= 0) return this.easing(0)
+    return this.easing(ms / this.duration)
   }
 
   velocityAt(ms: number): number {
@@ -47,6 +51,14 @@ export class EasedCurve implements Curve {
   toCss(): string {
     return toCss(this.easing, this.duration)
   }
+}
+
+/** Infinity is WAAPI's too: it holds the start forever. NaN fails the test. */
+function checkDuration(duration: number): void {
+  if (duration >= 0) return
+  throw new RangeError(
+    `theater: an animation lasts 0 ms or more, got ${duration}`,
+  )
 }
 
 /**

@@ -1,6 +1,6 @@
 import type { AnimateOptions } from '../../shared/theater/options'
 import type { SpringOptions } from '../../shared/theater/spring'
-import { speed, type Sample } from '../../shared/theater/velocity'
+import { recentOf, speed, type Sample } from '../../shared/theater/velocity'
 import { animate } from './animate'
 import type { Playback } from './playback'
 
@@ -50,6 +50,25 @@ function spanOf(a: Point, b: Point) {
 type Span = ReturnType<typeof spanOf>
 
 /**
+ * What drives a pinch. iOS Safari sends both two touch pointers and its
+ * gesture events for one pinch: one source at a time, or each would
+ * overwrite the other's start (the gesture's has no real span).
+ */
+type Source = 'pointers' | 'gesture'
+
+/** Where a pinch began, and what drives it. */
+interface Start {
+  by: Source
+  span: Span
+  scale: number
+  rotation: number
+  offset: Point
+}
+
+/** Safari's gesture events give their own `scale`: a span of 1 leaves it as it is. */
+const GESTURE_SPAN = spanOf({ x: 0, y: 0 }, { x: 1, y: 0 })
+
+/**
  * Zooms (and turns, and moves) an element with two fingers or a trackpad
  * (F.2): scale, rotation and offset follow the fingers' distance, angle
  * and middle point; past its limits the zoom stretches, and on release a
@@ -68,12 +87,7 @@ class Pinch implements Pinchable {
   private rotation = 0
   private offset = { x: 0, y: 0 }
   private readonly pointers = new Map<number, Point>()
-  private start: {
-    span: Span
-    scale: number
-    rotation: number
-    offset: Point
-  } | null = null
+  private start: Start | null = null
   private samples: Sample[] = []
   private motion = new AbortController()
 
@@ -102,18 +116,14 @@ class Pinch implements Pinchable {
     on(document, 'pointermove', (e: PointerEvent) => this.moved(e))
     on(document, 'pointerup', (e: PointerEvent) => this.up(e))
     on(document, 'pointercancel', (e: PointerEvent) => this.up(e))
+    // A finger whose `pointerup` never reached the document (stopped on the
+    // way) would stay in the set: the end of its implicit capture says so too.
+    on(this.el, 'lostpointercapture', (e: PointerEvent) => this.up(e))
     this.listenTrackpad(on)
   }
 
-  /** Trackpads: Chrome / Firefox as ctrl + wheel, Safari with its gesture events (not passive: they zoom the page otherwise). */
-  private listenTrackpad(
-    on: (
-      target: EventTarget,
-      name: string,
-      run: (e: any) => void,
-      passive?: boolean,
-    ) => void,
-  ): void {
+  /** Trackpads: Chrome / Firefox as ctrl + wheel, Safari (and iOS) with its gesture events (not passive: they zoom the page otherwise). */
+  private listenTrackpad(on: Listen): void {
     on(this.el, 'wheel', (e: WheelEvent) => this.wheel(e), false)
     on(this.el, 'gesturestart', (e: Event) => this.gestureStart(e), false)
     on(
@@ -122,18 +132,22 @@ class Pinch implements Pinchable {
       (e: Event & { scale: number }) => this.gestureChange(e),
       false,
     )
+    on(this.el, 'gestureend', (e: Event) => this.gestureEnd(e), false)
   }
 
+  /** The first two fingers pinch; a third is left out, so it can't break the pair. */
   private down(event: PointerEvent): void {
+    if (this.pointers.size === 2) return
     this.pointers.set(event.pointerId, { x: event.clientX, y: event.clientY })
-    if (this.pointers.size === 2) this.begin()
+    if (this.pointers.size === 2) this.begin('pointers', this.span())
   }
 
-  private begin(): void {
+  /** A new pinch stops the release spring. Two fingers win over a gesture already running: their span is real. */
+  private begin(by: Source, span: Span): void {
     this.restartMotion()
-    const [a, b] = [...this.pointers.values()] as [Point, Point]
     this.start = {
-      span: spanOf(a, b),
+      by,
+      span,
       scale: this.scale,
       rotation: this.rotation,
       offset: { ...this.offset },
@@ -141,32 +155,37 @@ class Pinch implements Pinchable {
     this.samples = []
   }
 
+  private span(): Span {
+    const [a, b] = [...this.pointers.values()] as [Point, Point]
+    return spanOf(a, b)
+  }
+
   private moved(event: PointerEvent): void {
     if (!this.pointers.has(event.pointerId)) return
     this.pointers.set(event.pointerId, { x: event.clientX, y: event.clientY })
-    if (this.start && this.pointers.size === 2) this.follow(event.timeStamp)
+    if (this.start?.by === 'pointers') this.follow(this.start, event.timeStamp)
   }
 
   /** Scale by the distance, turn by the angle, move by the middle — from where the pinch began. */
-  private follow(time: number): void {
-    const start = this.start!
-    const [a, b] = [...this.pointers.values()] as [Point, Point]
-    const now = spanOf(a, b)
+  private follow(start: Start, time: number): void {
+    const now = this.span()
     const zoom = now.distance / start.span.distance
     this.scale = this.stretched(start.scale * zoom)
     this.turnAndMove(start, now)
-    this.samples.push({ t: time, x: this.scale, y: 0 })
+    const sample = { t: time, x: this.scale, y: 0 }
+    this.samples = recentOf([...this.samples, sample])
     this.write()
   }
 
-  private turnAndMove(start: NonNullable<Pinch['start']>, now: Span): void {
+  private turnAndMove(start: Start, now: Span): void {
     const { rotate, pan } = this.options
     if (rotate) this.rotation = start.rotation + now.angle - start.span.angle
     if (pan) this.offset = moved(start.offset, start.span.middle, now.middle)
   }
 
   private up(event: PointerEvent): void {
-    if (!this.pointers.delete(event.pointerId) || !this.start) return
+    const pinching = this.start?.by === 'pointers'
+    if (!this.pointers.delete(event.pointerId) || !pinching) return
     this.start = null
     this.release(speed(this.samples, 'x'))
   }
@@ -184,30 +203,35 @@ class Pinch implements Pinchable {
     this.set(target, { spring })
   }
 
-  /** A trackpad pinch in Chrome and Firefox: a wheel with ctrl held. Kept inside the limits. */
+  /** A trackpad pinch in Chrome and Firefox: a wheel with ctrl held. Kept inside the limits; like a new pinch, it stops the release spring. */
   private wheel(event: WheelEvent): void {
     if (!event.ctrlKey) return
     event.preventDefault()
+    this.restartMotion()
     this.scale = this.limited(this.scale * Math.exp(-event.deltaY * WHEEL_ZOOM))
     this.write()
   }
 
-  /** Safari's trackpad pinch: its own gesture events, `scale` relative to the start. */
+  /**
+   * Safari's pinch: its own gesture events, `scale` relative to the start —
+   * a trackpad's only source; on iOS, used only while two pointers aren't
+   * already pinching. Prevented either way: they zoom the page otherwise.
+   */
   private gestureStart(event: Event): void {
     event.preventDefault()
-    this.start = {
-      span: spanOf({ x: 0, y: 0 }, { x: 1, y: 0 }),
-      scale: this.scale,
-      rotation: this.rotation,
-      offset: { ...this.offset },
-    }
+    if (this.start?.by !== 'pointers') this.begin('gesture', GESTURE_SPAN)
   }
 
   private gestureChange(event: Event & { scale: number }): void {
     event.preventDefault()
-    if (!this.start) return
+    if (this.start?.by !== 'gesture') return
     this.scale = this.limited(this.start.scale * event.scale)
     this.write()
+  }
+
+  private gestureEnd(event: Event): void {
+    event.preventDefault()
+    if (this.start?.by === 'gesture') this.start = null
   }
 
   private limited(scale: number): number {

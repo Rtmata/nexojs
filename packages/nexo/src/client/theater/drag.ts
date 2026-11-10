@@ -37,6 +37,8 @@ export interface Draggable {
 const SLOP = 8
 const ELASTIC = 0.35
 const SET_SPRING = { duration: 400 }
+/** The way that keeps scrolling, per axis; its keys are the axes `drag` takes. */
+const TOUCH_ACTION = { x: 'pan-y', y: 'pan-x', both: 'none' } as const
 
 /** One axis of a drag: where it is, and its bounds. */
 class Axis {
@@ -46,7 +48,9 @@ class Axis {
     readonly name: 'x' | 'y',
     readonly bounds: Bounds,
     private readonly elastic: number,
-  ) {}
+  ) {
+    checkBounds(name, bounds)
+  }
 
   /** Past a bound, the pointer pulls it only part of the way. */
   constrain(raw: number): number {
@@ -60,6 +64,31 @@ class Axis {
     const { min = -Infinity, max = Infinity } = this.bounds
     return Math.min(Math.max(this.value, min), max)
   }
+}
+
+function axisOf(options: DragOptions): 'x' | 'y' | 'both' {
+  const axis = options.axis ?? 'both'
+  if (Object.hasOwn(TOUCH_ACTION, axis)) return axis
+  throw new RangeError(
+    `theater: drag's axis is 'x', 'y' or 'both', got ${String(axis)}`,
+  )
+}
+
+function elasticOf(options: DragOptions): number {
+  const elastic = options.elastic ?? ELASTIC
+  if (elastic >= 0 && elastic <= 1) return elastic
+  throw new RangeError(
+    `theater: drag's elastic goes from 0 (stops) to 1 (free), got ${elastic}`,
+  )
+}
+
+/** Unset sides are open; NaN fails the comparison too. */
+function checkBounds(name: 'x' | 'y', bounds: Bounds): void {
+  const { min = -Infinity, max = Infinity } = bounds
+  if (min <= max) return
+  throw new RangeError(
+    `theater: drag's bounds on ${name} need numbers with min ≤ max, got ${min} and ${max}`,
+  )
 }
 
 function boundsFor(
@@ -97,15 +126,21 @@ class Drag implements Draggable {
     private readonly el: HTMLElement,
     private readonly options: DragOptions,
   ) {
-    const axis = options.axis ?? 'both'
+    const axis = axisOf(options)
     const names = axis === 'both' ? (['x', 'y'] as const) : [axis]
+    const elastic = elasticOf(options)
     this.axes = names.map(
-      (n) =>
-        new Axis(n, boundsFor(n, options.bounds), options.elastic ?? ELASTIC),
+      (n) => new Axis(n, boundsFor(n, options.bounds), elastic),
     )
-    el.style.touchAction = { x: 'pan-y', y: 'pan-x', both: 'none' }[axis]
-    el.addEventListener('pointerdown', (e) => this.down(e), {
-      signal: options.signal,
+    el.style.touchAction = TOUCH_ACTION[axis]
+    this.listen(options.signal)
+  }
+
+  /** An abort mid-drag takes the track's listeners too: no `end` will come to stop it. */
+  private listen(signal?: AbortSignal): void {
+    this.el.addEventListener('pointerdown', (e) => this.down(e), { signal })
+    signal?.addEventListener('abort', () => this.stopTracking(), {
+      once: true,
     })
   }
 
@@ -121,11 +156,24 @@ class Drag implements Draggable {
     to: { x?: number; y?: number },
     options: AnimateOptions = { spring: SET_SPRING },
   ): Playback {
+    this.checkTarget(to)
     const signal = this.restartMotion()
     const moving = this.axes.filter((axis) => to[axis.name] !== undefined)
     const run = (axis: Axis) =>
       this.run(axis, [axis.value, to[axis.name]!], { ...options, signal })
     return new AnimationGroup(moving.map(run))
+  }
+
+  /** `{ left: 10 }`, or `y` on an `x` drag, would otherwise do nothing, silently. */
+  private checkTarget(to: Record<string, unknown>): void {
+    const names = this.axes.map((axis) => axis.name as string)
+    for (const [key, value] of Object.entries(to)) {
+      if (names.includes(key)) checkPlace(key, value)
+      else
+        throw new TypeError(
+          `theater: this drag's set takes ${names.join(' and ')}, got ${key}`,
+        )
+    }
   }
 
   private down(event: PointerEvent): void {
@@ -158,8 +206,7 @@ class Drag implements Draggable {
   }
 
   private ended(track: PointerTrack, released: boolean): void {
-    this.tracking = false
-    this.el.removeAttribute('data-dragging')
+    this.stopTracking()
     if (Math.hypot(track.offset.x, track.offset.y) >= SLOP)
       swallowClick(this.el)
     const signal = this.restartMotion()
@@ -189,6 +236,11 @@ class Drag implements Draggable {
     return animate(keyframes, write, { ...options, reduce: 'jump' })
   }
 
+  private stopTracking(): void {
+    this.tracking = false
+    this.el.removeAttribute('data-dragging')
+  }
+
   private restartMotion(): AbortSignal {
     this.motion.abort()
     this.motion = new AbortController()
@@ -201,6 +253,13 @@ class Drag implements Draggable {
   private write(): void {
     this.el.style.translate = `${this.x}px ${this.y}px`
   }
+}
+
+function checkPlace(name: string, value: unknown): void {
+  if (value === undefined || Number.isFinite(value)) return
+  throw new RangeError(
+    `theater: drag's set takes ${name} in px (a finite number), got ${String(value)}`,
+  )
 }
 
 /** After a real drag, the click it ends with is not a click on what was under it. */

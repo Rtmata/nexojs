@@ -3,6 +3,7 @@ import {
   physicsOf,
   restTime,
   type Oscillator,
+  type Release,
   type SpringOptions,
 } from './spring'
 
@@ -136,7 +137,7 @@ export class InertiaPath {
 
   private decayOf(): Decay {
     const { velocity = 0, power, timeConstant } = this.options
-    const seconds = timeConstant / 1000
+    const seconds = checkedTimeConstant(timeConstant) / 1000
     const target = snapped(
       this.from + power * velocity * seconds,
       this.options.snap,
@@ -144,13 +145,24 @@ export class InertiaPath {
     return new Decay(target, target - this.from, seconds)
   }
 
+  /** Released outside the bounds: straight to the edge spring, at the release speed. */
   private bounceOf(): Bounce | null {
-    const outside = this.outside(this.from)
-    if (outside !== null) return this.springFrom(0, outside, this.from)
-    const crossed = this.outside(this.decay.target)
-    if (crossed === null) return null
-    const start = this.decay.crossing(crossed)
-    return this.springFrom(start, crossed, crossed)
+    const edge = this.outside(this.from)
+    if (edge === null) return this.bounceAtCrossing()
+    const velocity = this.options.velocity ?? 0
+    return this.springFrom(0, edge, { offset: this.from - edge, velocity })
+  }
+
+  /**
+   * Released inside (or on an edge, crossing at 0 s): the decay hands its
+   * own speed to the edge spring where it crosses.
+   */
+  private bounceAtCrossing(): Bounce | null {
+    const edge = this.outside(this.decay.target)
+    if (edge === null) return null
+    const start = this.decay.crossing(edge)
+    const velocity = this.decay.velocityAt(start)
+    return this.springFrom(start, edge, { offset: 0, velocity })
   }
 
   /** The edge `value` is past, or null when it's inside. */
@@ -161,10 +173,7 @@ export class InertiaPath {
     return null
   }
 
-  private springFrom(start: number, edge: number, value: number): Bounce {
-    const velocity =
-      start === 0 ? (this.options.velocity ?? 0) : this.decay.velocityAt(start)
-    const release = { offset: value - edge, velocity }
+  private springFrom(start: number, edge: number, release: Release): Bounce {
     return {
       start,
       edge,
@@ -180,6 +189,14 @@ export class InertiaPath {
       restTime(this.bounce.oscillator, { delta, speed })
     )
   }
+}
+
+/** A negative one would grow the gap instead of closing it; 0 divides by zero. */
+function checkedTimeConstant(ms: number): number {
+  if (ms > 0 && Number.isFinite(ms)) return ms
+  throw new RangeError(
+    `theater: inertia's timeConstant is in ms and above 0, got ${ms}`,
+  )
 }
 
 /** Where `value` stops once `snap` has its say. */

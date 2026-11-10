@@ -77,6 +77,11 @@ describe('steps', () => {
   test('jump-none needs two steps', () => {
     expect(() => steps(1, 'jump-none')).toThrow('at least 2')
   })
+
+  test('an unknown position says which ones there are', () => {
+    expect(() => steps(4, 'sideways' as never)).toThrow('jump-start')
+    expect(() => steps(4, 'constructor' as never)).toThrow(RangeError)
+  })
 })
 
 describe('linear()', () => {
@@ -134,11 +139,37 @@ describe('fromCss', () => {
     expect(() => fromCss('cubic-bezier(1, 2)')).toThrow('four numbers')
     expect(() => fromCss('linear(0, 1 0.5)')).toThrow('a percentage')
   })
+
+  test('an empty or misspelled argument is a SyntaxError, not a number', () => {
+    for (const css of [
+      'cubic-bezier(,,,)',
+      'cubic-bezier(0.2, x, 0.2, 1)',
+      'linear(a, b)',
+      'linear()',
+      'linear(0, 1 20% 40% 60%)',
+      'linear(0, 1 x%)',
+      'steps(4, sideways)',
+      'steps(, end)',
+      'steps(4, end, start)',
+      'constructor',
+      'constructor(1)',
+    ]) {
+      expect(() => fromCss(css)).toThrow(SyntaxError)
+    }
+  })
 })
 
 describe('toCss', () => {
   test('a stop every 10 ms, four decimals', () => {
     expect(toCss(linear, 40)).toBe('linear(0, 0.25, 0.5, 0.75, 1)')
+  })
+
+  test('a duration that is not 0 ms or more says so', () => {
+    for (const duration of [NaN, Infinity, -10]) {
+      expect(() => toCss(linear, duration)).toThrow(
+        'theater: toCss samples a duration of 0 ms or more',
+      )
+    }
   })
 
   test('the curve read back is the curve sampled', () => {

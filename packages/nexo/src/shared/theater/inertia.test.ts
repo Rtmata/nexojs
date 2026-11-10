@@ -73,6 +73,23 @@ describe('InertiaPath', () => {
     expect(path.velocityAt(hit - 1)).toBeCloseTo(path.velocityAt(hit + 1), -2)
   })
 
+  test('released right on an edge, outward: the edge spring gets the decay speed, not the raw one', () => {
+    const path = new InertiaPath(0, {
+      velocity: 1000,
+      power: 0.5,
+      bounds: { max: 0 },
+    })
+    expect(path.velocityAt(0)).toBeCloseTo(500, 6) // power × velocity, as inside
+  })
+
+  test('a timeConstant of 0 or below says what it takes', () => {
+    for (const timeConstant of [0, -700, NaN]) {
+      expect(() => new InertiaPath(0, { velocity: 1, timeConstant })).toThrow(
+        "theater: inertia's timeConstant is in ms and above 0",
+      )
+    }
+  })
+
   test('no velocity inside the bounds: already resting', () => {
     expect(new InertiaPath(10, {}).duration).toBe(0)
   })
