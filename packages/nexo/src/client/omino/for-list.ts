@@ -64,12 +64,23 @@ export class ForList<T> {
     const reorder = once(() => this.reorderTo(next))
     const settle = once(() => this.settle(reorder, welcome))
     this.waiting = settle
+    afterMove(this.moveOrSettle(next, reorder, settle), settle)
+  }
+
+  /** What the move returned; one that throws still leaves the list in order and its new rows welcomed. */
+  private moveOrSettle(
+    next: Row<T>[],
+    reorder: () => void,
+    settle: () => void,
+  ): unknown {
     const move = this.props.move
-    const moving =
-      move && this.order.length > 0
-        ? this.moveRows(move, next, reorder)
-        : undefined
-    afterMove(moving, settle)
+    if (!move || this.order.length === 0) return undefined
+    try {
+      return this.moveRows(move, next, reorder)
+    } catch (error) {
+      settle()
+      throw error
+    }
   }
 
   /**

@@ -266,6 +266,12 @@ for (const [name, engine] of engines) {
       expect(await play('newRowScrolls')).toEqual([false, false, false])
     })
 
+    test('For move: a function that throws still leaves the rows in order and welcomes the new one', async () => {
+      const result = await play('moveThrows')
+      expect(result.rows).toEqual(['2', '1', '3'])
+      expect(result.welcomed).toEqual(['3'])
+    })
+
     test('For move: a row leaving while the others slide keeps its exit', async () => {
       expect(await play('leaveDuringMove')).toEqual(['3', '1', '2'])
     })

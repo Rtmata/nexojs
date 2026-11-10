@@ -722,7 +722,9 @@ export function newRowScrolls() {
     <ul>
       <For each={items} move>
         {(n) => (
-          <li ref={() => void (n.get() === 3 && window.scrollTo(0, 100))}>{n}</li>
+          <li ref={() => void (n.get() === 3 && window.scrollTo(0, 100))}>
+            {n}
+          </li>
         )}
       </For>
     </ul>,
@@ -735,6 +737,33 @@ export function newRowScrolls() {
   window.scrollTo(0, 0)
   document.body.style.minHeight = ''
   return sliding
+}
+
+/** A move function that throws: the error goes on, the rows are in order and the new one welcomed. */
+export function moveThrows() {
+  const items = signal([1, 2])
+  const welcomed: string[] = []
+  const { el } = run(
+    <ul>
+      <For
+        each={items}
+        move={() => {
+          throw new Error('boom')
+        }}
+      >
+        {(n) => <li ref={() => void welcomed.push(String(n.get()))}>{n}</li>}
+      </For>
+    </ul>,
+  )
+  welcomed.length = 0
+  let error = ''
+  try {
+    items.set([2, 1, 3])
+    flush()
+  } catch (e) {
+    error = (e as Error).message
+  }
+  return { error, rows: texts(el), welcomed }
 }
 
 /** Review: a row leaving while the others slide keeps its exit transition. */
