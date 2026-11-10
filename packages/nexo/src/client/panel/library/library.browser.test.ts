@@ -862,6 +862,7 @@ for (const [name, engine] of engines) {
       )
       expect(Date.now() - started).toBeGreaterThan(300)
       expect(await call('events')).toEqual([
+        'click', // the --start command button (Invoker Commands)
         'sequence:phase out',
         'sequence:phase step',
         'sequence:phase in',

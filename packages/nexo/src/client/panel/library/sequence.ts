@@ -2,11 +2,14 @@ import { panel } from '../panel'
 import { json, string } from '../params'
 import { emit } from './hold'
 import { Marks } from './marks'
+import { bridgeCommands } from './commands'
 import { animationsDone, atMost } from './motion'
 
 /**
  * Sequence (Archive's phased sequence, e.g. a page turn: out → step → in).
- * When the `on` event reaches the element, `data-phase` takes each phase
+ * When its command arrives (the platform's Invoker Commands: a button with
+ * `command="--start"`, the name in `data-sequence-command`) — or the event
+ * named in `data-sequence-on` — `data-phase` takes each phase
  * in turn; CSS animates on it, and the next phase starts once the
  * element's animations finish (at most 4 s). Each phase is announced as
  * `sequence:phase` with `{ phase, waitUntil }`: hand `waitUntil` a promise
@@ -14,29 +17,36 @@ import { animationsDone, atMost } from './motion'
  * the same idea as bridge's `bridge:leave`. Ends with `sequence:done`; a
  * run in progress stops where it is when the panel ends.
  *
- *   <article data-panel="sequence" data-sequence-phases='["out","step","in"]'>
- *   article.dispatchEvent(new Event('sequence:start'))
+ *   <article id="page" data-panel="sequence" data-sequence-phases='["out","step","in"]'>
+ *   <button command="--start" commandfor="page">Next page</button>
  */
 export const sequence = panel({
   params: {
     phases: json<string[]>(['out', 'in'], 'array'),
-    on: string('sequence:start'),
+    command: string('--start'),
+    on: string(''),
   },
-  connect: (el, params, { signal }) =>
-    new Sequence(el, params.phases, params.on, signal),
+  connect(el, params, { signal }) {
+    bridgeCommands(el as HTMLElement, signal) // where the platform lacks commands (WebKitGTK 2.50)
+    new Sequence(el, params, signal)
+  },
 })
 
 class Sequence {
   private readonly marks = new Marks()
+  private readonly phases: string[]
   private running = false
 
   constructor(
     private readonly el: Element,
-    private readonly phases: string[],
-    on: string,
+    { phases, command, on }: { phases: string[]; command: string; on: string },
     private readonly signal: AbortSignal,
   ) {
-    el.addEventListener(on, () => void this.run(), { signal })
+    this.phases = phases
+    const commanded = (e: Event) =>
+      (e as Event & { command?: string }).command === command && void this.run()
+    el.addEventListener('command', commanded, { signal })
+    if (on) el.addEventListener(on, () => void this.run(), { signal })
     signal.addEventListener('abort', () => this.marks.restore(), { once: true })
   }
 

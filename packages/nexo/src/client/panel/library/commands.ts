@@ -38,7 +38,8 @@ export function bridgeCommands(target: HTMLElement, signal: AbortSignal): void {
   if (hasCommands()) return
   const onClick = (event: MouseEvent) => {
     const button = commanderOf(event, target)
-    const command = COMMANDS[button?.getAttribute('command') ?? '']
+    const name = button?.getAttribute('command') ?? ''
+    const command = name.startsWith('--') ? custom(name) : COMMANDS[name]
     if (!button || !command) return
     event.preventDefault() // a command button's own action, as the platform's: no submit
     command(target, button)
@@ -56,4 +57,15 @@ function commanderOf(
   )
   if (!(button instanceof HTMLButtonElement)) return null
   return button.getAttribute('commandfor') === target.id ? button : null
+}
+
+/** A custom command (`--start`): the `command` event the platform would send the target. */
+function custom(name: string): Command {
+  return (target, button) => {
+    const event = Object.assign(new Event('command'), {
+      command: name,
+      source: button,
+    })
+    target.dispatchEvent(event)
+  }
 }

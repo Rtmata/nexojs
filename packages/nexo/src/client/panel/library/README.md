@@ -127,7 +127,7 @@ Text effects. `typewriter` shows a character (a whole grapheme: an emoji never s
 
 ## sequence
 
-Phases one after another, such as a page turn: `data-sequence-phases='["out","step","in"]'`. When the `on` event arrives (`sequence:start`), `data-phase` takes each phase; CSS animates on it, and the next starts when the element's animations finish (at most 4 s). `sequence:phase` carries `{ phase, waitUntil }`: hand `waitUntil` a promise (the next page loading) and the phase waits for it too, 4 s at most. Ends with `sequence:done`; a run in progress stops where it is when the panel ends.
+Phases one after another, such as a page turn: `data-sequence-phases='["out","step","in"]'`. When its command arrives — the platform's Invoker Commands, `<button command="--start" commandfor="page">` (the name in `data-sequence-command`; bridged where the engine lacks commands) — or the event named in `data-sequence-on`, `data-phase` takes each phase; CSS animates on it, and the next starts when the element's animations finish (at most 4 s). `sequence:phase` carries `{ phase, waitUntil }`: hand `waitUntil` a promise (the next page loading) and the phase waits for it too, 4 s at most. Ends with `sequence:done`; a run in progress stops where it is when the panel ends.
 
 ## listbox
 

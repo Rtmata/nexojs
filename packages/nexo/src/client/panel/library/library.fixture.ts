@@ -272,14 +272,18 @@ export function texts(selector: string) {
   }
 }
 
-/** Starts a sequence that waits 80 ms more in its "step" phase, as a page load would. */
+/** Starts a sequence with a `--start` command button, waiting 80 ms more in its "step" phase, as a page load would. */
 export function startSequence(selector: string): void {
   const el = document.querySelector(selector)!
   el.addEventListener('sequence:phase', (e) => {
     const { phase, waitUntil } = (e as CustomEvent).detail
     if (phase === 'step') waitUntil(new Promise((done) => setTimeout(done, 80)))
   })
-  el.dispatchEvent(new Event('sequence:start'))
+  const button = document.createElement('button')
+  button.setAttribute('command', '--start') // the platform's custom command (Invoker Commands)
+  button.setAttribute('commandfor', el.id)
+  document.body.append(button)
+  button.click()
 }
 
 export function phaseOf(selector: string): string | null {
