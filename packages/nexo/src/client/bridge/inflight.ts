@@ -7,7 +7,7 @@ import { announce } from './events'
  * targets run side by side. A whole page covers every target: asking for
  * it aborts them all, and asking for any of them aborts it. While
  * a request runs, its targets carry `aria-busy="true"` and its trigger
- * `data-bridge-active`, so the site's CSS can show it.
+ * `data-active`, so the site's CSS can show it.
  */
 export class Inflight {
   private readonly flights = new Map<string, Flight>()
@@ -87,5 +87,5 @@ export class Flight {
   }
 }
 
-/** Set on the link or form while its request runs. */
-export const ACTIVE = 'data-bridge-active'
+/** Set on the link or form while its request runs: a state, so unprefixed (audit item 6b, as HTML's own states). */
+export const ACTIVE = 'data-active'

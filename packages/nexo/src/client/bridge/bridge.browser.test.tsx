@@ -830,7 +830,7 @@ describe.if(chrome)('when things go wrong', () => {
     expect(await sameDocument()).toBe(true)
     expect(page.url()).toBe(url('/shelf/1'))
     expect(intents).toEqual([])
-    expect(await page.getAttribute('#intent', 'data-bridge-active')).toBeNull()
+    expect(await page.getAttribute('#intent', 'data-active')).toBeNull()
   })
 
   test('a POST whose response was lost is sent again with its key, and the server answers it once', async () => {
@@ -1574,7 +1574,7 @@ describe.if(chrome)('twins, swap modes and loading state', () => {
     expect(
       await page.getAttribute('[data-bridge-segment="counter"]', 'aria-busy'),
     ).toBe('true')
-    expect(await page.getAttribute('#slow', 'data-bridge-active')).toBe('')
+    expect(await page.getAttribute('#slow', 'data-active')).toBe('')
     await page.waitForSelector('text=game 2')
     expect(await page.$('[aria-busy]')).toBeNull()
   })

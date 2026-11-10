@@ -45,7 +45,7 @@ Every attribute is inherited: its own value, else the closest ancestor's. `data-
 | `data-bridge-hex`            | a URL                                                 | A marker on a long page: the topmost visible one gives the address bar its URL.                                                  |
 | `data-bridge-track`          | —                                                     | On a head asset: when it changed between deploys, the page comes the browser's way, not swapped.                                 |
 
-While a request runs, its targets carry `aria-busy="true"` and the link or form `data-bridge-active`.
+While a request runs, its targets carry `aria-busy="true"` and the link or form `data-active`.
 
 ## What the page hears
 
