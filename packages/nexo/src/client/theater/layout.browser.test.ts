@@ -118,6 +118,28 @@ describe.skipIf(!chrome)('layout in Chrome', () => {
     expect(style).toEqual(['30px', '', '2'])
   })
 
+  test('reduced motion: an added move jumps to its end on top of what is under it', async () => {
+    const { page, clock } = await clockedPage(
+      browser,
+      code,
+      '<style>body { margin: 0 }</style><p id="a" style="margin:0; translate: 30px 0">a</p>',
+    )
+    await page.emulateMedia({ reducedMotion: 'reduce' })
+    await page.evaluate(() => {
+      const a = document.getElementById('a')!
+      ;(window as any).theater.animate(
+        a,
+        { translate: ['0px 0px', '100px 0px'] },
+        { composite: 'add' },
+      )
+    })
+    await clock.advance(16)
+    const left = await page.evaluate(
+      () => document.getElementById('a')!.getBoundingClientRect().left,
+    )
+    expect(left).toBeCloseTo(130, 0)
+  })
+
   test('composite reaches WAAPI on elements; on a value it is refused', async () => {
     const { page } = await clockedPage(browser, code, '<p id="a">a</p>')
     const result = await page.evaluate(() => {

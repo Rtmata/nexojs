@@ -152,14 +152,31 @@ export function animateElement(
 ): Animation {
   const reduced = reducedMotion()
   const split = splitForReduce(keyframes, options.reduce, reduced)
-  if (compositeOf(options) === 'replace') applyJumps(el, split.jumps)
-  // Added on top, a jump to its end is no inline value (FLIP: no offset); writing one would replace what is under it.
+  jump(el, split.jumps, options)
   const animation = el.animate(
     split.keyframes,
     timingFor(el, options, reduced, place),
   )
   if (!place) keepWhatIsSeen(animation, options.signal)
   return animation
+}
+
+/**
+ * What reduced motion takes out goes straight to its end (C.1): written
+ * inline, or — added on top of what is under it — as an instant
+ * animation with the same composite, settled as any (B.5b).
+ */
+function jump(
+  el: Element,
+  jumps: Map<string, string>,
+  options: AnimateOptions,
+): void {
+  const composite = compositeOf(options)
+  if (composite === 'replace') return applyJumps(el, jumps)
+  if (jumps.size === 0) return
+  const end = Object.fromEntries(jumps)
+  const timing = { duration: 0, fill: 'forwards' as const, composite }
+  keepWhatIsSeen(el.animate([end], timing), options.signal)
 }
 
 /** All jumps under `reduce: 'jump'`; else the options' timing, placed if in a sequence. */

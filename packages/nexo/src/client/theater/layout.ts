@@ -1,6 +1,7 @@
 import type { AnimateOptions } from '../../shared/theater/options'
 import { animateElement, endsAtRest } from './element'
 import { AnimationGroup } from './group'
+import { reducedMotion } from './reduce'
 import type { Playback } from './playback'
 
 /** Where elements were: the "first" of FLIP (E.1). */
@@ -55,6 +56,7 @@ function land(el: Element): void {
  */
 export function flip(before: Measured, options: AnimateOptions = {}): Playback {
   for (const el of before.boxes.keys()) land(el)
+  if (reducedMotion() && options.reduce !== false) return new AnimationGroup([]) // it only moves, to where it already is (C.1)
   const animations = [...before.boxes].flatMap(([el, first]) => {
     const keyframes = el.isConnected
       ? inverseOf(first, el.getBoundingClientRect())
