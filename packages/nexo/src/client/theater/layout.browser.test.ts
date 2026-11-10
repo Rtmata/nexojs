@@ -100,6 +100,24 @@ describe.skipIf(!chrome)('layout in Chrome', () => {
     ).toBe('80px')
   })
 
+  test('layout under reduced motion: no FLIP, and a drag or stylesheet offset is left alone', async () => {
+    const { page } = await clockedPage(
+      browser,
+      code,
+      '<style>body { margin: 0 } #a { scale: 2 }</style><p id="a" style="margin:0; translate: 30px 0">a</p>',
+    )
+    await page.emulateMedia({ reducedMotion: 'reduce' })
+    const style = await page.evaluate(async () => {
+      const a = document.getElementById('a')!
+      await (window as any).theater.layout(
+        [a],
+        () => (a.style.marginTop = '200px'),
+      ).finished
+      return [a.style.translate, a.style.scale, getComputedStyle(a).scale]
+    })
+    expect(style).toEqual(['30px', '', '2'])
+  })
+
   test('composite reaches WAAPI on elements; on a value it is refused', async () => {
     const { page } = await clockedPage(browser, code, '<p id="a">a</p>')
     const result = await page.evaluate(() => {

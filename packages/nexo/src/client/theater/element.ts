@@ -23,10 +23,14 @@ function timingOf(
     delay: delayOf(options) / speed,
     iterations: options.iterations ?? 1,
     direction: options.direction ?? 'normal',
-    composite: options.composite ?? 'replace',
+    composite: compositeOf(options),
     fill: 'forwards' as const,
   }
   return { ...base, ...curveTiming(options, speed) }
+}
+
+function compositeOf(options: AnimateOptions): CompositeOperation {
+  return options.composite ?? 'replace'
 }
 
 export function curveTiming(
@@ -148,7 +152,8 @@ export function animateElement(
 ): Animation {
   const reduced = reducedMotion()
   const split = splitForReduce(keyframes, options.reduce, reduced)
-  applyJumps(el, split.jumps)
+  if (compositeOf(options) === 'replace') applyJumps(el, split.jumps)
+  // Added on top, a jump to its end is no inline value (FLIP: no offset); writing one would replace what is under it.
   const animation = el.animate(
     split.keyframes,
     timingFor(el, options, reduced, place),
@@ -165,7 +170,7 @@ function timingFor(
   place?: Place,
 ): KeyframeAnimationOptions {
   if (reduced && options.reduce === 'jump')
-    return { duration: 0, composite: options.composite ?? 'replace' }
+    return { duration: 0, composite: compositeOf(options) }
   return placed(timingOf(options, place?.speed ?? speedOf(el)), place)
 }
 
