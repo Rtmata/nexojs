@@ -48,3 +48,19 @@ export class EasedCurve implements Curve {
     return toCss(this.easing, this.duration)
   }
 }
+
+/**
+ * A curve run at `speed` (C.1b): the same shape in `1 / speed` the time.
+ * Its CSS is the same: `linear()` is drawn over the progress, not time.
+ *
+ *   atSpeed(spring, 2).duration // half the spring's
+ */
+export function atSpeed(curve: Curve, speed: number): Curve {
+  if (speed === 1) return curve
+  return {
+    duration: curve.duration / speed,
+    at: (ms) => curve.at(ms * speed),
+    velocityAt: (ms) => curve.velocityAt(ms * speed) * speed,
+    toCss: () => curve.toCss(),
+  }
+}

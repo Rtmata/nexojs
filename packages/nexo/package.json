@@ -91,6 +91,13 @@
       },
       "default": "./src/client/theater/index.ts"
     },
+    "./theater/animate": {
+      "nexo-built": {
+        "types": "./src/client/theater/animate.ts",
+        "default": "./dist/client/theater/animate.js"
+      },
+      "default": "./src/client/theater/animate.ts"
+    },
     "./theater/easing": {
       "nexo-built": {
         "types": "./src/shared/theater/easing/index.ts",

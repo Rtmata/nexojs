@@ -4,37 +4,14 @@
  * bundled once and imported into each page as `window.theater`.
  */
 import { afterAll, beforeAll, describe, expect, test } from 'bun:test'
-import { chromium, type Browser, type Page } from 'playwright'
+import { chromium, type Browser } from 'playwright'
 import { testClock } from '../../shared/theater/test-clock'
+import { bundle, chrome, pageWith as openPage } from './page.fixture'
 
-const chrome = Boolean(
-  Bun.which('google-chrome') || Bun.which('google-chrome-stable'),
-)
 if (!chrome) console.warn('theater: browser tests skipped, no Chrome found')
 
 let browser: Browser
 let code: string
-
-async function bundle(): Promise<string> {
-  const entry = new URL('./theater.fixture.ts', import.meta.url).pathname
-  const built = await Bun.build({ entrypoints: [entry], format: 'esm' })
-  return built.outputs[0]!.text()
-}
-
-/** A fresh page with `window.theater` and `body`'s HTML. */
-async function pageWith(
-  html: string,
-  before?: (page: Page) => Promise<void>,
-): Promise<Page> {
-  const page = await browser.newPage()
-  await before?.(page)
-  await page.setContent(`<!doctype html><title>theater</title><body>${html}`)
-  await page.evaluate(async (code) => {
-    const blob = new Blob([code], { type: 'text/javascript' })
-    ;(window as any).theater = await import(URL.createObjectURL(blob))
-  }, code)
-  return page
-}
 
 describe.skipIf(!chrome)('theater in Chrome', () => {
   beforeAll(async () => {
@@ -47,7 +24,9 @@ describe.skipIf(!chrome)('theater in Chrome', () => {
   })
 
   test('speed: set on an ancestor, read below it; 1 when nobody set it', async () => {
-    const page = await pageWith(
+    const page = await openPage(
+      browser,
+      code,
       '<main><p id="p">hi</p></main><aside id="a"></aside>',
     )
     const result = await page.evaluate(() => {
@@ -62,7 +41,9 @@ describe.skipIf(!chrome)('theater in Chrome', () => {
   })
 
   test('speed: a wrong value in CSS says what a speed is', async () => {
-    const page = await pageWith(
+    const page = await openPage(
+      browser,
+      code,
       '<p id="p" style="--theater-speed: fast">hi</p>',
     )
     const message = await page.evaluate(() => {
@@ -76,7 +57,7 @@ describe.skipIf(!chrome)('theater in Chrome', () => {
   })
 
   test('reducedMotion reads the preference live', async () => {
-    const page = await pageWith('')
+    const page = await openPage(browser, code, '')
     const before = await page.evaluate(() =>
       (window as any).theater.reducedMotion(),
     )
@@ -88,7 +69,7 @@ describe.skipIf(!chrome)('theater in Chrome', () => {
   })
 
   test('frames() runs jobs on animation frames and sleeps after', async () => {
-    const page = await pageWith('')
+    const page = await openPage(browser, code, '')
     const result = await page.evaluate(async () => {
       const loop = (window as any).theater.frames()
       const stop = new AbortController()
@@ -106,7 +87,9 @@ describe.skipIf(!chrome)('theater in Chrome', () => {
     let clock!: Awaited<ReturnType<typeof testClock>>
     const css =
       '<style>@keyframes rise { from { translate: 0 40px } to { translate: 0 0 } } #b { animation: rise 400ms linear }</style>'
-    const page = await pageWith(
+    const page = await openPage(
+      browser,
+      code,
       `${css}<p id="a">a</p><p id="b">b</p>`,
       async (p) => {
         clock = await testClock(p)
@@ -128,7 +111,7 @@ describe.skipIf(!chrome)('theater in Chrome', () => {
 
   test('testClock finishes animations at their end, so finished resolves', async () => {
     let clock!: Awaited<ReturnType<typeof testClock>>
-    const page = await pageWith('<p id="a">a</p>', async (p) => {
+    const page = await openPage(browser, code, '<p id="a">a</p>', async (p) => {
       clock = await testClock(p)
     })
     await page.evaluate(() => {
@@ -141,7 +124,7 @@ describe.skipIf(!chrome)('theater in Chrome', () => {
 
   test('testClock leaves an animation the page paused alone', async () => {
     let clock!: Awaited<ReturnType<typeof testClock>>
-    const page = await pageWith('<p id="a">a</p>', async (p) => {
+    const page = await openPage(browser, code, '<p id="a">a</p>', async (p) => {
       clock = await testClock(p)
     })
     await page.evaluate(() => {
@@ -158,7 +141,7 @@ describe.skipIf(!chrome)('theater in Chrome', () => {
 
   test('testClock drives theater frame loop too', async () => {
     let clock!: Awaited<ReturnType<typeof testClock>>
-    const page = await pageWith('', async (p) => {
+    const page = await openPage(browser, code, '', async (p) => {
       clock = await testClock(p)
     })
     await page.evaluate(() => {
@@ -179,7 +162,7 @@ describe.skipIf(!chrome)('theater in Chrome', () => {
   })
 
   test('benchmark: value springs per frame fit in the 16 ms budget (item 33)', async () => {
-    const page = await pageWith('')
+    const page = await openPage(browser, code, '')
     const result = await page.evaluate(async () => {
       const { frames, SpringCurve } = (window as any).theater
       const curve = new SpringCurve({ duration: 400, bounce: 0.3 })
