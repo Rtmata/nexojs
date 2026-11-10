@@ -64,7 +64,7 @@ class Toasts {
   ) {
     if (el instanceof HTMLUListElement || el instanceof HTMLOListElement)
       throw new Error(
-        `toast: data-panel="toast" goes on a <div> or <section>, not <${el.localName}>: ARIA lets no list be a log or an alert`,
+        `panel: toast: data-panel="toast" goes on a <div> or <section>, not <${el.localName}>: ARIA lets no list be a log or an alert`,
       )
     this.marks.default(el, 'role', 'log')
     this.paused.window = !document.hasFocus()

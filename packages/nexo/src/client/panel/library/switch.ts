@@ -18,7 +18,7 @@ export const switchControl = panel({
   connect(el, _params, { signal }) {
     if (!(el instanceof HTMLInputElement) || el.type !== 'checkbox')
       throw new Error(
-        `switch: data-panel="switch" goes on <input type="checkbox" switch>, not <${el.localName}>`,
+        `panel: switch: data-panel="switch" goes on <input type="checkbox" switch>, not <${el.localName}>`,
       )
     if (hasSwitch() || el.hasAttribute('role')) return
     const marks = new Marks()

@@ -36,8 +36,10 @@ export interface Panel<S extends Schema, C> {
  * and free code, as one plain function of `(el, { signal })`. Works without
  * signals (A.1); everything it adds ends with `signal`.
  *
+ *   import * as param from '@nexoamigos/nexo/panel/params' // a namespace (audit item 11)
+ *
  *   const gallery = panel({
- *     params: { start: number(0) },
+ *     params: { start: param.number(0) },
  *     connect: (el, { start }) => ({ index: start }),
  *     events: { 'click .next': (e, ctx) => show(++ctx.index) },
  *   })

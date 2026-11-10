@@ -138,7 +138,9 @@ function sectionOf(el: HTMLElement, tab: HTMLAnchorElement): HTMLElement {
   const id = tab.hash.slice(1)
   const panel = el.querySelector<HTMLElement>(`[id="${CSS.escape(id)}"]`)
   if (panel) return panel
-  throw new Error(`tabs: <a href="#${id}"> names no section inside the panel`)
+  throw new Error(
+    `panel: tabs: <a href="#${id}"> names no section inside the panel`,
+  )
 }
 
 /** APG: a panel gets tabindex=0 unless its first content is focusable. */

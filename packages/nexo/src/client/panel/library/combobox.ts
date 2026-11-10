@@ -51,7 +51,7 @@ function fromSelect(
 function textInput(el: Element): HTMLInputElement {
   if (el instanceof HTMLInputElement && el.type === 'text') return el
   throw new Error(
-    `combobox: data-panel="combobox" goes on <input type="text"> or <select>, not ${describe(el)}`,
+    `panel: combobox: data-panel="combobox" goes on <input type="text"> or <select>, not ${describe(el)}`,
   )
 }
 
@@ -66,7 +66,7 @@ function popupOf(input: HTMLInputElement): HTMLElement {
   const list = document.getElementById(id)
   if (list) return list
   throw new Error(
-    `combobox: aria-controls="${id}" names no element; it should name the suggestions list`,
+    `panel: combobox: aria-controls="${id}" names no element; it should name the suggestions list`,
   )
 }
 

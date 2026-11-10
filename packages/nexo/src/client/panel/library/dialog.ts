@@ -23,7 +23,7 @@ export const dialog = panel({
   connect(el, _params, { signal }) {
     if (!(el instanceof HTMLDialogElement))
       throw new Error(
-        `dialog: data-panel="dialog" goes on a <dialog>, not <${el.localName}>`,
+        `panel: dialog: data-panel="dialog" goes on a <dialog>, not <${el.localName}>`,
       )
     const marks = new Marks()
     named(el, marks)

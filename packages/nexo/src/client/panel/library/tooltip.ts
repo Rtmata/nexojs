@@ -30,7 +30,7 @@ export const tooltip = panel({
   connect(el, delays, { signal }) {
     if (invokersOf(el).length === 0)
       throw new Error(
-        `tooltip: <${el.localName} id="${el.id}" data-panel="tooltip"> has no <button interestfor="${el.id || '…'}"> pointing at it`,
+        `panel: tooltip: <${el.localName} id="${el.id}" data-panel="tooltip"> has no <button interestfor="${el.id || '…'}"> pointing at it`,
       )
     if (hasInterest()) return
     new Interest(el as HTMLElement, delays, signal)

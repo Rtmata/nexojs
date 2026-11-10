@@ -441,6 +441,13 @@
       },
       "default": "./src/client/panel/pieces/parallax.ts"
     },
+    "./panel/params": {
+      "nexo-built": {
+        "types": "./src/client/panel/pieces/params.ts",
+        "default": "./dist/client/panel/pieces/params.js"
+      },
+      "default": "./src/client/panel/pieces/params.ts"
+    },
     "./panel/pinch": {
       "nexo-built": {
         "types": "./src/client/panel/pieces/pinch.ts",

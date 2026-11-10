@@ -13,7 +13,7 @@ export const replay = panel({
   connect(el, { on }, { signal }) {
     if (!on)
       throw new Error(
-        `replay: <${el.localName} data-panel="replay"> needs data-replay-on="<event>"`,
+        `panel: replay: <${el.localName} data-panel="replay"> needs data-replay-on="<event>"`,
       )
     el.addEventListener(on, () => replayAnimations(el), { signal })
   },

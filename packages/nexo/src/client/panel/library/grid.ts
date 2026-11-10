@@ -32,7 +32,7 @@ export const grid = panel({
   connect(el, { page }, { signal }) {
     if (!(el instanceof HTMLTableElement))
       throw new Error(
-        `grid: data-panel="grid" goes on a <table>, not <${el.localName}>`,
+        `panel: grid: data-panel="grid" goes on a <table>, not <${el.localName}>`,
       )
     new Grid(el, page, signal)
   },

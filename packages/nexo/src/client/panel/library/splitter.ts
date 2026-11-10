@@ -198,6 +198,6 @@ function primaryOf(el: HTMLElement): HTMLElement {
   const pane = document.getElementById(id)
   if (pane) return pane
   throw new Error(
-    `splitter: aria-controls="${id}" names no element; it should name the pane it resizes`,
+    `panel: splitter: aria-controls="${id}" names no element; it should name the pane it resizes`,
   )
 }

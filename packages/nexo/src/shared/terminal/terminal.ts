@@ -6,8 +6,10 @@ import { CommandServer, type Handlers } from './server'
  * A typed command table, shared by both sides (A.2, R.24): each command's
  * args, result, errors, and whether it only reads.
  *
+ *   import * as v from '@nexoamigos/nexo/terminal/validators' // a namespace, as Valibot's (audit item 11)
+ *
  *   export const api = terminal({
- *     book: { args: object({ id: number() }), result: type<Book>(), errors: { notFound: { status: 404 } }, read: true },
+ *     book: { args: v.object({ id: v.number() }), result: v.type<Book>(), errors: { notFound: { status: 404 } }, read: true },
  *   })
  *   const commands = api.client(http())                      // the browser
  *   keep({ router }).use(api.serve({ book: ({ id }, { fail }) => … }))   // the server
