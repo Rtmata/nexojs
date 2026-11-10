@@ -650,6 +650,24 @@ export async function moveDuringMove() {
   )
 }
 
+/** A move function that forgets `update`, then calls it late: the list reorders once, by itself. */
+export function moveForgetsUpdate() {
+  const items = signal([1, 2, 3])
+  let late: (() => void) | undefined
+  const { el } = run(
+    <ul>
+      <For each={items} move={(_rows, update) => void (late = update)}>
+        {(n) => <li>{n}</li>}
+      </For>
+    </ul>,
+  )
+  items.set([3, 4, 1])
+  flush()
+  const after = texts(el)
+  late?.()
+  return { after, late: texts(el) }
+}
+
 /** Review: a row leaving while the others slide keeps its exit transition. */
 export async function leaveDuringMove() {
   const { items, el } = slidingRows([1, 2, 3])

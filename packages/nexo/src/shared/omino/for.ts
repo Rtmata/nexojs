@@ -15,7 +15,9 @@ export interface ForProps<T> {
   /**
    * Reordered rows slide to their new place (E.2). `move` lets CSS do it
    * (`[data-moving] { transition: translate 0.3s }`); a function gets the
-   * rows' elements and the reorder to run (theater's `moves(…)`). omino
+   * rows' elements and the reorder to run (theater's `moves(…)`), so it
+   * picks the moment: measure, `update()`, animate. If it returns without
+   * calling `update`, the list runs it; a later call does nothing. omino
    * imports nothing for it: the function is a plain value.
    */
   move?: boolean | ((rows: Element[], update: () => void) => unknown)

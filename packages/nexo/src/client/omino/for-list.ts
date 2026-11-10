@@ -57,10 +57,10 @@ export class ForList<T> {
   }
 
   private reconcile(next: Row<T>[]): void {
-    const reorder = () => (this.leave(next), this.place(next))
+    const reorder = once(() => (this.leave(next), this.place(next)))
     const move = this.props.move
     if (move && this.order.length > 0) this.moveRows(move, next, reorder)
-    else reorder()
+    reorder() // a move function that never called it still leaves the DOM in order
     this.order = next
   }
 
@@ -235,4 +235,12 @@ function removeRow<T>(row: Row<T>): void {
 /** The row's signal, read-only for the row's code. */
 function view<T>(value: ReactiveValue<T>) {
   return { get: () => value.get(), peek: () => value.peek() }
+}
+
+/** Runs `fn` the first time only: the reorder happens once, whoever calls it. */
+function once(fn: () => void): () => void {
+  let done = false
+  return () => {
+    if (!done) ((done = true), fn())
+  }
 }

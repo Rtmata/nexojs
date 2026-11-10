@@ -240,6 +240,13 @@ for (const [name, engine] of engines) {
       expect(await play('moveDuringMove')).toEqual([true, true, true])
     })
 
+    test('For move: a function that never calls update still leaves the rows in order', async () => {
+      expect(await play('moveForgetsUpdate')).toEqual({
+        after: ['3', '4', '1'],
+        late: ['3', '4', '1'],
+      })
+    })
+
     test('For move: a row leaving while the others slide keeps its exit', async () => {
       expect(await play('leaveDuringMove')).toEqual(['3', '1', '2'])
     })
