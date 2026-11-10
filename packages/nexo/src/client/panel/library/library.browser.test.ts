@@ -800,7 +800,7 @@ for (const [name, engine] of engines) {
       await call('record')
       await call(
         'setup',
-        '<p id="p" data-panel="typewriter" data-typewriter-speed="40">Hello there</p>',
+        '<p id="p" data-panel="typewriter" data-typewriter-interval="40">Hello there</p>',
       )
       await page.waitForTimeout(100)
       const during = (await call('texts', '#p')) as {
@@ -2476,7 +2476,7 @@ for (const [name, engine] of engines) {
     test('typewriter: inline markup survives; characters are whole graphemes', async () => {
       await call(
         'setup',
-        '<p id="p" data-panel="typewriter" data-typewriter-speed="20">🎮 <a href="#x">Ys</a></p>',
+        '<p id="p" data-panel="typewriter" data-typewriter-interval="20">🎮 <a href="#x">Ys</a></p>',
       )
       await page.waitForTimeout(30)
       const during = (await call('texts', '#p')) as { shown: string }
@@ -2515,7 +2515,7 @@ for (const [name, engine] of engines) {
       await call('record')
       await call(
         'setup',
-        '<div data-panel="hover-intent" data-hover-intent-enter="50" data-hover-intent-leave="50" style="position:fixed;left:0;top:0;width:300px;height:200px;padding:40px"><span style="display:block;width:100%;height:100%;background:#ccc"></span></div>',
+        '<div data-panel="hover-intent" data-hover-intent-start="50" data-hover-intent-end="50" style="position:fixed;left:0;top:0;width:300px;height:200px;padding:40px"><span style="display:block;width:100%;height:100%;background:#ccc"></span></div>',
       )
       await page.mouse.move(700, 500)
       await page.mouse.move(20, 20)

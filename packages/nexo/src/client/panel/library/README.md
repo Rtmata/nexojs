@@ -91,7 +91,7 @@ On native `<input type="range">`, alone or several in a container (multi-thumb, 
 
 ## hover-intent
 
-A mouse that stays: `hover-intent:enter` after `enter` ms (250) still, `hover-intent:leave` after `leave` ms (150) away; `data-intent` meanwhile. Touch and pen are ignored; one passing through means nothing.
+A mouse that stays: `hover-intent:enter` after `start` ms (250) still, `hover-intent:leave` after `end` ms (150) away (the platform's words: CSS `interest-delay-start` / `-end`); `data-intent` meanwhile. Touch and pen are ignored; one passing through means nothing.
 
 ## keymap
 
@@ -123,7 +123,7 @@ Whether the visitor is here: `data-activity` is `active`, `idle` (nothing for `i
 
 ## typewriter and decode
 
-Text effects. `typewriter` shows a character (a whole grapheme: an emoji never shows half) every `speed` ms (30); `decode` settles scrambled text left to right over `duration` ms (800), scrambling from `charset`. Both keep the element's own content, links and emphasis included, for assistive technology (moved into a visually hidden span, the animated text `aria-hidden`), put it back when done, show it at once with reduced motion, and end with `typewriter:done` / `decode:done`.
+Text effects. `typewriter` shows a character (a whole grapheme: an emoji never shows half) every `interval` ms (30), divided by the page's speed (`--theater-speed`); `decode` settles scrambled text left to right over `duration` ms (800), scrambling from `charset`. Both keep the element's own content, links and emphasis included, for assistive technology (moved into a visually hidden span, the animated text `aria-hidden`), put it back when done, show it at once with reduced motion, and end with `typewriter:done` / `decode:done`.
 
 ## sequence
 

@@ -4,15 +4,16 @@ import { emit } from './hold'
 import { Marks } from './marks'
 
 /**
- * Hover intent (Archive): a mouse that stays `enter` ms means it, one that
- * leaves for `leave` ms means it's gone (Chromium's interest delays per
+ * Hover intent (Archive): a mouse that stays `start` ms means it, one that
+ * leaves for `end` ms means it's gone (the platform's words: CSS
+ * `interest-delay-start` / `-end`) (Chromium's interest delays per
  * Open UI's interest-invokers explainer: about 250 and 150 ms). Mouse only:
  * touch and pen hovers don't count. `data-intent` while it holds; events
  * `hover-intent:enter` / `hover-intent:leave`. Open UI's `interestfor`
  * (Chrome 142 only) is the native way when it's about showing a popover.
  */
 export const hoverIntent = panel({
-  params: { enter: number(250), leave: number(150) },
+  params: { start: number(250), end: number(150) },
   connect: (el, delays, { signal }) => new HoverIntent(el, delays, signal),
   events: {
     pointerenter: (e, ctx) =>
@@ -29,18 +30,18 @@ class HoverIntent {
 
   constructor(
     private readonly el: Element,
-    private readonly delays: { enter: number; leave: number },
+    private readonly delays: { start: number; end: number },
     signal: AbortSignal,
   ) {
     signal.addEventListener('abort', () => this.end(), { once: true })
   }
 
   entered(): void {
-    this.wait(this.delays.enter, true)
+    this.wait(this.delays.start, true)
   }
 
   left(): void {
-    this.wait(this.delays.leave, false)
+    this.wait(this.delays.end, false)
   }
 
   /** Each change waits its delay; a change back meanwhile calls it off. */

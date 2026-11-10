@@ -1,19 +1,21 @@
 import { panel } from '../panel'
 import { number } from '../params'
 import { emit } from './hold'
+import { speedOf } from '../../theater/speed'
 import { graphemes, reducedMotion, speakingText } from './motion'
 
 /**
  * Typewriter (Archive): the element's text appears a character at a time
- * (whole graphemes: an emoji never shows half), every `speed` ms; the
+ * (whole graphemes: an emoji never shows half), one every `interval` ms
+ * divided by the page's speed (`--theater-speed`, C.1b); the
  * whole content stays readable by assistive technology meanwhile, and
  * shows at once with reduced motion. `typewriter:done` at the end.
  */
 export const typewriter = panel({
-  params: { speed: number(30) },
-  connect(el, { speed }, { signal }) {
+  params: { interval: number(30) },
+  connect(el, { interval }, { signal }) {
     if (reducedMotion()) return emit(el, 'typewriter:done')
-    new Typewriter(el as HTMLElement, speed, signal)
+    new Typewriter(el as HTMLElement, interval / speedOf(el), signal)
   },
 })
 
@@ -26,14 +28,14 @@ class Typewriter {
 
   constructor(
     private readonly el: HTMLElement,
-    speed: number,
+    interval: number,
     signal: AbortSignal,
   ) {
     const { text, shown, restore } = speakingText(el)
     this.units = graphemes(text)
     this.shown = shown
     this.restore = restore
-    this.timer = setInterval(() => this.step(), speed)
+    this.timer = setInterval(() => this.step(), interval)
     signal.addEventListener('abort', () => this.stop(), { once: true })
   }
 
