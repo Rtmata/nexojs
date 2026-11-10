@@ -9,7 +9,7 @@ export type Invoke = (
 
 /**
  * Commands through Tauri's `invoke` (A.2). Rust already checks the types, so
- * a table of `type<T>()` is enough here. A rejected command's
+ * a table of `custom<T>()` is enough here. A rejected command's
  * `{ kind, message }` becomes a `CommandError` with `code = kind` (R.25).
  * `invoke` can't be cancelled (tauri#8351): aborting stops waiting, the Rust
  * command keeps running.

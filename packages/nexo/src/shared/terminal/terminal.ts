@@ -9,7 +9,7 @@ import { CommandServer, type Handlers } from './server'
  *   import * as v from '@nexoamigos/nexo/terminal/validators' // a namespace, as Valibot's (audit item 11)
  *
  *   export const api = terminal({
- *     book: { args: v.object({ id: v.number() }), result: v.type<Book>(), errors: { notFound: { status: 404 } }, read: true },
+ *     book: { args: v.object({ id: v.number() }), result: v.custom<Book>(), errors: { notFound: { status: 404 } }, read: true },
  *   })
  *   const commands = api.client(http())                      // the browser
  *   keep({ router }).use(api.serve({ book: ({ id }, { fail }) => … }))   // the server

@@ -8,6 +8,6 @@ export {
   oneOf,
   optional,
   string,
-  type,
+  custom,
 } from '../schema'
 export type { Issue, Output, StandardSchemaV1 } from '../schema'

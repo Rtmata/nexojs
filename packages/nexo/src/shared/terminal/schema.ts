@@ -60,9 +60,10 @@ function fails(message: string, path: PropertyKey[]): Issue[] {
 
 /**
  * Trusted as is, no check (R.24): for transports whose other side already
- * validates (Tauri: Rust's types). Only the type.
+ * validates (Tauri: Rust's types). Only the type. Named as Zod's and
+ * Valibot's (`custom<T>()`, audit item 13).
  */
-export function type<T>(): StandardSchemaV1<T> {
+export function custom<T>(): StandardSchemaV1<T> {
   return schema((value) => ({ value: value as T }))
 }
 

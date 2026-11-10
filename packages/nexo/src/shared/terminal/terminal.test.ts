@@ -13,7 +13,7 @@ import {
   string,
   tauri,
   terminal,
-  type,
+  custom,
 } from './index'
 import { describe as describeIssue } from './client'
 import { check } from './schema'
@@ -23,13 +23,13 @@ type Book = { id: number; title: string }
 const api = terminal({
   book: {
     args: object({ id: number() }),
-    result: type<Book>(),
+    result: custom<Book>(),
     errors: { notFound: { status: 404 } },
     read: true,
   },
   save: {
     args: object({ title: string(), tags: optional(array(string())) }),
-    result: type<Book>(),
+    result: custom<Book>(),
   },
   boom: {},
 })
