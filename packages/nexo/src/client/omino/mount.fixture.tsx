@@ -668,6 +668,23 @@ export function moveForgetsUpdate() {
   return { after, late: texts(el) }
 }
 
+/** A move function that returns a promise and calls `update` inside it later: the list waits for it. */
+export async function moveUpdatesLater() {
+  const items = signal([1, 2, 3])
+  const { el } = run(
+    <ul>
+      <For each={items} move={(_rows, update) => wait(20).then(update)}>
+        {(n) => <li>{n}</li>}
+      </For>
+    </ul>,
+  )
+  items.set([3, 2, 1])
+  flush()
+  const before = texts(el)
+  await wait(40)
+  return { before, after: texts(el) }
+}
+
 /** Review: a row leaving while the others slide keeps its exit transition. */
 export async function leaveDuringMove() {
   const { items, el } = slidingRows([1, 2, 3])

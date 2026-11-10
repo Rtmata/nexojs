@@ -247,6 +247,13 @@ for (const [name, engine] of engines) {
       })
     })
 
+    test('For move: a function that calls update later, in its promise, picks the moment', async () => {
+      expect(await play('moveUpdatesLater')).toEqual({
+        before: ['1', '2', '3'],
+        after: ['3', '2', '1'],
+      })
+    })
+
     test('For move: a row leaving while the others slide keeps its exit', async () => {
       expect(await play('leaveDuringMove')).toEqual(['3', '1', '2'])
     })

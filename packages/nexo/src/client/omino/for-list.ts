@@ -29,6 +29,8 @@ export class ForList<T> {
   private readonly end = document.createComment('')
   private rows = new Map<unknown, Row<T>>()
   private order: Row<T>[] = []
+  /** The reorder a move function still holds (it returned a promise). */
+  private waiting?: () => void
 
   constructor(
     private readonly props: ForProps<T>,
@@ -47,6 +49,7 @@ export class ForList<T> {
   }
 
   update(items: readonly T[]): void {
+    this.waiting?.() // a reorder a move still holds goes first: the rows below start from the DOM as it is
     const first = this.firstPhase
     this.firstPhase = undefined
     const phase = first ?? new InsertedPhase()
@@ -57,10 +60,21 @@ export class ForList<T> {
   }
 
   private reconcile(next: Row<T>[]): void {
-    const reorder = once(() => (this.leave(next), this.place(next)))
+    const reorder = once(() => this.reorderTo(next))
+    this.waiting = reorder
     const move = this.props.move
-    if (move && this.order.length > 0) this.moveRows(move, next, reorder)
-    reorder() // a move function that never called it still leaves the DOM in order
+    const moving =
+      move && this.order.length > 0
+        ? this.moveRows(move, next, reorder)
+        : undefined
+    afterMove(moving, reorder)
+  }
+
+  /** The DOM in `next`'s order, and the list's with it — unless the list ended while a move held it. */
+  private reorderTo(next: Row<T>[]): void {
+    if (this.owner.signal.aborted) return
+    this.leave(next)
+    this.place(next)
     this.order = next
   }
 
@@ -69,12 +83,12 @@ export class ForList<T> {
     move: NonNullable<ForProps<T>['move']>,
     next: Row<T>[],
     reorder: () => void,
-  ): void {
+  ): unknown {
     const staying = new Set(next)
     const kept = this.order.filter((row) => staying.has(row))
     const rows = kept.flatMap((row) => elementsIn(rangeOf(row)))
-    if (typeof move === 'function') move(rows, reorder)
-    else cssMove(rows, reorder)
+    if (typeof move === 'function') return move(rows, reorder)
+    cssMove(rows, reorder)
   }
 
   /** New rows after the first update: their refs run, then their entry. */
@@ -235,6 +249,21 @@ function removeRow<T>(row: Row<T>): void {
 /** The row's signal, read-only for the row's code. */
 function view<T>(value: ReactiveValue<T>) {
   return { get: () => value.get(), peek: () => value.peek() }
+}
+
+/**
+ * The reorder once the move let go of it: when the promise it returned
+ * settles (it may call `update` later — `startViewTransition(update)`),
+ * else at once. A move function that never calls it still leaves the
+ * DOM in order.
+ */
+function afterMove(moving: unknown, reorder: () => void): void {
+  if (!isThenable(moving)) return reorder()
+  moving.then(reorder, (error: unknown) => (reorder(), reportError(error)))
+}
+
+function isThenable(value: unknown): value is PromiseLike<unknown> {
+  return typeof (value as PromiseLike<unknown> | null)?.then === 'function'
 }
 
 /** Runs `fn` the first time only: the reorder happens once, whoever calls it. */
