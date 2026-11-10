@@ -69,9 +69,10 @@ export interface KeepOptions {
    */
   static?: StaticOption
   /**
-   * Seconds a connection may stay silent before it's closed: 120 by default,
-   * up to 255; 0 never closes. A stream (server-sent events) sending a
-   * heartbeat more often than this stays open.
+   * Milliseconds a connection may stay silent before it's closed: two
+   * minutes (`2 * 60 * 1000`) by default, up to 255 seconds (Bun's limit,
+   * rounded up to whole seconds); 0 never closes. A stream (server-sent
+   * events) sending a heartbeat more often than this stays open.
    */
   idleTimeout?: number
   /**
@@ -164,7 +165,7 @@ class KeepServer implements Server {
     this.folders = new StaticFolders(options.static)
     this.contexts = new Contexts(this.router)
     this.flow = new RequestFlow(this.router, this.folders, this.contexts)
-    this.idleTimeout = options.idleTimeout ?? 120
+    this.idleTimeout = bunSeconds(options.idleTimeout ?? 2 * 60 * 1000)
     if (options.bunker !== false) this.middlewares.push(bunker(options.bunker))
     if (options.hedge !== false) this.middlewares.push(hedge(options.hedge))
     this.middlewares.push(echo(options.echo))
@@ -320,4 +321,17 @@ class Timeout {
   cancel(): void {
     clearTimeout(this.timer)
   }
+}
+
+/** Bun's longest idle timeout, in seconds. */
+const BUN_IDLE_LIMIT = 255
+
+/** Nexo times are milliseconds (audit item 2); Bun counts whole seconds. */
+function bunSeconds(ms: number): number {
+  const seconds = Math.ceil(ms / 1000)
+  if (Number.isFinite(ms) && ms >= 0 && seconds <= BUN_IDLE_LIMIT)
+    return seconds
+  throw new RangeError(
+    `keep: idleTimeout is in milliseconds, from 0 to ${BUN_IDLE_LIMIT * 1000} (Bun's limit), got ${ms}`,
+  )
 }

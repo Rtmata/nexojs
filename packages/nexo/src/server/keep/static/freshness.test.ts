@@ -7,7 +7,7 @@ describe('cacheControlOf', () => {
     expect(cacheControlOf('immutable')).toBe(
       'public, max-age=31536000, immutable',
     )
-    expect(cacheControlOf(3600)).toBe('public, max-age=3600')
+    expect(cacheControlOf(60 * 60 * 1000)).toBe('public, max-age=3600') // ms in, seconds out
     expect(cacheControlOf(false)).toBeNull()
   })
 })

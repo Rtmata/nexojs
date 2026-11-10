@@ -5,7 +5,7 @@ import { MemoryStore, type EchoStore, type Recorded } from './store'
 import { KEY_HEADER } from './vocabulary'
 
 export interface EchoOptions {
-  /** Seconds a recording is kept; an hour by default: a retry comes within seconds, a reload within minutes. */
+  /** Milliseconds a recording is kept; an hour (`60 * 60 * 1000`) by default: a retry comes within seconds, a reload within minutes. */
   ttl?: number
   /** Where recordings live; memory by default, which one process is enough for. */
   store?: EchoStore
@@ -23,7 +23,7 @@ const SAFE = new Set(['GET', 'HEAD', 'OPTIONS'])
  * without the header pass as they are: nothing to turn off.
  *
  *   keep({ router })                               // memory, an hour
- *   keep({ router, echo: { ttl: 86400, store: redisStore } })
+ *   keep({ router, echo: { ttl: 24 * 60 * 60 * 1000, store: redisStore } })
  */
 export function echo(options: EchoOptions = {}): Middleware {
   const chamber = new Chamber(options)
@@ -37,7 +37,7 @@ class Chamber {
 
   constructor(options: EchoOptions) {
     this.store = options.store ?? new MemoryStore()
-    this.ttl = (options.ttl ?? 3600) * 1000
+    this.ttl = options.ttl ?? 60 * 60 * 1000
   }
 
   async answer(ctx: Context, handler: Handler): Promise<Response> {

@@ -18,7 +18,7 @@ afterAll(() => rm(folder, { recursive: true }))
 
 const server = () =>
   keep({
-    router: boat().get('/covers/*', files(folder, { cache: 3600 })),
+    router: boat().get('/covers/*', files(folder, { cache: 60 * 60 * 1000 })),
     static: [folder, { dir: folder, at: '/media', cache: 'immutable' }],
   })
 

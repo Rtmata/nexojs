@@ -95,7 +95,7 @@ describe('echo', () => {
   test('a recording expires', async () => {
     let clock = 0
     const store = new MemoryStore(() => clock)
-    const { s, orders } = server({ echo: { ttl: 60, store } })
+    const { s, orders } = server({ echo: { ttl: 60_000, store } })
     await post(s, '/order', 'k1')
     clock = 59_000
     await post(s, '/order', 'k1')
@@ -157,7 +157,7 @@ describe('echo', () => {
       ),
       delete: (key) => (seen.push(`delete ${key}`), inner.delete(key)),
     }
-    const { s } = server({ echo: { store, ttl: 5 } })
+    const { s } = server({ echo: { store, ttl: 5000 } })
     await post(s, '/order', 'k1')
     await post(s, '/order', 'k1')
     expect(seen).toEqual(['get k1', 'set k1 5000', 'set k1 5000', 'get k1'])
