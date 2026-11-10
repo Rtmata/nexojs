@@ -17,6 +17,10 @@ describe('param parsers (D.3)', () => {
     expect(oneOf(['a', 'b'], 'a').parse('b', 'g.side')).toBe('b')
   })
 
+  test("JSON's null is a value, not a failure", () => {
+    expect(json<string[] | null>(['x']).parse('null', 'g.shots')).toBeNull()
+  })
+
   test('invalid → an error naming the key', () => {
     expect(() => number(0).parse('two', 'gallery.start')).toThrow(
       'gallery.start: expected a number, got "two"',

@@ -99,7 +99,8 @@ function param<T>(
     parse(text, where) {
       if (text === null) return fallback
       const message = `panel: ${where}: expected ${expected}, got "${text}"`
-      return read(text)?.value ?? wrong(fallback, message)
+      const parsed = read(text) // a value may be null itself (JSON's `null`): only no result is a failure
+      return parsed ? parsed.value : wrong(fallback, message)
     },
     write,
   }
