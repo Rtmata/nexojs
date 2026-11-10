@@ -198,4 +198,114 @@ describe.skipIf(!chrome)('sequences in Chrome', () => {
     expect(opacities[1]).toBeCloseTo(0.5, 1)
     expect(opacities[2]).toBe(1)
   })
+
+  test('a value segment is checked as animate checks a value', async () => {
+    const { page } = await clockedPage(browser, code, '')
+    const errors = await page.evaluate(() =>
+      [
+        [[5], () => {}],
+        [[], () => {}],
+        [[0, 1], () => {}, { iterations: Infinity }],
+        [[0, 1], () => {}, { duration: NaN }],
+      ].map((segment) => {
+        try {
+          ;(window as any).theater.animate([segment])
+        } catch (error) {
+          return (error as Error).name
+        }
+      }),
+    )
+    expect(errors).toEqual([
+      'RangeError',
+      'RangeError',
+      'RangeError',
+      'TypeError',
+    ])
+  })
+
+  test("under reduced motion, a value segment with reduce: 'jump' ends at once", async () => {
+    const { page } = await clockedPage(browser, code, '')
+    await page.emulateMedia({ reducedMotion: 'reduce' })
+    const value = await page.evaluate(() => {
+      const w = window as any
+      w.theater.animate([
+        [
+          [0, 100],
+          (v: number) => (w.value = v),
+          { duration: 400, reduce: 'jump' },
+        ],
+      ])
+      return w.value
+    })
+    expect(value).toBe(100)
+  })
+
+  test('the page speed scales an inertia segment, delay and at, as it scales durations', async () => {
+    const { page } = await clockedPage(browser, code, '<p id="a">a</p>')
+    const lengths = await page.evaluate(() => {
+      const { animate, setSpeed } = (window as any).theater
+      const a = document.getElementById('a')!
+      const fling = [[0], () => {}, { inertia: { velocity: 2000 } }]
+      const fade = { opacity: [0, 1] }
+      const measure = () => [
+        animate([fling]).duration,
+        animate([
+          [a, fade, { duration: 400 }],
+          [a, fade, { duration: 400, delay: 200 }],
+        ]).duration,
+        animate([[a, fade, { duration: 400, at: 1000 }]]).duration,
+      ]
+      const one = measure()
+      setSpeed(document.documentElement, 2)
+      return { one, two: measure() }
+    })
+    expect(lengths.two[0]).toBeCloseTo(lengths.one[0] / 2, 0)
+    expect(lengths.one.slice(1)).toEqual([1000, 1400])
+    expect(lengths.two.slice(1)).toEqual([500, 700])
+  })
+
+  test('an empty list of elements is a part that takes no time', async () => {
+    const { page } = await clockedPage(browser, code, '<p id="a">a</p>')
+    const duration = await page.evaluate(() => {
+      const a = document.getElementById('a')!
+      const fade = { opacity: [0, 1] }
+      return (window as any).theater.animate([
+        [a, fade, { duration: 100 }],
+        [document.querySelectorAll('.none'), fade, { duration: 100 }],
+        [[], fade],
+        [a, fade, { duration: 100 }],
+      ]).duration
+    })
+    expect(duration).toBe(200)
+  })
+
+  test('one part that cannot be settled is reported; the others still are', async () => {
+    const { page, clock } = await clockedPage(
+      browser,
+      code,
+      '<p id="a">a</p><p id="b">b</p>',
+    )
+    await page.evaluate(() => {
+      const w = window as any
+      const $ = (id: string) => document.getElementById(id)!
+      w.errors = []
+      addEventListener('error', (e: ErrorEvent) =>
+        w.errors.push(e.error?.message),
+      )
+      const room = w.theater.animate([
+        [$('a'), { opacity: [0, 1] }, { duration: 100 }],
+        [$('b'), { opacity: [0, 1] }, { duration: 100, with: 'previous' }],
+      ])
+      room.members[0].commitStyles = () => {
+        throw new Error('boom')
+      }
+    })
+    await clock.advance(150)
+    const seen = await page.evaluate(() => ({
+      errors: (window as any).errors,
+      b: document.getElementById('b')!.style.opacity,
+      left: document.getElementById('b')!.getAnimations().length,
+    }))
+    expect(seen).toEqual({ errors: ['boom'], b: '1', left: 0 })
+  })
 })

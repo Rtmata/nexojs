@@ -23,6 +23,13 @@ export function writerOf<T>(target: ValueTarget<T>): (value: T) => void {
   return typeof target === 'function' ? target : (value) => target.set(value)
 }
 
+/** Whether `value` is somewhere a value can be written: a function, or anything with `set`. */
+export function isValueTarget(value: unknown): value is ValueTarget<unknown> {
+  if (typeof value === 'function') return true
+  const set = (value as { set?: unknown } | null)?.set
+  return typeof value === 'object' && typeof set === 'function'
+}
+
 /** A promise settled from outside, marked handled as WAAPI's `finished` is. */
 export class Deferred<T> {
   readonly promise: Promise<T>

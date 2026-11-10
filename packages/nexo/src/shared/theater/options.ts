@@ -43,8 +43,29 @@ export function curveOf(options: AnimateOptions, speed: number): Curve {
     throw new TypeError('theater: give either easing or spring, not both')
   }
   if (options.spring) return atSpeed(new SpringCurve(options.spring), speed)
-  const duration = (options.duration ?? DEFAULT_DURATION) / speed
+  const duration = durationOf(options) / speed
   return new EasedCurve(easingOf(options.easing ?? DEFAULT_EASING), duration)
+}
+
+/**
+ * The duration in ms before speed, checked as WAAPI checks it: a negative
+ * or NaN one throws a TypeError, as `el.animate` does — on a value it
+ * would make an end that never comes.
+ */
+export function durationOf(options: AnimateOptions): number {
+  return nonNegative(options.duration ?? DEFAULT_DURATION, 'duration')
+}
+
+/** How many times, checked as WAAPI checks it (`Infinity` loops). */
+export function iterationsOf(options: AnimateOptions): number {
+  return nonNegative(options.iterations ?? 1, 'iterations')
+}
+
+function nonNegative(value: number, name: string): number {
+  if (value >= 0) return value // NaN fails it too
+  throw new TypeError(
+    `theater: ${name} must be a non-negative number, got ${value}`,
+  )
 }
 
 /** A CSS string read into a function; a function as it is. */
@@ -54,6 +75,10 @@ export function easingOf(easing: string | Easing): Easing {
 
 /** The delay of element `index` of `count`, in ms before speed. */
 export function delayOf(options: AnimateOptions, index = 0, count = 1): number {
-  const delay = options.delay ?? 0
-  return typeof delay === 'function' ? delay(index, count) : delay
+  const given = options.delay ?? 0
+  const delay = typeof given === 'function' ? given(index, count) : given
+  if (Number.isFinite(delay)) return delay // negative is fine: it starts partway
+  throw new TypeError(
+    `theater: delay must be a finite number of ms, got ${delay}`,
+  )
 }

@@ -1,7 +1,7 @@
-import { InertiaPath } from '../../shared/theater/inertia'
 import {
   curveOf,
   delayOf,
+  iterationsOf,
   type AnimateOptions,
 } from '../../shared/theater/options'
 import {
@@ -15,13 +15,13 @@ import type { Keyframes } from './keyframes'
 import { writerOf, type Playback, type ValueTarget } from './playback'
 import { speedOf } from './speed'
 import { listOf, type Targets } from './targets'
-import { KeyframeTrack, ValueAnimation, type Track } from './value'
+import { isValueCall, startValue, valueTrack, type Track } from './value'
 
 /** A segment's options: an animation's, plus where it goes (B.2b). */
 export interface SegmentOptions extends AnimateOptions {
   /** Start with the previous segment (`'previous'`) or at a label. */
   with?: string
-  /** An absolute time, in ms. */
+  /** An absolute time, in ms before speed (C.1b), as `delay` is. */
   at?: number
 }
 
@@ -52,10 +52,15 @@ interface Part {
   create(start: number, total: number): Playback[]
 }
 
-/** Where the segment asks to go; a numeric `delay` is a shift (B.2b). */
-function positionOf(options: SegmentOptions): Position {
-  const shift = typeof options.delay === 'number' ? options.delay : 0
-  return { with: options.with, at: options.at, delay: shift }
+/**
+ * Where the segment asks to go; a numeric `delay` is a shift (B.2b). In
+ * ms after speed, as lengths are, so the whole sequence keeps one time
+ * (C.1b).
+ */
+function positionOf(options: SegmentOptions, speed: number): Position {
+  const shift = typeof options.delay === 'number' ? delayOf(options) : 0
+  const at = options.at === undefined ? undefined : options.at / speed
+  return { with: options.with, at, delay: shift / speed }
 }
 
 /** Its own options: the position taken out, the sequence's signal in. */
@@ -68,15 +73,13 @@ function ownOptions(
   return { ...rest, delay: stagger, signal }
 }
 
-/** One run of the curve, every iteration included. */
-function runLength(options: AnimateOptions, speed: number): number {
-  const iterations = options.iterations ?? 1
-  if (iterations === Infinity) {
-    throw new RangeError(
-      'theater: an endless segment has no end for a sequence to place',
-    )
-  }
-  return curveOf(options, speed).duration * iterations
+/** How many times a segment runs: a finite number, for it to have an end. */
+function iterationsIn(options: AnimateOptions): number {
+  const iterations = iterationsOf(options)
+  if (iterations !== Infinity) return iterations
+  throw new RangeError(
+    'theater: an endless segment has no end for a sequence to place',
+  )
 }
 
 /** An element, or a list staggered inside the segment. */
@@ -94,8 +97,9 @@ class ElementsPart implements Part {
   ) {
     const count = list.length
     this.offsets = list.map((_, i) => delayOf(options, i, count) / speed)
-    this.run = runLength(options, speed)
-    this.length = Math.max(...this.offsets) + this.run
+    this.run = curveOf(options, speed).duration * iterationsIn(options)
+    // The last one to end; an empty list takes no time.
+    this.length = Math.max(0, ...this.offsets.map((at) => at + this.run))
   }
 
   create(start: number, total: number): Playback[] {
@@ -111,7 +115,7 @@ class ElementsPart implements Part {
   }
 }
 
-/** A value on the frame loop. */
+/** A value on the frame loop, built and started as `animate` builds one. */
 class ValuePart implements Part {
   readonly length: number
   private readonly track: Track
@@ -120,23 +124,17 @@ class ValuePart implements Part {
     keyframes: number[],
     private readonly target: ValueTarget<number>,
     private readonly options: AnimateOptions,
-    speed: number,
+    private readonly speed: number,
     readonly position: Position,
   ) {
-    this.track = options.inertia
-      ? new InertiaPath(keyframes[0]!, options.inertia)
-      : new KeyframeTrack(keyframes, curveOf(options, speed))
-    this.length = this.track.duration * (options.iterations ?? 1)
+    this.track = valueTrack(keyframes, options, speed)
+    this.length = this.track.duration * iterationsIn(options)
   }
 
   create(start: number, total: number): Playback[] {
-    const { iterations = 1, direction = 'normal', signal } = this.options
-    const endDelay = total - start - this.length
-    const timing = { delay: start, iterations, direction, endDelay }
+    const place = { delay: start, endDelay: total - start - this.length }
     const write = writerOf(this.target)
-    const animation = new ValueAnimation(this.track, write, timing, signal)
-    animation.play()
-    return [animation]
+    return [startValue(this.track, write, this.options, this.speed, place)]
   }
 }
 
@@ -175,24 +173,21 @@ function slotOf(
   if (typeof item === 'string') return { label: item }
   if (isSequence(item[0])) {
     const options = (item[1] ?? {}) as SegmentOptions
-    return new SequencePart(item[0], speed, signal, positionOf(options))
+    return new SequencePart(item[0], speed, signal, positionOf(options, speed))
   }
   return partOf(item, speed, signal)
 }
 
 function partOf(segment: Segment, speed: number, signal?: AbortSignal): Part {
   const options = (segment[2] ?? {}) as SegmentOptions
-  const [own, position] = [ownOptions(options, signal), positionOf(options)]
-  if (isNumbers(segment[0])) {
+  const own = ownOptions(options, signal)
+  const position = positionOf(options, speed)
+  if (isValueCall(segment[0], segment[1])) {
     const target = segment[1] as ValueTarget<number>
     return new ValuePart(segment[0], target, own, speed, position)
   }
   const list = listOf(segment[0] as Targets)
   return new ElementsPart(list, segment[1] as Keyframes, own, speed, position)
-}
-
-function isNumbers(value: unknown): value is number[] {
-  return Array.isArray(value) && value.every((v) => typeof v === 'number')
 }
 
 /** A sequence: a list of segments (arrays) and labels (strings). */
@@ -222,8 +217,17 @@ export class Sequence extends AnimationGroup {
 
   private retire(): void {
     for (const member of this.members) {
-      if (member instanceof Animation) settle(member)
+      if (member instanceof Animation) settleReporting(member)
     }
+  }
+}
+
+/** One part that can't be settled is reported; the others still are. */
+function settleReporting(animation: Animation): void {
+  try {
+    settle(animation)
+  } catch (error) {
+    reportError(error)
   }
 }
 

@@ -262,4 +262,14 @@ describe.skipIf(!chrome)('animate in Chrome', () => {
     })
     expect(message).toContain('no selector strings')
   })
+
+  test('an empty list of elements is a no-op, not a value', async () => {
+    const { page } = await clockedPage(browser, code, '')
+    const state = await page.evaluate(async () => {
+      const group = (window as any).theater.animate([], { opacity: [0, 1] })
+      await group.finished
+      return group.playState
+    })
+    expect(state).toBe('finished')
+  })
 })

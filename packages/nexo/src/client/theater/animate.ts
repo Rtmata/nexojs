@@ -1,14 +1,8 @@
-import { InertiaPath } from '../../shared/theater/inertia'
-import {
-  curveOf,
-  delayOf,
-  type AnimateOptions,
-} from '../../shared/theater/options'
+import { delayOf, type AnimateOptions } from '../../shared/theater/options'
 import { animateElement } from './element'
 import { AnimationGroup } from './group'
 import type { Keyframes } from './keyframes'
 import { writerOf, type Playback, type ValueTarget } from './playback'
-import { reducedMotion } from './reduce'
 import {
   animateSequence,
   isSequence,
@@ -19,10 +13,10 @@ import {
 import { speedOf } from './speed'
 import { listOf, type Targets } from './targets'
 import {
-  KeyframeTrack,
-  ValueAnimation,
-  type Track,
-  type ValueTiming,
+  isValueCall,
+  startValue,
+  valueTrack,
+  type ValueAnimation,
 } from './value'
 
 export type { AnimateOptions } from '../../shared/theater/options'
@@ -63,16 +57,12 @@ export function animate(
   second?: Keyframes | ValueTarget<number> | SequenceOptions,
   options: AnimateOptions = {},
 ): Playback {
-  if (isNumbers(first)) {
+  if (isValueCall(first, second)) {
     return animateValue(first, second as ValueTarget<number>, options)
   }
   if (isSequence(first))
     return animateSequence(first, second as SequenceOptions)
   return animateElements(first as Targets, second as Keyframes, options)
-}
-
-function isNumbers(value: unknown): value is number[] {
-  return Array.isArray(value) && value.every((v) => typeof v === 'number')
 }
 
 function animateElements(
@@ -97,44 +87,6 @@ function animateValue(
   options: AnimateOptions,
 ): ValueAnimation {
   const speed = speedOf(document.documentElement)
-  const track = trackOf(keyframes, options, speed)
-  const write = writerOf(target)
-  const timing = valueTiming(options, speed)
-  const animation = new ValueAnimation(track, write, timing, options.signal)
-  if (reducedMotion() && options.reduce === 'jump') animation.finish()
-  else animation.play()
-  return animation
-}
-
-/** WAAPI's timing for a value, time divided by the page's speed (C.1b). */
-function valueTiming(options: AnimateOptions, speed: number): ValueTiming {
-  return {
-    delay: delayOf(options) / speed,
-    iterations: options.iterations ?? 1,
-    direction: options.direction ?? 'normal',
-  }
-}
-
-function trackOf(
-  keyframes: number[],
-  options: AnimateOptions,
-  speed: number,
-): Track {
-  if (options.inertia)
-    return atSpeedTrack(new InertiaPath(keyframes[0]!, options.inertia), speed)
-  if (keyframes.length < 2) {
-    throw new RangeError(
-      'theater: animating a value needs at least two keyframes (or inertia and a start)',
-    )
-  }
-  return new KeyframeTrack(keyframes, curveOf(options, speed))
-}
-
-function atSpeedTrack(track: Track, speed: number): Track {
-  if (speed === 1) return track
-  return {
-    duration: track.duration / speed,
-    valueAt: (ms) => track.valueAt(ms * speed),
-    velocityAt: (ms) => track.velocityAt(ms * speed) * speed,
-  }
+  const track = valueTrack(keyframes, options, speed)
+  return startValue(track, writerOf(target), options, speed)
 }
