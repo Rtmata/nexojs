@@ -1,3 +1,4 @@
+import { EXITING } from '../../settle/settle'
 import { panel } from '../panel'
 import { number, string } from '../params'
 import { emit } from './hold'
@@ -132,7 +133,7 @@ class Toasts {
     if (message?.parentElement === this.el) this.dismiss(message, 'close')
   }
 
-  /** Gone, after its exit animation (`[data-leaving]`, at most 4 s); focus stays in the region. */
+  /** Gone, after its exit animation (`[data-exiting]`, at most 4 s); focus stays in the region. */
   private async dismiss(
     message: HTMLElement,
     reason: 'close' | 'timeout',
@@ -142,7 +143,7 @@ class Toasts {
     this.timers.get(message)?.stop()
     this.timers.delete(message)
     if (message.contains(document.activeElement)) this.keepFocus(message)
-    this.marks.toggle(message, 'data-leaving', true)
+    this.marks.toggle(message, EXITING, true) // the one leaving mark (C.15c), as omino and bridge
     await animationsDone(message)
     this.gone(message, reason)
   }

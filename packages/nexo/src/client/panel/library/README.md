@@ -232,7 +232,7 @@ toastRegion()!.insertAdjacentHTML(
 
 - **Staying:** messages stay until closed (WCAG 2.2.1), and each one gets a close button (`[data-toast-dismiss]`, named by `data-toast-close`). With `data-toast-duration="5000"`, a message without controls of its own leaves by itself, paused while hovered or focused and while the window isn't (Radix). A message with an Undo always waits for the visitor.
 - **Roles:** `role="log"` is the default, for ordered, polite messages; use a separate `role="alert"` region for urgent ones. The region is a `<div>` or `<section>`, never a list: ARIA in HTML lets no `<ul>`/`<ol>` be a log or an alert.
-- **Leaving:** a closing message gets `[data-leaving]` for its exit animation, and focus stays in the region.
+- **Leaving:** a closing message gets `[data-exiting]` for its exit animation, and focus stays in the region.
 - **Reaching it:** F8 (`data-toast-key`) moves focus to the region in use.
 - **Modal dialogs:** everything outside an open modal `<dialog>` is inert, so a dialog that sends messages holds its own region. `toastRegion()` returns the one of the top-most modal (the one holding focus: everything under it is inert), else the page's.
 - **Placing it:** CSS (`position: fixed; z-index`). Never `display: none` the region.
