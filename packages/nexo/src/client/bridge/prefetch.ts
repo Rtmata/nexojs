@@ -99,8 +99,10 @@ function delayOf(link: Element): number {
   if (value === null) return HOVER_DELAY
   const ms = Number(value.trim())
   if (Number.isInteger(ms) && ms >= 0) return ms
-  console.warn(
-    `bridge: data-bridge-${DELAY_ROLE}="${value}" is not a number of milliseconds`,
+  reportError(
+    new Error(
+      `bridge: data-bridge-${DELAY_ROLE}="${value}" is not a number of milliseconds`,
+    ),
   )
   return HOVER_DELAY
 }

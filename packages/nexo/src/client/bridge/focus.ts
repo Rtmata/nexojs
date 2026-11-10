@@ -42,10 +42,7 @@ export class FocusMove {
     if (rule === 'keep') return void this.kept(before)
     if (rule === 'autofocus') return void autofocused(elements)
     if (rule === 'target') return void give(elements[0])
-    if (!give(segmentIn(document, rule.segment)))
-      console.warn(
-        `bridge: data-bridge-focus names no segment "${rule.segment}"`,
-      )
+    if (!give(segmentIn(document, rule.segment))) noSegment(rule.segment)
   }
 
   private auto(elements: Element[], before: Element | null): void {
@@ -98,4 +95,9 @@ const FOCUSABLE =
 
 function focusable(element: HTMLElement): boolean {
   return element.matches(FOCUSABLE)
+}
+
+/** Markup that names a segment the page doesn't have: reported (audit item 4). */
+function noSegment(name: string): void {
+  reportError(new Error(`bridge: data-bridge-focus names no segment "${name}"`))
 }

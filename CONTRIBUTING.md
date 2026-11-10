@@ -46,6 +46,7 @@ This guide describes how Nexo's code is written. It applies to every module.
 
 ## Errors
 
+- **A wrong value:** code throws (JS options, JSX, a script's call: it shows in development, tests and the editor); markup and CSS report (`reportError`, which reaches `window.onerror` and monitoring) and use the default, so the link or the panel still works (layer 0). A required markup value that is missing is reported and that piece stays off.
 - Fail early and loudly: a mistake in how a module is set up throws when it is registered or when the server starts, not on a visitor's request.
 - Error messages start with the module name (`boat: …`), say what was wrong and how to fix it.
 

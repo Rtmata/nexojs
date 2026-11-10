@@ -26,7 +26,14 @@ export function setSpeed(el: HTMLElement, speed: number): void {
 export function speedOf(el: Element): number {
   const text = getComputedStyle(el).getPropertyValue(SPEED_PROPERTY).trim()
   if (text === '') return 1
-  return checked(Number(text), `${SPEED_PROPERTY}: ${text}`)
+  const speed = Number(text)
+  if (Number.isFinite(speed) && speed > 0) return speed
+  reportError(
+    new RangeError(
+      `theater: ${SPEED_PROPERTY}: ${text} is not a speed (a positive number); 1 is used`,
+    ),
+  )
+  return 1 // CSS is markup: reported, and the page keeps moving (audit item 4)
 }
 
 function checked(speed: number, where: string): number {

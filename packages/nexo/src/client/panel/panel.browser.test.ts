@@ -64,11 +64,11 @@ for (const [name, engine] of engines) {
       ])
     })
 
-    test('an unknown panel and a bad param are clear errors', async () => {
+    test('an unknown panel and a bad param are reported; the bad param falls back', async () => {
       const caught = await play('errors')
       expect(caught[0]).toContain('names no panel')
       expect(caught[1]).toContain('gallery.start: expected a number')
-      expect(caught[2]).toBe('connected 1') // the third panel still connects
+      expect(caught[2]).toBe('connected 2') // a bad param is reported and its default stands (audit item 4): only the unknown panel stays out
     })
 
     test('the same panel as an omino ref, with typed params', async () => {

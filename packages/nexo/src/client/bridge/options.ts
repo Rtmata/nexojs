@@ -62,7 +62,7 @@ export function optionsOf(
   target: Target = targetFor(element),
 ): Options {
   const read = (role: string) => inherited(element, role)
-  return optionsRead(target, read)
+  return optionsRead(target, read, reported)
 }
 
 /** The options an object gives, the rest read around `from` as a link there would. */
@@ -74,7 +74,7 @@ export function optionsFrom(given: VisitOptions, from: Element): Options {
     if (value === undefined || value === null) return inherited(from, role)
     return value === true ? '' : String(value) // `true` reads as a bare attribute
   }
-  return optionsRead(target, read)
+  return optionsRead(target, read, thrown)
 }
 
 /** `target` as written for a link (`"shelf, counter"`, `_top`); left out, like a link in `from`, but the whole page outside every segment. */
@@ -90,10 +90,14 @@ function targetFor(element: Element): Target {
 }
 
 /** Every option by one reader (an attribute, or a value given by hand), with the defaults that follow the target: a whole page makes an entry and starts at the top, a segment makes none and keeps the scroll. */
-function optionsRead(target: Target, read: Reader): Options {
+function optionsRead(
+  target: Target,
+  read: Reader,
+  complain: Complain,
+): Options {
   return {
     target,
-    ...modesRead(read, target.kind === 'top'),
+    ...modesRead(read, target.kind === 'top', complain),
     focus: focusOf(read('focus')),
     transition: transitionSays(read('transition')),
     fail: read('fail'),
@@ -103,11 +107,11 @@ function optionsRead(target: Target, read: Reader): Options {
 }
 
 /** The three with a fixed set of values; `top`: the defaults of a whole page. */
-function modesRead(read: Reader, top: boolean) {
+function modesRead(read: Reader, top: boolean, complain: Complain) {
   return {
-    history: oneOf(read, 'history', HISTORY, top ? 'push' : null),
-    scroll: oneOf(read, 'scroll', SCROLL, top ? 'top' : 'keep'),
-    swap: oneOf(read, 'swap', SWAP, 'replace'),
+    history: oneOf(read, 'history', HISTORY, top ? 'push' : null, complain),
+    scroll: oneOf(read, 'scroll', SCROLL, top ? 'top' : 'keep', complain),
+    swap: oneOf(read, 'swap', SWAP, 'replace', complain),
   }
 }
 
@@ -123,13 +127,21 @@ function oneOf<V extends string, D>(
   role: string,
   allowed: readonly V[],
   fallback: D,
+  complain: Complain,
 ): V | D {
   const value = read(role)
   if (value === null) return fallback
   if ((allowed as readonly string[]).includes(value.trim()))
     return value.trim() as V
-  console.warn(
-    `bridge: data-bridge-${role}="${value}" is not one of ${allowed.join(', ')}`,
-  )
+  complain(`bridge: ${role} "${value}" is not one of ${allowed.join(', ')}`)
   return fallback
+}
+
+/** What a wrong value does (audit item 4): markup reports it and the default stands; a script's call throws. */
+type Complain = (message: string) => void
+
+const reported: Complain = (message) => reportError(new Error(message))
+
+const thrown: Complain = (message) => {
+  throw new TypeError(message)
 }

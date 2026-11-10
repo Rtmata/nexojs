@@ -40,20 +40,29 @@ describe.skipIf(!chrome)('theater in Chrome', () => {
     expect(result).toEqual([0.5, 1])
   })
 
-  test('speed: a wrong value in CSS says what a speed is', async () => {
+  test('speed: a wrong value in CSS is reported and 1 is used (audit item 4)', async () => {
     const page = await openPage(
       browser,
       code,
       '<p id="p" style="--theater-speed: fast">hi</p>',
     )
-    const message = await page.evaluate(() => {
-      try {
-        ;(window as any).theater.speedOf(document.getElementById('p'))
-      } catch (error) {
-        return (error as Error).message
-      }
+    const result = await page.evaluate(() => {
+      const reported: string[] = []
+      const onError = (e: ErrorEvent) => (
+        reported.push(e.error?.message ?? e.message),
+        e.preventDefault()
+      )
+      window.addEventListener('error', onError)
+      const speed = (window as any).theater.speedOf(
+        document.getElementById('p'),
+      )
+      window.removeEventListener('error', onError)
+      return { speed, reported }
     })
-    expect(message).toContain('theater: a speed is a positive number')
+    expect(result.speed).toBe(1)
+    expect(result.reported[0]).toContain(
+      'theater: --theater-speed: fast is not a speed',
+    )
   })
 
   test('reducedMotion reads the preference live', async () => {

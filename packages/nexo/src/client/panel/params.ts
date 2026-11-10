@@ -84,8 +84,10 @@ export function oneOf<const W extends string>(
 }
 
 /**
- * Missing → the fallback; present but not parsable → an error that names
- * where (`gallery.start: expected a number`).
+ * Missing → the fallback; present but not parsable → reported (an error
+ * that names where: `panel: gallery.start: expected a number`) and the
+ * fallback stands, so the panel still works: markup reports, JS throws
+ * (audit item 4).
  */
 function param<T>(
   fallback: T,
@@ -96,10 +98,8 @@ function param<T>(
   return {
     parse(text, where) {
       if (text === null) return fallback
-      const parsed = read(text)
-      if (!parsed)
-        throw new Error(`${where}: expected ${expected}, got "${text}"`)
-      return parsed.value
+      const message = `panel: ${where}: expected ${expected}, got "${text}"`
+      return read(text)?.value ?? wrong(fallback, message)
     },
     write,
   }
@@ -123,4 +123,10 @@ export function readParams<S extends Record<string, Param<unknown>>>(
 /** `gallery` + `autoPlay` → `data-gallery-auto-play`: as `dataset` names them. */
 export function attributeOf(name: string, key: string): string {
   return `data-${name}-${key.replace(/[A-Z]/g, (c) => `-${c.toLowerCase()}`)}`
+}
+
+/** A wrong value in markup: reported, and the fallback stands (audit item 4). */
+function wrong<T>(fallback: T, message: string): T {
+  reportError(new Error(message))
+  return fallback
 }

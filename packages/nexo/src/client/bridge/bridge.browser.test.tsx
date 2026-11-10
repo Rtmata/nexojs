@@ -1668,6 +1668,14 @@ describe.if(chrome)('from a script: visit, reload, prefetch', () => {
     expect(await text('[data-bridge-segment="shelf"] li')).toBe('game 1')
   })
 
+  test('a wrong option in a script throws (audit item 4: JS throws, markup reports)', async () => {
+    await open('/shelf/1')
+    const message = await call(
+      `bridge.visit('/shelf/2', { history: 'pushh' }).then(() => 'went', (error) => error.message)`,
+    )
+    expect(message).toBe('bridge: history "pushh" is not one of push, replace')
+  })
+
   test("reload brings this page's segments again", async () => {
     await open('/shelf/1')
     requests.length = 0
