@@ -1656,6 +1656,18 @@ describe.if(chrome)('from a script: visit, reload, prefetch', () => {
     expect(await sameDocument()).toBe(true)
   })
 
+  test('a visit takes a signal: aborting it cancels the visit (the { signal } rule)', async () => {
+    await open('/shelf/1')
+    const outcome = await call(`(() => {
+      const stop = new AbortController()
+      const visiting = bridge.visit('/shelf/7?delay=300', { target: 'shelf', signal: stop.signal })
+      setTimeout(() => stop.abort(), 50)
+      return visiting.then(() => 'swapped', (error) => error.message)
+    })()`)
+    expect(outcome).toContain('was cancelled')
+    expect(await text('[data-bridge-segment="shelf"] li')).toBe('game 1')
+  })
+
   test("reload brings this page's segments again", async () => {
     await open('/shelf/1')
     requests.length = 0

@@ -122,7 +122,7 @@ export class ClientRouter {
   private listen(): void {
     const { source, signal } = this.options
     const arrived = (url: URL, how: Arrival) => this.arrive(url, how)
-    source.listen({ claims: (url) => this.claims(url), arrived }, signal)
+    source.listen({ claims: (url) => this.claims(url), arrived }, { signal })
     claimClicks((url) => this.take(url), signal)
   }
 

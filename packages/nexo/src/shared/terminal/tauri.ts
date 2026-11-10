@@ -16,7 +16,7 @@ export type Invoke = (
  */
 export function tauri(options: { invoke: Invoke }): Transport {
   return {
-    send(call, signal) {
+    send(call, { signal } = {}) {
       const args = (call.args ?? undefined) as
         Record<string, unknown> | undefined
       return untilAborted(

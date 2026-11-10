@@ -17,7 +17,7 @@ export interface UrlSource {
    * Hear every URL change the router may own: `claims(url)` says whether
    * it does (a route matches), `arrived(url, how)` runs when it changed.
    */
-  listen(listener: SourceListener, signal: AbortSignal): void
+  listen(listener: SourceListener, options: { signal: AbortSignal }): void
 }
 
 export interface SourceListener {
@@ -51,7 +51,7 @@ class NavigationUrl implements UrlSource {
     this.nav.navigate(url.href, { history })
   }
 
-  listen(listener: SourceListener, signal: AbortSignal): void {
+  listen(listener: SourceListener, { signal }: { signal: AbortSignal }): void {
     const onNavigate = (event: any) => this.navigated(event, listener)
     this.nav.addEventListener('navigate', onNavigate, { signal })
   }
@@ -123,7 +123,7 @@ class PushStateUrl implements UrlSource {
     this.listener?.arrived(url, options?.replace ? 'replace' : 'push')
   }
 
-  listen(listener: SourceListener, signal: AbortSignal): void {
+  listen(listener: SourceListener, { signal }: { signal: AbortSignal }): void {
     this.listener = listener
     manualScroll(signal)
     const onPop = () => listener.arrived(this.current(), 'traverse')
@@ -172,7 +172,7 @@ class MemoryUrl implements UrlSource {
     this.listening?.arrived(url, options?.replace ? 'replace' : 'push')
   }
 
-  listen(listener: SourceListener, signal: AbortSignal): void {
+  listen(listener: SourceListener, { signal }: { signal: AbortSignal }): void {
     this.listening = listener
     signal.addEventListener('abort', () => (this.listening = undefined), {
       once: true,

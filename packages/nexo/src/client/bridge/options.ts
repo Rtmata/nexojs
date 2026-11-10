@@ -52,6 +52,8 @@ export interface VisitOptions {
   busy?: string | null
   retry?: boolean
   from?: Element
+  /** Aborting cancels the visit (as a newer navigation would); a prefetch stops being waited for. */
+  signal?: AbortSignal
 }
 
 /** `target`: the one the options are for; the element's own (read like any attribute) unless the caller has another in mind, as lazy content does. */

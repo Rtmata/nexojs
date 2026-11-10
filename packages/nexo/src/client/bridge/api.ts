@@ -31,9 +31,9 @@ export class Api {
 
   private navigation(from: Element, wanted: Wanted, options: VisitOptions) {
     const read = optionsFrom(options, from)
+    const steps = [this.swapper(read), read, this.session] as const
     const fallback = new BrowserFallback(from, wanted)
-    const swapper = this.swapper(read)
-    return new Navigation(from, wanted, swapper, read, this.session, fallback)
+    return new Navigation(from, wanted, ...steps, fallback, options.signal)
   }
 
   /** This page again, those segments only: a counter after a change elsewhere. */
@@ -50,7 +50,11 @@ export class Api {
   prefetch(url: string | URL, options: VisitOptions = {}): Promise<void> {
     const read = optionsFrom(options, options.from ?? document.body)
     const segments = this.swapper(read).segments()
-    return this.session.loader.prefetch(new URL(url, location.href), segments)
+    const fetched = this.session.loader.prefetch(
+      new URL(url, location.href),
+      segments,
+    )
+    return untilAborted(fetched, options.signal) // the request goes on: a visit may join it
   }
 
   private swapper(read: ReturnType<typeof optionsFrom>): Swapper {
@@ -67,4 +71,17 @@ type Wanted = Omit<Full, 'segments'>
 function ended(outcome: Outcome, url: URL): void {
   if (outcome === 'swapped') return
   throw new Error(`bridge: the visit to ${url} was ${outcome}`)
+}
+
+/** Waits for `work`, or stops waiting when `signal` aborts. */
+function untilAborted(
+  work: Promise<void>,
+  signal?: AbortSignal,
+): Promise<void> {
+  if (!signal) return work
+  if (signal.aborted) return Promise.resolve()
+  const aborted = new Promise<void>((done) =>
+    signal.addEventListener('abort', () => done(), { once: true }),
+  )
+  return Promise.race([work, aborted])
 }

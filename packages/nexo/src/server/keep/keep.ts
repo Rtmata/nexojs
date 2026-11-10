@@ -106,8 +106,8 @@ export interface Server {
   use(middleware: Middleware | Hooks): Server
   /** Answer a single request. Needs no network: handy for tests. */
   fetch(request: Request): Promise<Response>
-  /** Check the setup, then start listening on a port (`0` picks a free one: see `url`). */
-  listen(port?: number): Promise<Server>
+  /** Check the setup, then start listening on a port (`0` picks a free one: see `url`); `signal` stops it (as `stop()`). */
+  listen(port?: number, options?: { signal?: AbortSignal }): Promise<Server>
   /** Where the server listens, once it does; null before `listen()` and after `stop()`. */
   readonly url: URL | null
   /**
@@ -196,15 +196,26 @@ class KeepServer implements Server {
     })
   }
 
-  async listen(port = 3000): Promise<this> {
+  async listen(
+    port = 3000,
+    options: { signal?: AbortSignal } = {},
+  ): Promise<this> {
     this.ensureCanListen()
     this.starting = this.start(port)
     try {
       this.running = await this.starting
+      this.stopsWith(options.signal)
       return this
     } finally {
       this.starting = null
     }
+  }
+
+  /** The `{ signal }` rule: aborting stops the server, as `stop()` does. */
+  private stopsWith(signal?: AbortSignal): void {
+    const stop = () => void this.stop()
+    if (signal?.aborted) return stop()
+    signal?.addEventListener('abort', stop, { once: true })
   }
 
   /** Run the start hooks, index the folders, then listen. A failure (port taken…) leaves nothing watched. */

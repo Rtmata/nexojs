@@ -19,7 +19,7 @@ export function http(options: HttpOptions = {}): Transport {
   const base = options.base ?? BASE
   const fetch_ = options.fetch ?? ((url, init) => fetch(url, init))
   return {
-    async send(call, signal) {
+    async send(call, { signal } = {}) {
       const response = await fetch_(...request(base, call, signal)).catch(
         unreachable,
       )

@@ -43,6 +43,8 @@ export class Navigation {
     private readonly options: Options,
     private readonly session: Session,
     private readonly fallback: Fallback = new BrowserFallback(trigger, wanted),
+    /** The `{ signal }` rule: a visit from a script can be cancelled by its caller. */
+    private readonly signal?: AbortSignal,
   ) {}
 
   async run(): Promise<Outcome> {
@@ -69,6 +71,7 @@ export class Navigation {
     const { inflight } = this.session
     const flight = inflight.start(targets, this.trigger, this.swapper.busy())
     this.turn = inflight.count(targets)
+    cancelsWith(flight, this.signal)
     return flight
   }
 
@@ -314,4 +317,10 @@ function anchorOf(hash: string): Element | null {
 function swapped(element: Element, url: URL): void {
   const name = element.getAttribute(SEGMENT_ATTRIBUTE)
   announce(element, 'bridge:swapped', { url, name, signal: lives.of(element) })
+}
+
+/** The caller's abort cancels the flight, as a newer navigation would. */
+function cancelsWith(flight: Flight, signal?: AbortSignal): void {
+  if (signal?.aborted) return flight.cancel()
+  signal?.addEventListener('abort', () => flight.cancel(), { once: true })
 }

@@ -414,6 +414,19 @@ describe('static files', () => {
   })
 })
 
+describe('keep and the { signal } rule', () => {
+  test('aborting the signal given to listen() stops the server, as stop() does', async () => {
+    const stop = new AbortController()
+    const server = await keep({
+      router: boat().get('/', () => new Response('hi')),
+    }).listen(0, { signal: stop.signal })
+    expect(server.url).not.toBeNull()
+    stop.abort()
+    await Bun.sleep(50)
+    expect(server.url).toBeNull()
+  })
+})
+
 describe('keep, edge cases', () => {
   test('a trailing slash keeps the method for anything but GET', async () => {
     const server = keep({ router: boat() })

@@ -11,7 +11,7 @@ export interface Call {
 
 /** How a call travels (pattern: strategy): `http()`, `tauri({ invoke })`, or yours. */
 export interface Transport {
-  send(call: Call, signal?: AbortSignal): Promise<unknown>
+  send(call: Call, options?: { signal?: AbortSignal }): Promise<unknown>
 }
 
 /**
@@ -37,7 +37,7 @@ export class Client<T extends Table> {
     const sent = spec.args ? checked(spec.args, args, name) : undefined
     return (await this.transport.send(
       { name, args: sent, read: spec.read ?? false },
-      options?.signal,
+      { signal: options?.signal },
     )) as ResultOf<T[K]>
   }
 }
