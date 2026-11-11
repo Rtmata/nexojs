@@ -58,6 +58,20 @@ describe('resolve (C.6)', () => {
 `)
   })
 
+  test('.css({ selector }): the same values elsewhere, a shadow root or one element', () => {
+    const night = resolve(tokens, { colorScheme: 'dark' })
+    expect(night.css({ selector: ':host' })).toStartWith(
+      ':host {\n  color-scheme: dark;',
+    )
+    expect(night.css({ selector: '.preview' })).toStartWith('.preview {')
+    expect(() => night.css({ selector: ':root } body {' })).toThrow(
+      'glyph: resolve: ":root } body {" can\'t be a selector here',
+    )
+    expect(() => night.css({ selector: '' })).toThrow(
+      "can't be a selector here",
+    )
+  })
+
   test('a theme that fixes its scheme answers only for it', () => {
     const night = defineTheme(tokens, 'night', { colorScheme: 'dark' })
     expect(() => resolve(night, { colorScheme: 'light' })).toThrow(

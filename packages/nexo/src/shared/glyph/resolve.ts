@@ -46,11 +46,25 @@ export class ResolvedTokens<D> {
 
   /**
    * `:root { … }` with the final values, for a document glyph's sheets
-   * don't reach; it fixes the scheme the values were picked for.
+   * don't reach; it fixes the scheme the values were picked for. Another
+   * `selector` puts them elsewhere: `:host` in a shadow root, `.preview`.
+   *
+   *   shadow.innerHTML = `<style>${night.css({ selector: ':host' })}</style>…`
    */
-  css(): string {
+  css({ selector = ':root' }: { readonly selector?: string } = {}): string {
+    checkSelector(selector)
     const entries: [string, string][] = Object.entries(this.values)
     const lines = entries.map(([name, value]) => `--${name}: ${value};`)
-    return `${rule(':root', [`color-scheme: ${this.colorScheme};`, ...lines])}\n`
+    return `${rule(selector, [`color-scheme: ${this.colorScheme};`, ...lines])}\n`
   }
+}
+
+/** Characters that would end the rule or the `<style>` around it: a selector never needs them. */
+const OUTSIDE_SELECTOR = /[{};<\n\r]|^\s*$/
+
+function checkSelector(selector: string): void {
+  if (!OUTSIDE_SELECTOR.test(selector)) return
+  throw new Error(
+    `glyph: resolve: ${JSON.stringify(selector)} can't be a selector here; write one such as ":host" or ".preview", without { } ; < or line breaks`,
+  )
 }
