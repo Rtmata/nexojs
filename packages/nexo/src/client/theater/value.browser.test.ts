@@ -187,6 +187,46 @@ describe.skipIf(!chrome)('a value animation in Chrome', () => {
     expect((await read(page)).state).toBe('idle')
   })
 
+  test.each([
+    { iterations: 1.5, direction: 'alternate' },
+    { iterations: 1.5, direction: 'normal' },
+    { iterations: 2, direction: 'alternate' },
+    { iterations: 0, direction: 'normal' },
+  ])(
+    '%o lands where an element animation does (WAAPI current iteration)',
+    async (timing) => {
+      const { page } = await clockedPage(browser, code, '<p id="p">p</p>')
+      await start(page, timing)
+      const pairs = await page.evaluate((timing) => {
+        const w = window as any
+        const options = { ...timing, duration: 100, fill: 'both' }
+        const el = document
+          .getElementById('p')!
+          .animate({ opacity: [0, 1] }, options as KeyframeAnimationOptions)
+        return [0, 40, 99, 100, 120, 149, 150, 199, 200, 250].map((t) => {
+          w.anim.pause()
+          w.anim.currentTime = el.currentTime = t
+          const progress = el.effect!.getComputedTiming().progress!
+          const round = (n: number) => Math.round(n * 1e4) / 1e4
+          return [t, round(w.value), round(progress * 100)]
+        })
+      }, timing)
+      for (const [t, value, element] of pairs)
+        expect([t, value]).toEqual([t, element])
+    },
+  )
+
+  test('iterations: 1.5, alternate: its velocity runs backwards in the second iteration', async () => {
+    const { page } = await clockedPage(browser, code, '')
+    await start(page, { iterations: 1.5, direction: 'alternate' })
+    const velocity = await page.evaluate(() => {
+      const anim = (window as any).anim
+      anim.currentTime = 120
+      return anim.velocity
+    })
+    expect(velocity).toBeCloseTo(-1000, 3) // 100 units per 100 ms, backwards
+  })
+
   test('a NaN or negative duration, delay or iterations throws a TypeError, as WAAPI does', async () => {
     const { page } = await clockedPage(browser, code, '')
     const errors = await page.evaluate(() =>

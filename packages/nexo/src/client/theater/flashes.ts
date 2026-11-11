@@ -121,8 +121,10 @@ function progressAt(effect: KeyframeEffect, ms: number): number {
   const { duration, iterations, direction, easing } = effect.getComputedTiming()
   const length = Number(duration)
   if (!length) return 1
-  const iteration = Math.min(Math.floor(ms / length), Number(iterations) - 1)
-  const within = Math.min(ms - iteration * length, length) / length
+  const local = Math.min(ms, length * Number(iterations)) // WAAPI: 1.5 iterations end halfway through the second
+  const last = Math.max(Math.ceil(Number(iterations)) - 1, 0)
+  const iteration = Math.min(Math.floor(local / length), last)
+  const within = Math.min(local - iteration * length, length) / length
   const reversed = backwards(direction ?? 'normal', iteration)
   return fromCss(easing ?? 'linear')(reversed ? 1 - within : within)
 }

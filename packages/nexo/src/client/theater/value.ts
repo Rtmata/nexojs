@@ -315,12 +315,18 @@ export class ValueAnimation implements Playback {
     return this.backwards(iteration) ? duration - within : within
   }
 
-  /** Which iteration `local` is in; past the end, the last one. */
+  /**
+   * Which iteration `local` is in, as WAAPI's "current iteration": whole
+   * iterations passed, up to the last one started (`ceil - 1`). So 1.5
+   * iterations end halfway through iteration 1, a whole number ends at the
+   * end of its last one, not the start of the next, and 0 stays at the start
+   * of iteration 0.
+   */
   private iterationOf(local: number): number {
     const { duration } = this.track
-    const clamped = Math.min(local, duration * this.timing.iterations)
-    const iteration = Math.floor(clamped / duration)
-    return Math.min(iteration, this.timing.iterations - 1)
+    const { iterations } = this.timing
+    const passed = Math.floor(Math.min(local, duration * iterations) / duration)
+    return Math.max(Math.min(passed, Math.ceil(iterations) - 1), 0)
   }
 
   private backwards(iteration: number): boolean {
