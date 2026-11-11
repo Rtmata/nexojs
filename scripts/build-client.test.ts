@@ -22,12 +22,8 @@ describe('the client build (F.2)', () => {
       `--outdir=${out}`,
     ])
     expect(build.exitCode).toBe(0)
-    const pkg = await Bun.file(
-      resolve(import.meta.dir, '../packages/nexo/package.json'),
-    ).json()
-    for (const target of Object.values(pkg.exports) as any[]) {
-      if (typeof target !== 'object') continue
-      const built = target['nexo-built'].default.replace('./dist/', '')
+    for (const source of await entries()) {
+      const built = source.replace('./src/', '').replace(/\.ts$/, '.js')
       expect(files(out)).toContain(join(out, built))
     }
     const defining = files(out).filter(
@@ -36,14 +32,18 @@ describe('the client build (F.2)', () => {
     expect(defining).toHaveLength(1)
   })
 
-  test('the list is the exports map: every nexo-built subpath', async () => {
+  test('the list is the exports map: every nexo-built subpath, every piece', async () => {
     const pkg = await Bun.file(
       resolve(import.meta.dir, '../packages/nexo/package.json'),
     ).json()
     const marked = Object.values(pkg.exports).filter(
       (target) => typeof target === 'object',
     )
-    expect(await entries()).toHaveLength(marked.length)
-    expect(await entries()).toContain('./src/client/boat/index.ts')
+    const listed = await entries()
+    expect(listed.length).toBeGreaterThan(marked.length) // patterns grow into pieces
+    expect(listed).toContain('./src/client/boat/index.ts')
+    expect(listed).toContain('./src/client/panel/pieces/tabs.ts')
+    expect(listed).toContain('./src/client/theater/pieces/easing/back.ts')
+    expect(listed.filter((source) => source.includes('*'))).toEqual([])
   })
 })

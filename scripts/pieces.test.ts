@@ -20,8 +20,8 @@ const CASES: [module: string, piece: string, name: string][] = [
   ['shared/terminal/index.ts', 'shared/terminal/pieces/http.ts', 'http'],
   ['client/panel/index.ts', 'client/panel/pieces/tabs.ts', 'tabs'],
   ['client/panel/index.ts', 'client/panel/pieces/drag.ts', 'drag'],
-  ['client/theater/index.ts', 'client/theater/animate.ts', 'animate'],
-  ['client/theater/index.ts', 'client/theater/scroll.ts', 'scroll'],
+  ['client/theater/index.ts', 'client/theater/pieces/animate.ts', 'animate'],
+  ['client/theater/index.ts', 'client/theater/pieces/scroll.ts', 'scroll'],
 ]
 
 /** The minified bundle of an entry that imports `name` from `file` and keeps it. */

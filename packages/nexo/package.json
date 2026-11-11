@@ -12,6 +12,13 @@
       },
       "default": "./src/shared/boat/index.ts"
     },
+    "./boat/*": {
+      "nexo-built": {
+        "types": "./src/shared/boat/pieces/*.ts",
+        "default": "./dist/shared/boat/pieces/*.js"
+      },
+      "default": "./src/shared/boat/pieces/*.ts"
+    },
     "./boat/client": {
       "nexo-built": {
         "types": "./src/client/boat/index.ts",
@@ -19,61 +26,12 @@
       },
       "default": "./src/client/boat/index.ts"
     },
-    "./boat/client/not-found": {
+    "./boat/client/*": {
       "nexo-built": {
-        "types": "./src/client/boat/pieces/not-found.ts",
-        "default": "./dist/client/boat/pieces/not-found.js"
+        "types": "./src/client/boat/pieces/*.ts",
+        "default": "./dist/client/boat/pieces/*.js"
       },
-      "default": "./src/client/boat/pieces/not-found.ts"
-    },
-    "./boat/client/router": {
-      "nexo-built": {
-        "types": "./src/client/boat/pieces/router.ts",
-        "default": "./dist/client/boat/pieces/router.js"
-      },
-      "default": "./src/client/boat/pieces/router.ts"
-    },
-    "./boat/client/routes": {
-      "nexo-built": {
-        "types": "./src/client/boat/pieces/routes.ts",
-        "default": "./dist/client/boat/pieces/routes.js"
-      },
-      "default": "./src/client/boat/pieces/routes.ts"
-    },
-    "./boat/client/sources": {
-      "nexo-built": {
-        "types": "./src/client/boat/pieces/sources.ts",
-        "default": "./dist/client/boat/pieces/sources.js"
-      },
-      "default": "./src/client/boat/pieces/sources.ts"
-    },
-    "./boat/not-found": {
-      "nexo-built": {
-        "types": "./src/shared/boat/pieces/not-found.ts",
-        "default": "./dist/shared/boat/pieces/not-found.js"
-      },
-      "default": "./src/shared/boat/pieces/not-found.ts"
-    },
-    "./boat/redirect": {
-      "nexo-built": {
-        "types": "./src/shared/boat/pieces/redirect.ts",
-        "default": "./dist/shared/boat/pieces/redirect.js"
-      },
-      "default": "./src/shared/boat/pieces/redirect.ts"
-    },
-    "./boat/route": {
-      "nexo-built": {
-        "types": "./src/shared/boat/pieces/route.ts",
-        "default": "./dist/shared/boat/pieces/route.js"
-      },
-      "default": "./src/shared/boat/pieces/route.ts"
-    },
-    "./boat/router": {
-      "nexo-built": {
-        "types": "./src/shared/boat/pieces/router.ts",
-        "default": "./dist/shared/boat/pieces/router.js"
-      },
-      "default": "./src/shared/boat/pieces/router.ts"
+      "default": "./src/client/boat/pieces/*.ts"
     },
     "./bridge": "./src/server/bridge/index.ts",
     "./bridge/client": {
@@ -90,131 +48,12 @@
       },
       "default": "./src/shared/connector/index.ts"
     },
-    "./connector/batch": {
+    "./connector/*": {
       "nexo-built": {
-        "types": "./src/shared/connector/pieces/batch.ts",
-        "default": "./dist/shared/connector/pieces/batch.js"
+        "types": "./src/shared/connector/pieces/*.ts",
+        "default": "./dist/shared/connector/pieces/*.js"
       },
-      "default": "./src/shared/connector/pieces/batch.ts"
-    },
-    "./connector/computed": {
-      "nexo-built": {
-        "types": "./src/shared/connector/pieces/computed.ts",
-        "default": "./dist/shared/connector/pieces/computed.js"
-      },
-      "default": "./src/shared/connector/pieces/computed.ts"
-    },
-    "./connector/debounce": {
-      "nexo-built": {
-        "types": "./src/shared/connector/pieces/debounce.ts",
-        "default": "./dist/shared/connector/pieces/debounce.js"
-      },
-      "default": "./src/shared/connector/pieces/debounce.ts"
-    },
-    "./connector/debounced": {
-      "nexo-built": {
-        "types": "./src/shared/connector/pieces/debounced.ts",
-        "default": "./dist/shared/connector/pieces/debounced.js"
-      },
-      "default": "./src/shared/connector/pieces/debounced.ts"
-    },
-    "./connector/effect": {
-      "nexo-built": {
-        "types": "./src/shared/connector/pieces/effect.ts",
-        "default": "./dist/shared/connector/pieces/effect.js"
-      },
-      "default": "./src/shared/connector/pieces/effect.ts"
-    },
-    "./connector/event": {
-      "nexo-built": {
-        "types": "./src/shared/connector/pieces/event.ts",
-        "default": "./dist/shared/connector/pieces/event.js"
-      },
-      "default": "./src/shared/connector/pieces/event.ts"
-    },
-    "./connector/media-query": {
-      "nexo-built": {
-        "types": "./src/shared/connector/pieces/media-query.ts",
-        "default": "./dist/shared/connector/pieces/media-query.js"
-      },
-      "default": "./src/shared/connector/pieces/media-query.ts"
-    },
-    "./connector/resource": {
-      "nexo-built": {
-        "types": "./src/shared/connector/pieces/resource.ts",
-        "default": "./dist/shared/connector/pieces/resource.js"
-      },
-      "default": "./src/shared/connector/pieces/resource.ts"
-    },
-    "./connector/schedulers": {
-      "nexo-built": {
-        "types": "./src/shared/connector/pieces/schedulers.ts",
-        "default": "./dist/shared/connector/pieces/schedulers.js"
-      },
-      "default": "./src/shared/connector/pieces/schedulers.ts"
-    },
-    "./connector/signal": {
-      "nexo-built": {
-        "types": "./src/shared/connector/pieces/signal.ts",
-        "default": "./dist/shared/connector/pieces/signal.js"
-      },
-      "default": "./src/shared/connector/pieces/signal.ts"
-    },
-    "./connector/signal-array": {
-      "nexo-built": {
-        "types": "./src/shared/connector/pieces/signal-array.ts",
-        "default": "./dist/shared/connector/pieces/signal-array.js"
-      },
-      "default": "./src/shared/connector/pieces/signal-array.ts"
-    },
-    "./connector/signal-date": {
-      "nexo-built": {
-        "types": "./src/shared/connector/pieces/signal-date.ts",
-        "default": "./dist/shared/connector/pieces/signal-date.js"
-      },
-      "default": "./src/shared/connector/pieces/signal-date.ts"
-    },
-    "./connector/signal-map": {
-      "nexo-built": {
-        "types": "./src/shared/connector/pieces/signal-map.ts",
-        "default": "./dist/shared/connector/pieces/signal-map.js"
-      },
-      "default": "./src/shared/connector/pieces/signal-map.ts"
-    },
-    "./connector/signal-set": {
-      "nexo-built": {
-        "types": "./src/shared/connector/pieces/signal-set.ts",
-        "default": "./dist/shared/connector/pieces/signal-set.js"
-      },
-      "default": "./src/shared/connector/pieces/signal-set.ts"
-    },
-    "./connector/signal-url": {
-      "nexo-built": {
-        "types": "./src/shared/connector/pieces/signal-url.ts",
-        "default": "./dist/shared/connector/pieces/signal-url.js"
-      },
-      "default": "./src/shared/connector/pieces/signal-url.ts"
-    },
-    "./connector/snapshot": {
-      "nexo-built": {
-        "types": "./src/shared/connector/pieces/snapshot.ts",
-        "default": "./dist/shared/connector/pieces/snapshot.js"
-      },
-      "default": "./src/shared/connector/pieces/snapshot.ts"
-    },
-    "./connector/untrack": {
-      "nexo-built": {
-        "types": "./src/shared/connector/pieces/untrack.ts",
-        "default": "./dist/shared/connector/pieces/untrack.js"
-      },
-      "default": "./src/shared/connector/pieces/untrack.ts"
-    },
-    "./connector/watch": {
-      "nexo-built": {
-        "types": "./src/shared/connector/pieces/watch.ts",
-        "default": "./dist/shared/connector/pieces/watch.js"
-      },
-      "default": "./src/shared/connector/pieces/watch.ts"
+      "default": "./src/shared/connector/pieces/*.ts"
     },
     "./keep": "./src/server/keep/index.ts",
     "./omino": {
@@ -224,33 +63,19 @@
       },
       "default": "./src/shared/omino/index.ts"
     },
+    "./omino/*": {
+      "nexo-built": {
+        "types": "./src/shared/omino/pieces/*.ts",
+        "default": "./dist/shared/omino/pieces/*.js"
+      },
+      "default": "./src/shared/omino/pieces/*.ts"
+    },
     "./omino/client": {
       "nexo-built": {
         "types": "./src/client/omino/index.ts",
         "default": "./dist/client/omino/index.js"
       },
       "default": "./src/client/omino/index.ts"
-    },
-    "./omino/component": {
-      "nexo-built": {
-        "types": "./src/shared/omino/pieces/component.ts",
-        "default": "./dist/shared/omino/pieces/component.js"
-      },
-      "default": "./src/shared/omino/pieces/component.ts"
-    },
-    "./omino/css": {
-      "nexo-built": {
-        "types": "./src/shared/omino/pieces/css.ts",
-        "default": "./dist/shared/omino/pieces/css.js"
-      },
-      "default": "./src/shared/omino/pieces/css.ts"
-    },
-    "./omino/for": {
-      "nexo-built": {
-        "types": "./src/shared/omino/pieces/for.ts",
-        "default": "./dist/shared/omino/pieces/for.js"
-      },
-      "default": "./src/shared/omino/pieces/for.ts"
     },
     "./omino/jsx-dev-runtime": {
       "nexo-built": {
@@ -266,34 +91,6 @@
       },
       "default": "./src/shared/omino/jsx-runtime.ts"
     },
-    "./omino/raw": {
-      "nexo-built": {
-        "types": "./src/shared/omino/pieces/raw.ts",
-        "default": "./dist/shared/omino/pieces/raw.js"
-      },
-      "default": "./src/shared/omino/pieces/raw.ts"
-    },
-    "./omino/render": {
-      "nexo-built": {
-        "types": "./src/shared/omino/pieces/render.ts",
-        "default": "./dist/shared/omino/pieces/render.js"
-      },
-      "default": "./src/shared/omino/pieces/render.ts"
-    },
-    "./omino/segment": {
-      "nexo-built": {
-        "types": "./src/shared/omino/pieces/segment.ts",
-        "default": "./dist/shared/omino/pieces/segment.js"
-      },
-      "default": "./src/shared/omino/pieces/segment.ts"
-    },
-    "./omino/swap": {
-      "nexo-built": {
-        "types": "./src/shared/omino/pieces/swap.ts",
-        "default": "./dist/shared/omino/pieces/swap.js"
-      },
-      "default": "./src/shared/omino/pieces/swap.ts"
-    },
     "./panel": {
       "nexo-built": {
         "types": "./src/client/panel/index.ts",
@@ -301,250 +98,12 @@
       },
       "default": "./src/client/panel/index.ts"
     },
-    "./panel/accordion": {
+    "./panel/*": {
       "nexo-built": {
-        "types": "./src/client/panel/pieces/accordion.ts",
-        "default": "./dist/client/panel/pieces/accordion.js"
+        "types": "./src/client/panel/pieces/*.ts",
+        "default": "./dist/client/panel/pieces/*.js"
       },
-      "default": "./src/client/panel/pieces/accordion.ts"
-    },
-    "./panel/activity": {
-      "nexo-built": {
-        "types": "./src/client/panel/pieces/activity.ts",
-        "default": "./dist/client/panel/pieces/activity.js"
-      },
-      "default": "./src/client/panel/pieces/activity.ts"
-    },
-    "./panel/carousel": {
-      "nexo-built": {
-        "types": "./src/client/panel/pieces/carousel.ts",
-        "default": "./dist/client/panel/pieces/carousel.js"
-      },
-      "default": "./src/client/panel/pieces/carousel.ts"
-    },
-    "./panel/close-top": {
-      "nexo-built": {
-        "types": "./src/client/panel/pieces/close-top.ts",
-        "default": "./dist/client/panel/pieces/close-top.js"
-      },
-      "default": "./src/client/panel/pieces/close-top.ts"
-    },
-    "./panel/combobox": {
-      "nexo-built": {
-        "types": "./src/client/panel/pieces/combobox.ts",
-        "default": "./dist/client/panel/pieces/combobox.js"
-      },
-      "default": "./src/client/panel/pieces/combobox.ts"
-    },
-    "./panel/confirm-on-hold": {
-      "nexo-built": {
-        "types": "./src/client/panel/pieces/confirm-on-hold.ts",
-        "default": "./dist/client/panel/pieces/confirm-on-hold.js"
-      },
-      "default": "./src/client/panel/pieces/confirm-on-hold.ts"
-    },
-    "./panel/core": {
-      "nexo-built": {
-        "types": "./src/client/panel/pieces/core.ts",
-        "default": "./dist/client/panel/pieces/core.js"
-      },
-      "default": "./src/client/panel/pieces/core.ts"
-    },
-    "./panel/decode": {
-      "nexo-built": {
-        "types": "./src/client/panel/pieces/decode.ts",
-        "default": "./dist/client/panel/pieces/decode.js"
-      },
-      "default": "./src/client/panel/pieces/decode.ts"
-    },
-    "./panel/dialog": {
-      "nexo-built": {
-        "types": "./src/client/panel/pieces/dialog.ts",
-        "default": "./dist/client/panel/pieces/dialog.js"
-      },
-      "default": "./src/client/panel/pieces/dialog.ts"
-    },
-    "./panel/drag": {
-      "nexo-built": {
-        "types": "./src/client/panel/pieces/drag.ts",
-        "default": "./dist/client/panel/pieces/drag.js"
-      },
-      "default": "./src/client/panel/pieces/drag.ts"
-    },
-    "./panel/feed": {
-      "nexo-built": {
-        "types": "./src/client/panel/pieces/feed.ts",
-        "default": "./dist/client/panel/pieces/feed.js"
-      },
-      "default": "./src/client/panel/pieces/feed.ts"
-    },
-    "./panel/focusgroup": {
-      "nexo-built": {
-        "types": "./src/client/panel/pieces/focusgroup.ts",
-        "default": "./dist/client/panel/pieces/focusgroup.js"
-      },
-      "default": "./src/client/panel/pieces/focusgroup.ts"
-    },
-    "./panel/gesture": {
-      "nexo-built": {
-        "types": "./src/client/panel/pieces/gesture.ts",
-        "default": "./dist/client/panel/pieces/gesture.js"
-      },
-      "default": "./src/client/panel/pieces/gesture.ts"
-    },
-    "./panel/grid": {
-      "nexo-built": {
-        "types": "./src/client/panel/pieces/grid.ts",
-        "default": "./dist/client/panel/pieces/grid.js"
-      },
-      "default": "./src/client/panel/pieces/grid.ts"
-    },
-    "./panel/hover-intent": {
-      "nexo-built": {
-        "types": "./src/client/panel/pieces/hover-intent.ts",
-        "default": "./dist/client/panel/pieces/hover-intent.js"
-      },
-      "default": "./src/client/panel/pieces/hover-intent.ts"
-    },
-    "./panel/indicator": {
-      "nexo-built": {
-        "types": "./src/client/panel/pieces/indicator.ts",
-        "default": "./dist/client/panel/pieces/indicator.js"
-      },
-      "default": "./src/client/panel/pieces/indicator.ts"
-    },
-    "./panel/keymap": {
-      "nexo-built": {
-        "types": "./src/client/panel/pieces/keymap.ts",
-        "default": "./dist/client/panel/pieces/keymap.js"
-      },
-      "default": "./src/client/panel/pieces/keymap.ts"
-    },
-    "./panel/listbox": {
-      "nexo-built": {
-        "types": "./src/client/panel/pieces/listbox.ts",
-        "default": "./dist/client/panel/pieces/listbox.js"
-      },
-      "default": "./src/client/panel/pieces/listbox.ts"
-    },
-    "./panel/menu": {
-      "nexo-built": {
-        "types": "./src/client/panel/pieces/menu.ts",
-        "default": "./dist/client/panel/pieces/menu.js"
-      },
-      "default": "./src/client/panel/pieces/menu.ts"
-    },
-    "./panel/parallax": {
-      "nexo-built": {
-        "types": "./src/client/panel/pieces/parallax.ts",
-        "default": "./dist/client/panel/pieces/parallax.js"
-      },
-      "default": "./src/client/panel/pieces/parallax.ts"
-    },
-    "./panel/params": {
-      "nexo-built": {
-        "types": "./src/client/panel/pieces/params.ts",
-        "default": "./dist/client/panel/pieces/params.js"
-      },
-      "default": "./src/client/panel/pieces/params.ts"
-    },
-    "./panel/pinch": {
-      "nexo-built": {
-        "types": "./src/client/panel/pieces/pinch.ts",
-        "default": "./dist/client/panel/pieces/pinch.js"
-      },
-      "default": "./src/client/panel/pieces/pinch.ts"
-    },
-    "./panel/press-hold": {
-      "nexo-built": {
-        "types": "./src/client/panel/pieces/press-hold.ts",
-        "default": "./dist/client/panel/pieces/press-hold.js"
-      },
-      "default": "./src/client/panel/pieces/press-hold.ts"
-    },
-    "./panel/replay": {
-      "nexo-built": {
-        "types": "./src/client/panel/pieces/replay.ts",
-        "default": "./dist/client/panel/pieces/replay.js"
-      },
-      "default": "./src/client/panel/pieces/replay.ts"
-    },
-    "./panel/reveal": {
-      "nexo-built": {
-        "types": "./src/client/panel/pieces/reveal.ts",
-        "default": "./dist/client/panel/pieces/reveal.js"
-      },
-      "default": "./src/client/panel/pieces/reveal.ts"
-    },
-    "./panel/sequence": {
-      "nexo-built": {
-        "types": "./src/client/panel/pieces/sequence.ts",
-        "default": "./dist/client/panel/pieces/sequence.js"
-      },
-      "default": "./src/client/panel/pieces/sequence.ts"
-    },
-    "./panel/slider": {
-      "nexo-built": {
-        "types": "./src/client/panel/pieces/slider.ts",
-        "default": "./dist/client/panel/pieces/slider.js"
-      },
-      "default": "./src/client/panel/pieces/slider.ts"
-    },
-    "./panel/splitter": {
-      "nexo-built": {
-        "types": "./src/client/panel/pieces/splitter.ts",
-        "default": "./dist/client/panel/pieces/splitter.js"
-      },
-      "default": "./src/client/panel/pieces/splitter.ts"
-    },
-    "./panel/switch": {
-      "nexo-built": {
-        "types": "./src/client/panel/pieces/switch.ts",
-        "default": "./dist/client/panel/pieces/switch.js"
-      },
-      "default": "./src/client/panel/pieces/switch.ts"
-    },
-    "./panel/tabs": {
-      "nexo-built": {
-        "types": "./src/client/panel/pieces/tabs.ts",
-        "default": "./dist/client/panel/pieces/tabs.js"
-      },
-      "default": "./src/client/panel/pieces/tabs.ts"
-    },
-    "./panel/toast": {
-      "nexo-built": {
-        "types": "./src/client/panel/pieces/toast.ts",
-        "default": "./dist/client/panel/pieces/toast.js"
-      },
-      "default": "./src/client/panel/pieces/toast.ts"
-    },
-    "./panel/tokens": {
-      "nexo-built": {
-        "types": "./src/client/panel/pieces/tokens.ts",
-        "default": "./dist/client/panel/pieces/tokens.js"
-      },
-      "default": "./src/client/panel/pieces/tokens.ts"
-    },
-    "./panel/tooltip": {
-      "nexo-built": {
-        "types": "./src/client/panel/pieces/tooltip.ts",
-        "default": "./dist/client/panel/pieces/tooltip.js"
-      },
-      "default": "./src/client/panel/pieces/tooltip.ts"
-    },
-    "./panel/tree": {
-      "nexo-built": {
-        "types": "./src/client/panel/pieces/tree.ts",
-        "default": "./dist/client/panel/pieces/tree.js"
-      },
-      "default": "./src/client/panel/pieces/tree.ts"
-    },
-    "./panel/typewriter": {
-      "nexo-built": {
-        "types": "./src/client/panel/pieces/typewriter.ts",
-        "default": "./dist/client/panel/pieces/typewriter.js"
-      },
-      "default": "./src/client/panel/pieces/typewriter.ts"
+      "default": "./src/client/panel/pieces/*.ts"
     },
     "./quarry": {
       "nexo-built": {
@@ -560,54 +119,12 @@
       },
       "default": "./src/shared/terminal/index.ts"
     },
-    "./terminal/client": {
+    "./terminal/*": {
       "nexo-built": {
-        "types": "./src/shared/terminal/pieces/client.ts",
-        "default": "./dist/shared/terminal/pieces/client.js"
+        "types": "./src/shared/terminal/pieces/*.ts",
+        "default": "./dist/shared/terminal/pieces/*.js"
       },
-      "default": "./src/shared/terminal/pieces/client.ts"
-    },
-    "./terminal/errors": {
-      "nexo-built": {
-        "types": "./src/shared/terminal/pieces/errors.ts",
-        "default": "./dist/shared/terminal/pieces/errors.js"
-      },
-      "default": "./src/shared/terminal/pieces/errors.ts"
-    },
-    "./terminal/http": {
-      "nexo-built": {
-        "types": "./src/shared/terminal/pieces/http.ts",
-        "default": "./dist/shared/terminal/pieces/http.js"
-      },
-      "default": "./src/shared/terminal/pieces/http.ts"
-    },
-    "./terminal/server": {
-      "nexo-built": {
-        "types": "./src/shared/terminal/pieces/server.ts",
-        "default": "./dist/shared/terminal/pieces/server.js"
-      },
-      "default": "./src/shared/terminal/pieces/server.ts"
-    },
-    "./terminal/tauri": {
-      "nexo-built": {
-        "types": "./src/shared/terminal/pieces/tauri.ts",
-        "default": "./dist/shared/terminal/pieces/tauri.js"
-      },
-      "default": "./src/shared/terminal/pieces/tauri.ts"
-    },
-    "./terminal/terminal": {
-      "nexo-built": {
-        "types": "./src/shared/terminal/pieces/terminal.ts",
-        "default": "./dist/shared/terminal/pieces/terminal.js"
-      },
-      "default": "./src/shared/terminal/pieces/terminal.ts"
-    },
-    "./terminal/validators": {
-      "nexo-built": {
-        "types": "./src/shared/terminal/pieces/validators.ts",
-        "default": "./dist/shared/terminal/pieces/validators.js"
-      },
-      "default": "./src/shared/terminal/pieces/validators.ts"
+      "default": "./src/shared/terminal/pieces/*.ts"
     },
     "./theater": {
       "nexo-built": {
@@ -616,203 +133,12 @@
       },
       "default": "./src/client/theater/index.ts"
     },
-    "./theater/animate": {
+    "./theater/*": {
       "nexo-built": {
-        "types": "./src/client/theater/animate.ts",
-        "default": "./dist/client/theater/animate.js"
+        "types": "./src/client/theater/pieces/*.ts",
+        "default": "./dist/client/theater/pieces/*.js"
       },
-      "default": "./src/client/theater/animate.ts"
-    },
-    "./theater/drag": {
-      "nexo-built": {
-        "types": "./src/client/theater/drag.ts",
-        "default": "./dist/client/theater/drag.js"
-      },
-      "default": "./src/client/theater/drag.ts"
-    },
-    "./theater/easing": {
-      "nexo-built": {
-        "types": "./src/shared/theater/easing/index.ts",
-        "default": "./dist/shared/theater/easing/index.js"
-      },
-      "default": "./src/shared/theater/easing/index.ts"
-    },
-    "./theater/easing/back": {
-      "nexo-built": {
-        "types": "./src/shared/theater/easing/back.ts",
-        "default": "./dist/shared/theater/easing/back.js"
-      },
-      "default": "./src/shared/theater/easing/back.ts"
-    },
-    "./theater/easing/bounce": {
-      "nexo-built": {
-        "types": "./src/shared/theater/easing/bounce.ts",
-        "default": "./dist/shared/theater/easing/bounce.js"
-      },
-      "default": "./src/shared/theater/easing/bounce.ts"
-    },
-    "./theater/easing/circ": {
-      "nexo-built": {
-        "types": "./src/shared/theater/easing/circ.ts",
-        "default": "./dist/shared/theater/easing/circ.js"
-      },
-      "default": "./src/shared/theater/easing/circ.ts"
-    },
-    "./theater/easing/cubic": {
-      "nexo-built": {
-        "types": "./src/shared/theater/easing/cubic.ts",
-        "default": "./dist/shared/theater/easing/cubic.js"
-      },
-      "default": "./src/shared/theater/easing/cubic.ts"
-    },
-    "./theater/easing/elastic": {
-      "nexo-built": {
-        "types": "./src/shared/theater/easing/elastic.ts",
-        "default": "./dist/shared/theater/easing/elastic.js"
-      },
-      "default": "./src/shared/theater/easing/elastic.ts"
-    },
-    "./theater/easing/expo": {
-      "nexo-built": {
-        "types": "./src/shared/theater/easing/expo.ts",
-        "default": "./dist/shared/theater/easing/expo.js"
-      },
-      "default": "./src/shared/theater/easing/expo.ts"
-    },
-    "./theater/easing/quad": {
-      "nexo-built": {
-        "types": "./src/shared/theater/easing/quad.ts",
-        "default": "./dist/shared/theater/easing/quad.js"
-      },
-      "default": "./src/shared/theater/easing/quad.ts"
-    },
-    "./theater/easing/quart": {
-      "nexo-built": {
-        "types": "./src/shared/theater/easing/quart.ts",
-        "default": "./dist/shared/theater/easing/quart.js"
-      },
-      "default": "./src/shared/theater/easing/quart.ts"
-    },
-    "./theater/easing/quint": {
-      "nexo-built": {
-        "types": "./src/shared/theater/easing/quint.ts",
-        "default": "./dist/shared/theater/easing/quint.js"
-      },
-      "default": "./src/shared/theater/easing/quint.ts"
-    },
-    "./theater/easing/sine": {
-      "nexo-built": {
-        "types": "./src/shared/theater/easing/sine.ts",
-        "default": "./dist/shared/theater/easing/sine.js"
-      },
-      "default": "./src/shared/theater/easing/sine.ts"
-    },
-    "./theater/finished": {
-      "nexo-built": {
-        "types": "./src/client/theater/finished.ts",
-        "default": "./dist/client/theater/finished.js"
-      },
-      "default": "./src/client/theater/finished.ts"
-    },
-    "./theater/flashes": "./src/shared/theater/flashes-measured.ts",
-    "./theater/flashes-predicted": {
-      "nexo-built": {
-        "types": "./src/client/theater/flashes.ts",
-        "default": "./dist/client/theater/flashes.js"
-      },
-      "default": "./src/client/theater/flashes.ts"
-    },
-    "./theater/follow": {
-      "nexo-built": {
-        "types": "./src/client/theater/follow.ts",
-        "default": "./dist/client/theater/follow.js"
-      },
-      "default": "./src/client/theater/follow.ts"
-    },
-    "./theater/in-view": {
-      "nexo-built": {
-        "types": "./src/client/theater/in-view.ts",
-        "default": "./dist/client/theater/in-view.js"
-      },
-      "default": "./src/client/theater/in-view.ts"
-    },
-    "./theater/layout": {
-      "nexo-built": {
-        "types": "./src/client/theater/layout.ts",
-        "default": "./dist/client/theater/layout.js"
-      },
-      "default": "./src/client/theater/layout.ts"
-    },
-    "./theater/parallax": {
-      "nexo-built": {
-        "types": "./src/client/theater/parallax.ts",
-        "default": "./dist/client/theater/parallax.js"
-      },
-      "default": "./src/client/theater/parallax.ts"
-    },
-    "./theater/pinch": {
-      "nexo-built": {
-        "types": "./src/client/theater/pinch.ts",
-        "default": "./dist/client/theater/pinch.js"
-      },
-      "default": "./src/client/theater/pinch.ts"
-    },
-    "./theater/reduce": {
-      "nexo-built": {
-        "types": "./src/client/theater/reduce.ts",
-        "default": "./dist/client/theater/reduce.js"
-      },
-      "default": "./src/client/theater/reduce.ts"
-    },
-    "./theater/scroll": {
-      "nexo-built": {
-        "types": "./src/client/theater/scroll.ts",
-        "default": "./dist/client/theater/scroll.js"
-      },
-      "default": "./src/client/theater/scroll.ts"
-    },
-    "./theater/scroll-to": {
-      "nexo-built": {
-        "types": "./src/client/theater/scroll-to.ts",
-        "default": "./dist/client/theater/scroll-to.js"
-      },
-      "default": "./src/client/theater/scroll-to.ts"
-    },
-    "./theater/smooth-wheel": {
-      "nexo-built": {
-        "types": "./src/client/theater/smooth-wheel.ts",
-        "default": "./dist/client/theater/smooth-wheel.js"
-      },
-      "default": "./src/client/theater/smooth-wheel.ts"
-    },
-    "./theater/speed": {
-      "nexo-built": {
-        "types": "./src/client/theater/speed.ts",
-        "default": "./dist/client/theater/speed.js"
-      },
-      "default": "./src/client/theater/speed.ts"
-    },
-    "./theater/stagger": {
-      "nexo-built": {
-        "types": "./src/shared/theater/stagger.ts",
-        "default": "./dist/shared/theater/stagger.js"
-      },
-      "default": "./src/shared/theater/stagger.ts"
-    },
-    "./theater/test-clock": "./src/shared/theater/test-clock.ts",
-    "./theater/tween": {
-      "nexo-built": {
-        "types": "./src/client/theater/tween.ts",
-        "default": "./dist/client/theater/tween.js"
-      },
-      "default": "./src/client/theater/tween.ts"
-    },
-    "./theater/view": {
-      "nexo-built": {
-        "types": "./src/client/theater/view.ts",
-        "default": "./dist/client/theater/view.js"
-      },
-      "default": "./src/client/theater/view.ts"
+      "default": "./src/client/theater/pieces/*.ts"
     },
     "./voices": {
       "nexo-built": {
