@@ -22,7 +22,7 @@ export type PropertyName<D> = {
 export function resolve<D>(
   source: Defined<D>,
   { colorScheme }: { readonly colorScheme: ColorScheme },
-): Resolved<D> {
+): ResolvedTokens<D> {
   const set = source[DEFINITION]
   if (set.colorScheme && set.colorScheme !== colorScheme)
     throw new Error(
@@ -30,11 +30,14 @@ export function resolve<D>(
     )
   const resolver = new Resolver(set, colorScheme)
   const values = set.properties().map((p) => [p, resolver.value(p)])
-  return new Resolved(Object.freeze(Object.fromEntries(values)), colorScheme)
+  return new ResolvedTokens(
+    Object.freeze(Object.fromEntries(values)),
+    colorScheme,
+  )
 }
 
 /** What `resolve` gives: the values, and the CSS that sets them elsewhere. */
-export class Resolved<D> {
+export class ResolvedTokens<D> {
   constructor(
     readonly values: Readonly<Record<PropertyName<D>, string>>,
     readonly colorScheme: ColorScheme,
