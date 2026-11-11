@@ -7,5 +7,6 @@ export type { PanelRegistry } from '../registry' // made by registry() (audit it
 export type { Markup, PanelParams } from '../registry'
 export { panel } from '../panel'
 export type { EventHandler, Panel, PanelOptions } from '../panel'
-export { boolean, json, number, oneOf, string } from '../params'
+// The parsers themselves are only `panel/params`, for a namespace import:
+// a flat `number` would collide with terminal's and the app's own.
 export type { Param, ParamsOf } from '../params'

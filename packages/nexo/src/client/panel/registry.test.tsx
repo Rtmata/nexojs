@@ -1,16 +1,17 @@
 import { describe, expect, test } from 'bun:test'
 import { renderToString } from '../../shared/omino/render'
-import { boolean, json, number, oneOf, panel, registry } from './index'
+import { panel, registry } from './index'
+import * as param from './pieces/params'
 
 const gallery = panel({
   params: {
-    start: number(0),
-    loop: boolean(),
-    shots: json<string[]>([]),
-    side: oneOf(['left', 'right'], 'left'),
+    start: param.number(0),
+    loop: param.boolean(),
+    shots: param.json<string[]>([]),
+    side: param.oneOf(['left', 'right'], 'left'),
   },
 })
-const tabs = panel({ params: { open: number(0) } })
+const tabs = panel({ params: { open: param.number(0) } })
 const panels = registry({ gallery, tabs })
 
 describe('typed server markup (R.23)', () => {
@@ -73,7 +74,7 @@ describe('typed server markup (R.23)', () => {
 describe('values that are not given', () => {
   test('an undefined value writes nothing, never the text "undefined"', () => {
     const panels = registry({
-      gallery: panel({ params: { start: number(0) } }),
+      gallery: panel({ params: { start: param.number(0) } }),
     })
     expect(panels.markup('gallery', { start: undefined })).toEqual({
       'data-panel': 'gallery',
@@ -84,7 +85,7 @@ describe('values that are not given', () => {
 describe('numbers that are not numbers', () => {
   test('a non-finite number is left out, so the fallback applies', () => {
     const panels = registry({
-      splitter: panel({ params: { max: number(Infinity) } }),
+      splitter: panel({ params: { max: param.number(Infinity) } }),
     })
     expect(panels.markup('splitter', { max: Infinity })).toEqual({
       'data-panel': 'splitter',

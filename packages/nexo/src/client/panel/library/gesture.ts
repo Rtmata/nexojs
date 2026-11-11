@@ -125,5 +125,3 @@ function directionOf(horizontal: boolean, delta: number): string {
   if (horizontal) return delta < 0 ? 'left' : 'right'
   return delta < 0 ? 'up' : 'down'
 }
-
-export { speed }

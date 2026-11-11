@@ -7,6 +7,8 @@ export * from './pieces/client'
 export * from './pieces/terminal'
 export * from './pieces/errors'
 export * from './pieces/http'
-export * from './pieces/validators'
+// The validators are only `terminal/validators`, for a namespace import:
+// a flat `number` would collide with panel's and the app's own.
+export type { Issue, Output, StandardSchemaV1 } from './pieces/validators'
 export * from './pieces/server'
 export * from './pieces/tauri'

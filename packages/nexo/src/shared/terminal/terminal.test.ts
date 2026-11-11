@@ -1,20 +1,8 @@
 import { describe, expect, mock, spyOn, test } from 'bun:test'
 import { keep } from '../../server/keep'
 import { boat } from '../boat'
-import {
-  array,
-  CommandError,
-  http,
-  isCommandError,
-  number,
-  object,
-  oneOf,
-  optional,
-  string,
-  tauri,
-  terminal,
-  custom,
-} from './index'
+import { CommandError, http, isCommandError, tauri, terminal } from './index'
+import * as v from './pieces/validators'
 import { describe as describeIssue } from './client'
 import { check } from './schema'
 
@@ -22,14 +10,17 @@ type Book = { id: number; title: string }
 
 const api = terminal({
   book: {
-    args: object({ id: number() }),
-    result: custom<Book>(),
+    args: v.object({ id: v.number() }),
+    result: v.custom<Book>(),
     errors: { notFound: { status: 404 } },
     read: true,
   },
   save: {
-    args: object({ title: string(), tags: optional(array(string())) }),
-    result: custom<Book>(),
+    args: v.object({
+      title: v.string(),
+      tags: v.optional(v.array(v.string())),
+    }),
+    result: v.custom<Book>(),
   },
   boom: {},
 })
@@ -61,10 +52,10 @@ const commands = api.client(http({ fetch: viaKeep }))
 
 describe('validators (Standard Schema)', () => {
   test('issues carry their path; unknown keys are dropped', () => {
-    const s = object({
-      id: number(),
-      tags: array(string()),
-      side: oneOf(['l', 'r']),
+    const s = v.object({
+      id: v.number(),
+      tags: v.array(v.string()),
+      side: v.oneOf(['l', 'r']),
     })
     expect(check(s, { id: 'x', tags: ['a', 2], side: 'up', extra: 1 })).toEqual(
       {
@@ -81,7 +72,10 @@ describe('validators (Standard Schema)', () => {
   })
 
   test('the interface others implement', () => {
-    expect(number()['~standard']).toMatchObject({ version: 1, vendor: 'nexo' })
+    expect(v.number()['~standard']).toMatchObject({
+      version: 1,
+      vendor: 'nexo',
+    })
   })
 })
 

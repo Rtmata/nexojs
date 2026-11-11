@@ -1,20 +1,17 @@
 /** The scenarios of panel.browser.test.ts, run inside each browser. */
 import * as connector from '../../shared/connector/index'
 import { mount } from '../omino/index'
-import {
-  attach,
-  boolean,
-  json,
-  number,
-  observe,
-  panel,
-  registry,
-} from './index'
+import { attach, observe, panel, registry } from './index'
+import * as param from './pieces/params'
 
 const log: string[] = []
 
 const gallery = panel({
-  params: { start: number(0), loop: boolean(), shots: json<string[]>([]) },
+  params: {
+    start: param.number(0),
+    loop: param.boolean(),
+    shots: param.json<string[]>([]),
+  },
   connect: (el, params, { signal }) => {
     log.push(`connect ${params.start} ${params.loop} ${params.shots.length}`)
     el.setAttribute('data-connected', '')
