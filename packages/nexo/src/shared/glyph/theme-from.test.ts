@@ -45,11 +45,38 @@ describe('themeFrom (C.4)', () => {
     expect(result).toEqual({
       ok: false,
       errors: [
-        'color.primry: no such token; did you mean color.primary?',
-        'color.surface: "#12" is not a colour glyph can read; write hex, rgb(), hsl(), oklch(), oklab() or a CSS colour name',
-        'color.text: 5 is not a colour',
-        'colour: no such token group; did you mean color?',
-        'duration.fast: "150ms" is not milliseconds as a number, such as 150',
+        {
+          path: 'color.primry',
+          code: 'unknownToken',
+          data: { name: 'primry', suggestion: 'primary' },
+          message: 'color.primry: no such token; did you mean color.primary?',
+        },
+        {
+          path: 'color.surface',
+          code: 'notAColor',
+          data: { value: '#12' },
+          message:
+            'color.surface: "#12" is not a colour glyph can read; write hex, rgb(), hsl(), oklch(), oklab() or a CSS colour name',
+        },
+        {
+          path: 'color.text',
+          code: 'notAColor',
+          data: { value: 5 },
+          message: 'color.text: 5 is not a colour',
+        },
+        {
+          path: 'colour',
+          code: 'unknownGroup',
+          data: { name: 'colour', suggestion: 'color' },
+          message: 'colour: no such token group; did you mean color?',
+        },
+        {
+          path: 'duration.fast',
+          code: 'wrongKind',
+          data: { value: '150ms', expected: 'duration' },
+          message:
+            'duration.fast: "150ms" is not milliseconds as a number, such as 150',
+        },
       ],
     })
   })
@@ -62,8 +89,20 @@ describe('themeFrom (C.4)', () => {
     expect(result).toEqual({
       ok: false,
       errors: [
-        'color.text: "var(--color-primary)" is a token, not a colour; colour maths needs the colour itself',
-        'color.surface: "currentColor" is not a colour glyph can read; write hex, rgb(), hsl(), oklch(), oklab() or a CSS colour name',
+        {
+          path: 'color.text',
+          code: 'isAReference',
+          data: { value: 'var(--color-primary)' },
+          message:
+            'color.text: "var(--color-primary)" is a token, not a colour; colour maths needs the colour itself',
+        },
+        {
+          path: 'color.surface',
+          code: 'notAColor',
+          data: { value: 'currentColor' },
+          message:
+            'color.surface: "currentColor" is not a colour glyph can read; write hex, rgb(), hsl(), oklch(), oklab() or a CSS colour name',
+        },
       ],
     })
   })
@@ -76,7 +115,12 @@ describe('themeFrom (C.4)', () => {
     expect(result).toEqual({
       ok: false,
       errors: [
-        `space.m: "1rem } body { display: none" can't be a CSS value here: ; { } < > \\, line breaks and unclosed quotes aren't allowed`,
+        {
+          path: 'space.m',
+          code: 'unsafeText',
+          data: { value: '1rem } body { display: none' },
+          message: `space.m: "1rem } body { display: none" can't be a CSS value here: ; { } < > \\, line breaks and unclosed quotes aren't allowed`,
+        },
       ],
     })
   })
@@ -88,7 +132,14 @@ describe('themeFrom (C.4)', () => {
     })
     expect(result).toEqual({
       ok: false,
-      errors: ['on-primary on primary: 1.8:1, needs 4.5:1'],
+      errors: [
+        {
+          path: 'color.on-primary',
+          code: 'lowContrast',
+          data: { background: 'color.primary', ratio: 1.8, required: 4.5 },
+          message: 'on-primary on primary: 1.8:1, needs 4.5:1',
+        },
+      ],
     })
   })
 
@@ -100,7 +151,13 @@ describe('themeFrom (C.4)', () => {
     expect(result).toEqual({
       ok: false,
       errors: [
-        'on-primary on primary: "rgb(255 255 255 / 50%)" is translucent; contrast needs opaque colours, since what shows through changes it',
+        {
+          path: 'color.on-primary',
+          code: 'translucent',
+          data: { value: 'rgb(255 255 255 / 50%)' },
+          message:
+            'on-primary on primary: "rgb(255 255 255 / 50%)" is translucent; contrast needs opaque colours, since what shows through changes it',
+        },
       ],
     })
   })
@@ -109,16 +166,69 @@ describe('themeFrom (C.4)', () => {
     expect(themeFrom(tokens, { colorScheme: 'dim' })).toEqual({
       ok: false,
       errors: [
-        `name: undefined can't be a theme name; write some text, such as "night"`,
-        'colorScheme: "dim" is not "light", "dark" or "inherit"',
+        {
+          path: 'name',
+          code: 'badName',
+          data: { value: undefined },
+          message: `name: undefined can't be a theme name; write some text, such as "night"`,
+        },
+        {
+          path: 'colorScheme',
+          code: 'badColorScheme',
+          data: { value: 'dim', allowed: ['light', 'dark', 'inherit'] },
+          message: 'colorScheme: "dim" is not "light", "dark" or "inherit"',
+        },
       ],
+    })
+  })
+
+  test('a pair measured in both schemes says which; a group that is not an object', () => {
+    const dual = defineTokens(
+      {
+        color: {
+          text: { light: '#222', dark: '#eee' },
+          surface: { light: '#fff', dark: '#111' },
+        },
+      },
+      { contrastChecks: [['text', 'surface', 'text']] },
+    )
+    expect(
+      themeFrom(dual, {
+        name: 'dim',
+        color: { text: { light: '#222', dark: '#444' } },
+      }),
+    ).toEqual({
+      ok: false,
+      errors: [
+        {
+          path: 'color.text',
+          code: 'lowContrast',
+          data: {
+            background: 'color.surface',
+            scheme: 'dark',
+            ratio: 1.93,
+            required: 4.5,
+          },
+          message: 'text on surface (dark): 1.93:1, needs 4.5:1',
+        },
+      ],
+    })
+    expect(themeFrom(dual, { name: 'x', color: 'red' })).toMatchObject({
+      errors: [{ path: 'color', code: 'notAnObject', data: { value: 'red' } }],
     })
   })
 
   test('JSON that is not an object', () => {
     expect(themeFrom(tokens, ['sea'])).toEqual({
       ok: false,
-      errors: ['theme: ["sea"] is not an object'],
+      errors: [
+        {
+          path: '',
+          code: 'notAnObject',
+          data: { value: ['sea'] },
+          message: 'theme: ["sea"] is not an object',
+        },
+      ],
     })
   })
 })

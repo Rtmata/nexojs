@@ -1,11 +1,12 @@
 import { didYouMean } from './closest'
-import { checkPair, REQUIRED_RATIO } from './color/contrast'
+import { checkPair, REQUIRED_RATIO, TranslucentColor } from './color/contrast'
 import { Resolver } from './resolver'
+import type { ThemeError } from './theme-error'
 import type { ColorScheme, ContrastCheck, TokenSet } from './token-set'
 
-/** One side of a pair, resolved in a scheme; `label` names the scheme when it matters. */
+/** Both sides of a pair, resolved in a scheme; none when it is the same in both. */
 interface Measured {
-  readonly label: string
+  readonly scheme: ColorScheme | undefined
   readonly foreground: string
   readonly background: string
 }
@@ -59,12 +60,20 @@ function colorGroups(set: TokenSet): string[] {
 }
 
 /**
- * The pairs that fall short, one line each, with the ratio and what the
- * use needs: `on-primary on primary: 3.9:1, needs 4.5:1`. A pair is
- * measured in each scheme where its colours differ.
+ * The pairs that fall short, one each, with the ratio and what the use
+ * needs: `on-primary on primary: 3.9:1, needs 4.5:1`. A pair is measured in
+ * each scheme where its colours differ. A colour that can't be measured for
+ * another reason than being translucent (a reference that leads nowhere, a
+ * `color-mix()`) comes from code, never from a person's JSON: it is a line
+ * of text, for the error `defineTokens` and `defineTheme` throw.
  */
-export function contrastShortfalls(set: TokenSet): string[] {
-  return set.checks.flatMap((check) => new PairMeasure(set, check).lines())
+export function contrastShortfalls(set: TokenSet): (ThemeError | string)[] {
+  return set.checks.flatMap((check) => new PairMeasure(set, check).errors())
+}
+
+/** A shortfall's line: its message, or the text it already is. */
+export function lineOf(shortfall: ThemeError | string): string {
+  return typeof shortfall === 'string' ? shortfall : shortfall.message
 }
 
 /** One pair of one set, in each scheme it can show. */
@@ -74,49 +83,85 @@ class PairMeasure {
     private readonly check: ContrastCheck,
   ) {}
 
-  /** A line per shortfall; a colour that can't be measured is a line too. */
-  lines(): string[] {
+  errors(): (ThemeError | string)[] {
     try {
       return this.measured().flatMap((m) => this.shortfall(m))
     } catch (error) {
-      return [
-        `${this.pair()}: ${(error as Error).message.replace(/^glyph: /, '')}`,
-      ]
+      if (error instanceof TranslucentColor) return [this.translucent(error)]
+      return [`${this.pair()}: ${unprefixed(error)}`]
     }
   }
 
   /** Both schemes, or one when the theme fixes it or the colours are the same in both. */
   private measured(): Measured[] {
     const fixed = this.set.fixedScheme()
-    if (fixed) return [this.in(fixed, '')]
-    const [light, dark] = [
-      this.in('light', ' (light)'),
-      this.in('dark', ' (dark)'),
-    ]
+    if (fixed) return [{ ...this.in(fixed), scheme: undefined }]
+    const [light, dark] = [this.in('light'), this.in('dark')]
     const same =
       light.foreground === dark.foreground &&
       light.background === dark.background
-    return same ? [{ ...light, label: '' }] : [light, dark]
+    return same ? [{ ...light, scheme: undefined }] : [light, dark]
   }
 
-  private in(scheme: ColorScheme, label: string): Measured {
+  private in(scheme: ColorScheme): Measured {
     const resolver = new Resolver(this.set, scheme)
     const [foreground, background] = [this.check[0], this.check[1]].map(
       (name) => resolver.value(propertyOf(name)),
     )
-    return { label, foreground: foreground!, background: background! }
+    return { scheme, foreground: foreground!, background: background! }
   }
 
-  private shortfall({ label, foreground, background }: Measured): string[] {
+  private shortfall({
+    scheme,
+    foreground,
+    background,
+  }: Measured): ThemeError[] {
     const measure = checkPair(foreground, background, this.check[2])
     if (measure.passes) return []
     const ratio = Math.floor(measure.ratio * 100) / 100 // never shown higher than it is
-    return [`${this.pair()}${label}: ${ratio}:1, needs ${measure.required}:1`]
+    const { required } = measure
+    const label = scheme ? ` (${scheme})` : ''
+    const message = `${this.pair()}${label}: ${ratio}:1, needs ${required}:1`
+    const data = {
+      background: pathOf(this.check[1]),
+      ratio,
+      required,
+      ...(scheme ? { scheme } : {}),
+    }
+    return [{ path: pathOf(this.check[0]), code: 'lowContrast', data, message }]
+  }
+
+  /** The translucent side is where to fix it. */
+  private translucent(error: TranslucentColor): ThemeError {
+    const { value } = error
+    const message = `${this.pair()}: ${unprefixed(error)}`
+    const side = this.sideShowing(value)
+    return { path: pathOf(side), code: 'translucent', data: { value }, message }
+  }
+
+  /** Which of the pair's names resolves to `value`, in either scheme. */
+  private sideShowing(value: string): string {
+    const schemes: ColorScheme[] = ['light', 'dark']
+    const shows = (name: string) =>
+      schemes.some(
+        (s) => new Resolver(this.set, s).value(propertyOf(name)) === value,
+      )
+    return shows(this.check[0]) ? this.check[0] : this.check[1]
   }
 
   private pair(): string {
     return `${this.check[0]} on ${this.check[1]}`
   }
+}
+
+/** A pair's name as a path: `text` → `color.text`; `brand.ink` stays. */
+function pathOf(name: string): string {
+  const { group, token } = placeOf(name)
+  return `${group}.${token}`
+}
+
+function unprefixed(error: unknown): string {
+  return (error as Error).message.replace(/^glyph: /, '')
 }
 
 function unknownColor(name: string, hint: string): string {

@@ -61,7 +61,14 @@ function relativeLuminance({ red, green, blue }: Rgb): number {
 function opaque(text: string): Rgb {
   const color = readColor(text)
   if (color.alpha === 1) return color
-  throw new Error(
-    `glyph: "${text}" is translucent; contrast needs opaque colours, since what shows through changes it`,
-  )
+  throw new TranslucentColor(text)
+}
+
+/** What `contrastRatio` throws for a colour that isn't opaque, naming it. */
+export class TranslucentColor extends Error {
+  constructor(readonly value: string) {
+    super(
+      `glyph: "${value}" is translucent; contrast needs opaque colours, since what shows through changes it`,
+    )
+  }
 }

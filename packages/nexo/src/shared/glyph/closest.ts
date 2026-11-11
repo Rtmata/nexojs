@@ -1,7 +1,23 @@
 /**
- * The candidate nearest to a mistyped `name`, for "did you mean …?" (C.4):
- * at most one edit for every three letters, so `primry` finds `primary`
- * and `zzz` finds nothing.
+ * The candidate nearest to a mistyped `name` (C.4): at most one edit for
+ * every three letters, so `primry` finds `primary` and `zzz` finds nothing.
+ *
+ *   closest('primry', ['primary', 'surface']) // 'primary'
+ */
+export function closest(
+  name: string,
+  candidates: readonly string[],
+): string | undefined {
+  const limit = Math.max(1, Math.floor(name.length / 3))
+  const near = candidates
+    .map((candidate) => ({ candidate, edits: edits(name, candidate) }))
+    .filter((c) => c.edits <= limit)
+    .sort((a, b) => a.edits - b.edits)
+  return near[0]?.candidate
+}
+
+/**
+ * "did you mean …?" for a message, or nothing when no candidate is near.
  *
  *   didYouMean('primry', ['primary', 'surface'], 'color.') // '; did you mean color.primary?'
  */
@@ -10,12 +26,8 @@ export function didYouMean(
   candidates: readonly string[],
   prefix = '',
 ): string {
-  const limit = Math.max(1, Math.floor(name.length / 3))
-  const near = candidates
-    .map((candidate) => ({ candidate, edits: edits(name, candidate) }))
-    .filter((c) => c.edits <= limit)
-    .sort((a, b) => a.edits - b.edits)
-  return near[0] ? `; did you mean ${prefix}${near[0].candidate}?` : ''
+  const near = closest(name, candidates)
+  return near === undefined ? '' : `; did you mean ${prefix}${near}?`
 }
 
 /** Levenshtein's distance: the letters to add, remove or change to go from `a` to `b`. */

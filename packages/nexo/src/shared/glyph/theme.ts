@@ -1,4 +1,4 @@
-import { checkProblems, contrastShortfalls } from './contrast-checks'
+import { checkProblems, contrastShortfalls, lineOf } from './contrast-checks'
 import type { ContrastUse } from './color/contrast'
 import { rule, sheet, type Sheet } from './sheet'
 import {
@@ -8,6 +8,7 @@ import {
   type ThemeScheme,
   type TokenSet,
 } from './token-set'
+import type { ThemeError } from './theme-error'
 import { changeProblems, codeValue, type ValueCheck } from './theme-values'
 import type { NamesOf } from './tokens'
 import type {
@@ -101,7 +102,7 @@ export function defineTheme<D>(
   options: ThemeOptions<NoInfer<D>> = {},
 ): Theme<D> {
   const draft = draftOf(tokens, name, options)
-  const problems = draft.problems()
+  const problems = draft.messages()
   if (problems.length > 0)
     throw new Error(
       `glyph: theme ${JSON.stringify(name)}: ${problems.join('; ')}`,
@@ -153,16 +154,21 @@ export class ThemeDraft<D> {
     this.base = sets.base
   }
 
-  /** Every mistake, one line each; the contrast is measured once the rest is right. */
-  problems(): string[] {
-    const { name, colorScheme, checks, changes } = this.parts
+  /** A person's mistakes, for `themeFrom`; the contrast is measured once the rest is right. */
+  errors(): ThemeError[] {
+    const written = this.written()
+    if (written.length > 0) return written
+    return contrastShortfalls(this.merged()).map(asError)
+  }
+
+  /** The same in code, as lines, with the pairs' own mistakes too. */
+  messages(): string[] {
     const written = [
-      ...nameProblems(name),
-      ...schemeProblems(colorScheme),
-      ...changeProblems(this.base, changes, this.check),
-      ...checkProblems(this.base, checks),
+      ...this.written().map((error) => error.message),
+      ...checkProblems(this.base, this.parts.checks),
     ]
-    return written.length > 0 ? written : contrastShortfalls(this.merged())
+    if (written.length > 0) return written
+    return contrastShortfalls(this.merged()).map(lineOf)
   }
 
   /** The theme, once `problems()` is empty. */
@@ -172,6 +178,15 @@ export class ThemeDraft<D> {
     const lines = [schemeDeclaration(set, this.tokens), ...set.declarations()]
     const own = themeSheet(name, [...lines, ...surfaceDeclarations(set)])
     return Object.freeze({ ...own, [DEFINITION]: set })
+  }
+
+  private written(): ThemeError[] {
+    const { name, colorScheme, changes } = this.parts
+    return [
+      ...nameProblems(name),
+      ...schemeProblems(colorScheme),
+      ...changeProblems(this.base, changes, this.check),
+    ]
   }
 
   private merged(): TokenSet<D> {
@@ -219,12 +234,23 @@ function surfaceDeclarations(set: TokenSet): string[] {
  * Any text names a theme (C.1): `modo noche` too. Only empty text can't,
  * since `data-theme=""` is an element with no theme.
  */
-function nameProblems(name: unknown): string[] {
+function nameProblems(name: unknown): ThemeError[] {
   if (typeof name === 'string' && name !== '') return []
-  return [
-    `name: ${JSON.stringify(name)} can't be a theme name; write some text, such as "night"`,
-  ]
+  const message = `name: ${JSON.stringify(name)} can't be a theme name; write some text, such as "night"`
+  return [{ path: 'name', code: 'badName', data: { value: name }, message }]
 }
+
+/**
+ * A person's JSON holds no references and only colours glyph reads, so
+ * every pair can be measured; a line here means the tokens themselves are
+ * wrong, a mistake in code.
+ */
+function asError(shortfall: ThemeError | string): ThemeError {
+  if (typeof shortfall !== 'string') return shortfall
+  throw new Error(`glyph: the tokens can't be measured: ${shortfall}`)
+}
+
+const SCHEMES: readonly ThemeScheme[] = ['light', 'dark', 'inherit']
 
 /**
  * `text` inside a CSS string: each character that could end the string, the
@@ -239,10 +265,9 @@ function cssString(text: string): string {
   )
 }
 
-function schemeProblems(scheme: unknown): string[] {
-  if ([undefined, 'light', 'dark', 'inherit'].includes(scheme as string))
-    return []
-  return [
-    `colorScheme: ${JSON.stringify(scheme)} is not "light", "dark" or "inherit"`,
-  ]
+function schemeProblems(scheme: unknown): ThemeError[] {
+  if (scheme === undefined || SCHEMES.includes(scheme as ThemeScheme)) return []
+  const message = `colorScheme: ${JSON.stringify(scheme)} is not "light", "dark" or "inherit"`
+  const data = { value: scheme, allowed: SCHEMES }
+  return [{ path: 'colorScheme', code: 'badColorScheme', data, message }]
 }

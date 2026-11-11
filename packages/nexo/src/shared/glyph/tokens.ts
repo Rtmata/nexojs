@@ -1,4 +1,4 @@
-import { checkProblems, contrastShortfalls } from './contrast-checks'
+import { checkProblems, contrastShortfalls, lineOf } from './contrast-checks'
 import { rule, sheet, type Sheet } from './sheet'
 import type { ContrastPair } from './theme'
 import { groupFrom, type TokenGroup } from './token-group'
@@ -126,7 +126,8 @@ function checkedSet(
   const referred = refersTo.map((tokens) => tokens[DEFINITION])
   const set = new TokenSet(table, contrastChecks, referred)
   const named = checkProblems(set, contrastChecks)
-  const problems = named.length > 0 ? named : contrastShortfalls(set)
+  const problems =
+    named.length > 0 ? named : contrastShortfalls(set).map(lineOf)
   if (problems.length > 0) throw new Error(`glyph: ${problems.join('; ')}`)
   return set
 }
