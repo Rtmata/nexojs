@@ -20,7 +20,7 @@ const WRITERS: Record<TokenType, (value: unknown) => string | undefined> = {
   fontWeight: (v) => (typeof v === 'number' ? String(v) : text(v)),
   shadow: text,
   duration: (v) => (typeof v === 'number' ? `${v}ms` : reference(v)),
-  cubicBezier: text,
+  easing: text,
   number: (v) => (typeof v === 'number' ? String(v) : reference(v)),
 }
 
@@ -32,7 +32,7 @@ const EXPECTED: Record<TokenType, string> = {
   fontWeight: 'a weight such as 400',
   shadow: 'a CSS shadow',
   duration: 'milliseconds as a number, such as 150',
-  cubicBezier: 'a CSS easing such as "ease-out"',
+  easing: 'a CSS easing such as "ease-out"',
   number: 'a number',
 }
 

@@ -139,7 +139,7 @@ describe('defineTokens: a mistake throws and says how to fix it', () => {
     // @ts-expect-error — "colour" is not a type
     const brand = typed('colour', { a: 'red' })
     expect(() => defineTokens({ brand })).toThrow(
-      'glyph: typed(\'colour\', …) for "brand": the types are color, dimension, fontFamily, fontWeight, shadow, duration, cubicBezier, number',
+      'glyph: typed(\'colour\', …) for "brand": the types are color, dimension, fontFamily, fontWeight, shadow, duration, easing, number',
     )
   })
 })

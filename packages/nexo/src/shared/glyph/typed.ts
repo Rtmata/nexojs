@@ -12,7 +12,7 @@ export interface TokenValues {
   /** Milliseconds, as every time in Nexo: `150` is emitted as `150ms`. */
   duration: number
   /** Any CSS easing: `ease-out`, `cubic-bezier(…)`, `linear(…)`. */
-  cubicBezier: string
+  easing: string
   number: number
 }
 
@@ -45,7 +45,7 @@ export const GROUP_TYPES = {
   weight: 'fontWeight',
   shadow: 'shadow',
   duration: 'duration',
-  easing: 'cubicBezier',
+  easing: 'easing',
   z: 'number',
 } as const satisfies Record<string, TokenType>
 
