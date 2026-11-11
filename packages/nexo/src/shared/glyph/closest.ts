@@ -1,6 +1,8 @@
 /**
- * The candidate nearest to a mistyped `name` (C.4): at most one edit for
- * every three letters, so `primry` finds `primary` and `zzz` finds nothing.
+ * The candidate nearest to a mistyped `name` (C.4), as rustc finds one:
+ * edits counted with neighbours swapped as one and case ignored, at most
+ * one for every three letters, rounded up — so `primry`, `pirmary`,
+ * `Primary` and `srfce` find their name, and `zzz` finds nothing.
  *
  *   closest('primry', ['primary', 'surface']) // 'primary'
  */
@@ -8,7 +10,7 @@ export function closest(
   name: string,
   candidates: readonly string[],
 ): string | undefined {
-  const limit = Math.max(1, Math.floor(name.length / 3))
+  const limit = Math.max(1, Math.ceil(name.length / 3))
   const near = candidates
     .map((candidate) => ({ candidate, edits: edits(name, candidate) }))
     .filter((c) => c.edits <= limit)
@@ -30,19 +32,35 @@ export function didYouMean(
   return near === undefined ? '' : `; did you mean ${prefix}${near}?`
 }
 
-/** Levenshtein's distance: the letters to add, remove or change to go from `a` to `b`. */
+/**
+ * Optimal string alignment, Damerau-Levenshtein's restricted form: the
+ * letters to add, remove or change to go from `a` to `b`, two neighbours
+ * swapped counting as one. Upper and lower case are the same letter.
+ */
 function edits(a: string, b: string): number {
-  let row = Array.from({ length: b.length + 1 }, (_, j) => j)
-  for (let i = 1; i <= a.length; i++) row = nextRow(row, a[i - 1]!, b, i)
-  return row[b.length]!
+  const [x, y] = [a.toLowerCase(), b.toLowerCase()]
+  const table = Array.from({ length: x.length + 1 }, (_, i) =>
+    Array.from({ length: y.length + 1 }, (_, j) =>
+      i === 0 ? j : j === 0 ? i : 0,
+    ),
+  )
+  for (let i = 1; i <= x.length; i++)
+    for (let j = 1; j <= y.length; j++) table[i]![j] = cell(table, x, y, i, j)
+  return table[x.length]![y.length]!
 }
 
-/** One row of the table: the distances from `a`'s first `i` letters to each prefix of `b`. */
-function nextRow(above: number[], letter: string, b: string, i: number) {
-  const row = [i]
-  for (let j = 1; j <= b.length; j++) {
-    const change = above[j - 1]! + (letter === b[j - 1] ? 0 : 1)
-    row.push(Math.min(above[j]! + 1, row[j - 1]! + 1, change))
-  }
-  return row
+/** The distance from `x`'s first `i` letters to `y`'s first `j`, from the cells before it. */
+function cell(
+  table: number[][],
+  x: string,
+  y: string,
+  i: number,
+  j: number,
+): number {
+  const at = (i: number, j: number) => table[i]![j]!
+  const change = at(i - 1, j - 1) + (x[i - 1] === y[j - 1] ? 0 : 1)
+  const best = Math.min(at(i - 1, j) + 1, at(i, j - 1) + 1, change)
+  const swapped =
+    i > 1 && j > 1 && x[i - 1] === y[j - 2] && x[i - 2] === y[j - 1]
+  return swapped ? Math.min(best, at(i - 2, j - 2) + 1) : best
 }
