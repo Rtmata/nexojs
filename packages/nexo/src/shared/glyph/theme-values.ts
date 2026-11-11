@@ -1,5 +1,7 @@
 import { closest, didYouMean } from './closest'
 import { readColor } from './color/read'
+import { Grammar } from './grammar/grammar'
+import type { Issue } from './grammar/issue'
 import { at, type ThemeError, type ValueFault } from './theme-error'
 import { cssValue, EXPECTED, isLightDark, type TokenGroup } from './token-group'
 import type { TokenSet } from './token-set'
@@ -9,6 +11,7 @@ import type { TokenType } from './typed'
 export type ValueCheck = (
   type: TokenType,
   value: unknown,
+  set: TokenSet,
 ) => ValueFault | undefined
 
 /** Characters that would end the declaration or the rule, or the `<style>` around it. */
@@ -28,17 +31,23 @@ export function codeValue(
 }
 
 /**
- * A value a person typed (C.4): its kind, then a colour must be one glyph
- * can read — so the contrast can be measured — and any other text must
- * stay inside its declaration.
+ * A value a person typed (C.4): its kind, then its type's grammar — a
+ * colour glyph can read, so the contrast can be measured; a length, a
+ * family list, a shadow… — each slot taking `var(--token)` of its type.
+ * Text that could leave its declaration is refused before it is read.
  */
 export function typedValue(
   type: TokenType,
   value: unknown,
+  set: TokenSet,
 ): ValueFault | undefined {
   const kind = codeValue(type, value)
   if (kind) return kind
-  return type === 'color' ? colorProblem(value) : textProblem(value)
+  const grammar = new Grammar(set)
+  if (type === 'color') return colorFault(value, grammar)
+  return typeof value === 'string'
+    ? textFault(type, value, grammar)
+    : numberFault(type, value, grammar)
 }
 
 /**
@@ -54,11 +63,12 @@ export function changeProblems(
     const group = set.group(name)
     if (!group) return [unknownGroup(name, set.groupNames())]
     if (!isRecord(tokens)) return [notTokens(name, tokens)]
-    return tokenProblems(group, tokens, check)
+    return tokenProblems(set, group, tokens, check)
   })
 }
 
 function tokenProblems(
+  set: TokenSet,
   group: TokenGroup,
   tokens: Readonly<Record<string, unknown>>,
   check: ValueCheck,
@@ -66,7 +76,7 @@ function tokenProblems(
   return Object.entries(tokens).flatMap(([token, value]) => {
     const where = `${group.name}.${token}`
     if (!group.has(token)) return [unknownToken(group, token)]
-    const fault = check(group.type, value)
+    const fault = check(group.type, value, set)
     return fault ? [at(where, fault)] : []
   })
 }
@@ -95,34 +105,76 @@ function unknownToken(group: TokenGroup, name: string): ThemeError {
   return { path, code: 'unknownToken', data: { name, suggestion }, message }
 }
 
-function colorProblem(value: unknown): ValueFault | undefined {
+function colorFault(value: unknown, grammar: Grammar): ValueFault | undefined {
   const sides = isLightDark(value) ? [value.light, value.dark] : [value]
-  return sides.map(unreadable).find((fault) => fault !== undefined)
+  return sides.map((side) => sideFault(side, grammar)).find(Boolean)
 }
 
-function unreadable(side: unknown): ValueFault | undefined {
-  if (typeof side !== 'string')
-    return {
-      code: 'notAColor',
-      data: { value: side },
-      text: `${JSON.stringify(side)} is not a colour`,
-    }
-  try {
-    readColor(side)
-    return undefined
-  } catch (error) {
-    const text = (error as Error).message.replace(/^glyph: /, '')
-    const code = /^\s*var\(/i.test(side) ? 'isAReference' : 'notAColor'
-    return { code, data: { value: side }, text }
+function sideFault(side: unknown, grammar: Grammar): ValueFault | undefined {
+  if (typeof side !== 'string') {
+    const text = `${JSON.stringify(side)} is not a colour`
+    return { code: 'notAColor', data: { value: side }, text }
   }
+  const issue = grammar.issue('color', side)
+  return issue && faultOf(issue, 'color', side)
 }
 
-function textProblem(value: unknown): ValueFault | undefined {
-  if (typeof value !== 'string') return undefined
+function textFault(
+  type: TokenType,
+  value: string,
+  grammar: Grammar,
+): ValueFault | undefined {
   const unclosed = ['"', "'"].some((q) => value.split(q).length % 2 === 0)
-  if (!BREAKS_OUT.test(value) && !unclosed) return undefined
-  const text = `${JSON.stringify(value)} can't be a CSS value here: ; { } < > \\, line breaks and unclosed quotes aren't allowed`
-  return { code: 'unsafeText', data: { value }, text }
+  if (BREAKS_OUT.test(value) || unclosed) {
+    const text = `${JSON.stringify(value)} can't be a CSS value here: ; { } < > \\, line breaks and unclosed quotes aren't allowed`
+    return { code: 'unsafeText', data: { value }, text }
+  }
+  const issue = grammar.issue(type, value)
+  return issue && faultOf(issue, type, value)
+}
+
+/** A number passed its kind; only a weight has a range: 1 to 1000. */
+function numberFault(
+  type: TokenType,
+  value: unknown,
+  grammar: Grammar,
+): ValueFault | undefined {
+  if (type !== 'fontWeight') return undefined
+  const issue = grammar.issue(type, String(value))
+  return issue && faultOf(issue, type, value)
+}
+
+/** The issue as a fault with its English text. */
+function faultOf(issue: Issue, type: TokenType, value: unknown): ValueFault {
+  const shown = JSON.stringify(value)
+  if (issue.kind === 'missing') return missing(issue, value as string)
+  if (issue.kind === 'mistyped') {
+    const text = `${shown} is a ${issue.type} token, not ${EXPECTED[type]}`
+    return { code: 'wrongKind', data: { value, expected: type }, text }
+  }
+  if (type === 'color') return unreadable(value as string)
+  const text = `${shown} is not ${EXPECTED[type]}`
+  return { code: 'wrongKind', data: { value, expected: type }, text }
+}
+
+function missing(
+  { name, suggestion }: { name: string; suggestion?: string },
+  value: string,
+): ValueFault {
+  const near = suggestion === undefined ? '' : `; did you mean --${suggestion}?`
+  const text = `${JSON.stringify(value)} points to --${name}, which these tokens don't define${near}`
+  return { code: 'missingReference', data: { value, name, suggestion }, text }
+}
+
+/** Why glyph can't read the colour, in readColor's own words. */
+function unreadable(value: string): ValueFault {
+  let text = `${JSON.stringify(value)} is not a colour`
+  try {
+    readColor(value)
+  } catch (error) {
+    text = (error as Error).message.replace(/^glyph: /, '')
+  }
+  return { code: 'notAColor', data: { value }, text }
 }
 
 export function isRecord(value: unknown): value is Record<string, unknown> {

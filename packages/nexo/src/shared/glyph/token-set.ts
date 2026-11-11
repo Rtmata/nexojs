@@ -77,6 +77,12 @@ export class TokenSet<D = unknown> {
     )
   }
 
+  /** Every property a reference may name: its own, then its palettes'. */
+  knownProperties(): string[] {
+    const referred = this.refersTo.flatMap((set) => set.knownProperties())
+    return [...this.properties(), ...referred]
+  }
+
   /**
    * The token behind `--<property>`: its own first, then the token objects
    * it refers to, as a custom property set nearer wins in CSS.

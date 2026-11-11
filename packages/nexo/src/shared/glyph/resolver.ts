@@ -18,7 +18,10 @@ export class Resolver {
   /** The final value of `--<property>`; `seen` is the chain that led here. */
   value(property: string, seen: readonly string[] = []): string {
     if (seen.includes(property))
-      throw new Error(cycleMessage([...seen, property]))
+      throw new ReferenceCycle([
+        ...seen.slice(seen.indexOf(property)),
+        property,
+      ])
     const found = this.set.find(property)
     if (!found) throw new Error(missingMessage(property, seen))
     return this.final(found, [...seen, property])
@@ -32,9 +35,14 @@ export class Resolver {
   }
 }
 
-function cycleMessage(chain: readonly string[]): string {
-  const shown = chain.map((p) => `--${p}`).join(' → ')
-  return `glyph: --${chain[0]} points back to itself (${shown}); one of them needs a value`
+/** References that come back where they started: the chain names each, the first again at the end. */
+export class ReferenceCycle extends Error {
+  constructor(readonly chain: readonly string[]) {
+    const shown = chain.map((p) => `--${p}`).join(' → ')
+    super(
+      `glyph: --${chain[0]} points back to itself (${shown}); one of them needs a value`,
+    )
+  }
 }
 
 function missingMessage(property: string, seen: readonly string[]): string {

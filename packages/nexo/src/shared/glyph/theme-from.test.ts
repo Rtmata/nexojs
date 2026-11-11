@@ -81,20 +81,28 @@ describe('themeFrom (C.4)', () => {
     })
   })
 
-  test('colours are read: a token or CSS only the page resolves is not one', () => {
+  test('colours are read; a reference must name a colour token', () => {
     const result = themeFrom(tokens, {
       name: 'mine',
-      color: { text: 'var(--color-primary)', surface: 'currentColor' },
+      color: {
+        text: 'var(--color-primry)',
+        surface: 'currentColor',
+        primary: 'var(--space-m)',
+      },
     })
     expect(result).toEqual({
       ok: false,
       errors: [
         {
           path: 'color.text',
-          code: 'isAReference',
-          data: { value: 'var(--color-primary)' },
+          code: 'missingReference',
+          data: {
+            value: 'var(--color-primry)',
+            name: 'color-primry',
+            suggestion: 'color-primary',
+          },
           message:
-            'color.text: "var(--color-primary)" is a token, not a colour; colour maths needs the colour itself',
+            'color.text: "var(--color-primry)" points to --color-primry, which these tokens don\'t define; did you mean --color-primary?',
         },
         {
           path: 'color.surface',
@@ -102,6 +110,54 @@ describe('themeFrom (C.4)', () => {
           data: { value: 'currentColor' },
           message:
             'color.surface: "currentColor" is not a colour glyph can read; write hex, rgb(), hsl(), oklch(), oklab() or a CSS colour name',
+        },
+        {
+          path: 'color.primary',
+          code: 'wrongKind',
+          data: { value: 'var(--space-m)', expected: 'color' },
+          message:
+            'color.primary: "var(--space-m)" is a dimension token, not a CSS colour or { light, dark }',
+        },
+      ],
+    })
+  })
+
+  test('a reference to a token of its type is followed, contrast included', () => {
+    const same = themeFrom(tokens, {
+      name: 'mine',
+      color: { 'on-primary': 'var(--color-primary)' },
+    })
+    expect(same).toMatchObject({
+      ok: false,
+      errors: [
+        { path: 'color.on-primary', code: 'lowContrast', data: { ratio: 1 } },
+      ],
+    })
+    const fine = themeFrom(tokens, {
+      name: 'mine',
+      color: { surface: 'var(--color-on-primary)' },
+      space: { m: 'calc(1rem * 2)' },
+    })
+    expect(fine.ok).toBe(true)
+  })
+
+  test('references that loop back are one error, at the first token in the loop', () => {
+    const result = themeFrom(tokens, {
+      name: 'loop',
+      color: {
+        surface: 'var(--color-primary)',
+        primary: 'var(--color-surface)',
+      },
+    })
+    expect(result).toEqual({
+      ok: false,
+      errors: [
+        {
+          path: 'color.surface',
+          code: 'referenceCycle',
+          data: { chain: ['color-surface', 'color-primary', 'color-surface'] },
+          message:
+            'color.surface: --color-surface points back to itself (--color-surface → --color-primary → --color-surface); one of them needs a value',
         },
       ],
     })

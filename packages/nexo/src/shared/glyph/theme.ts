@@ -8,6 +8,7 @@ import {
   type ThemeScheme,
   type TokenSet,
 } from './token-set'
+import { referenceCycles } from './grammar/cycles'
 import type { ThemeError } from './theme-error'
 import { changeProblems, codeValue, type ValueCheck } from './theme-values'
 import type { NamesOf } from './tokens'
@@ -158,7 +159,17 @@ export class ThemeDraft<D> {
   errors(): ThemeError[] {
     const written = this.written()
     if (written.length > 0) return written
+    const cycles = referenceCycles(this.merged(), this.changedPaths())
+    if (cycles.length > 0) return cycles
     return contrastShortfalls(this.merged()).map(asError)
+  }
+
+  /** `color.surface`, … : each token the theme sets. */
+  private changedPaths(): string[] {
+    const groups = this.parts.changes as Record<string, Record<string, unknown>>
+    return Object.entries(groups).flatMap(([group, tokens]) =>
+      Object.keys(tokens).map((token) => `${group}.${token}`),
+    )
   }
 
   /** The same in code, as lines, with the pairs' own mistakes too. */

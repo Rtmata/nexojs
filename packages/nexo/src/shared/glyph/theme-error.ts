@@ -36,13 +36,21 @@ export type ThemeError =
       { readonly value: unknown; readonly expected: TokenType }
     >
   | Mistake<'notAColor', { readonly value: unknown }>
-  | Mistake<'isAReference', { readonly value: string }>
+  | Mistake<'missingReference', MissingReference>
+  | Mistake<'referenceCycle', { readonly chain: readonly string[] }>
   | Mistake<'unsafeText', { readonly value: string }>
   | Mistake<'lowContrast', LowContrast>
   | Mistake<'translucent', { readonly value: string }>
 
 /** A name that isn't there, and the nearest one that is, if any is near. */
 interface Unknown {
+  readonly name: string
+  readonly suggestion?: string
+}
+
+/** `var(--name)` where no token is called `name`, and the nearest that is. */
+interface MissingReference {
+  readonly value: string
   readonly name: string
   readonly suggestion?: string
 }
@@ -62,7 +70,7 @@ interface LowContrast {
 export type ValueFault = FactsOf<
   Extract<
     ThemeError,
-    { code: 'wrongKind' | 'notAColor' | 'isAReference' | 'unsafeText' }
+    { code: 'wrongKind' | 'notAColor' | 'missingReference' | 'unsafeText' }
   >
 > & { readonly text: string }
 
