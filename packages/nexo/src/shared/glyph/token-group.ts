@@ -6,10 +6,19 @@ import {
 } from './typed'
 
 /** What may follow `--` in a custom property glyph writes, unescaped. */
-const CSS_NAME = /^[A-Za-z0-9_-]+$/
+export const CSS_NAME = /^[A-Za-z0-9_-]+$/
 
-/** The token object keeps these for its sheet: a group can't take them. */
-const RESERVED = ['css', 'name']
+/**
+ * Names a group can't take, and why: the token object keeps two for its
+ * sheet, and `defineTheme` reads three as its options beside the groups.
+ */
+const RESERVED: Record<string, string> = {
+  css: 'the tokens keep .css and .name for their sheet',
+  name: 'the tokens keep .css and .name for their sheet',
+  from: 'defineTheme reads it as an option, beside the groups',
+  colorScheme: 'defineTheme reads it as an option, beside the groups',
+  contrastChecks: 'defineTheme reads it as an option, beside the groups',
+}
 
 /** How each type is written in CSS; `undefined` when the value isn't one. */
 const WRITERS: Record<TokenType, (value: unknown) => string | undefined> = {
@@ -25,7 +34,7 @@ const WRITERS: Record<TokenType, (value: unknown) => string | undefined> = {
 }
 
 /** What each type expects, for the error that names a wrong value. */
-const EXPECTED: Record<TokenType, string> = {
+export const EXPECTED: Record<TokenType, string> = {
   color: 'a CSS colour or { light, dark }',
   dimension: 'a CSS length such as "1rem"',
   fontFamily: 'a font-family list',
@@ -36,6 +45,11 @@ const EXPECTED: Record<TokenType, string> = {
   number: 'a number',
 }
 
+/** `value` as CSS for a token of `type`, or `undefined` when it isn't one. */
+export function cssValue(type: TokenType, value: unknown): string | undefined {
+  return WRITERS[type](value)
+}
+
 /**
  * One group of tokens and its type. Each token becomes the custom property
  * `--<group>-<name>`, the one rule (B.1), and is read through `var()` of it.
@@ -43,18 +57,18 @@ const EXPECTED: Record<TokenType, string> = {
 export class TokenGroup {
   constructor(
     readonly name: string,
-    private readonly type: TokenType,
-    private readonly tokens: Record<string, unknown>,
+    readonly type: TokenType,
+    private readonly tokens: Readonly<Record<string, unknown>>,
   ) {
     checkName(name, `group "${name}"`)
-    if (RESERVED.includes(name)) throw new Error(reservedMessage(name))
+    if (Object.hasOwn(RESERVED, name)) throw new Error(reservedMessage(name))
     for (const token of Object.keys(tokens))
       checkName(token, `${name}.${token}`)
   }
 
   /** name → `var(--<group>-<name>)`, the leaves of the token object. */
   references(): Record<string, string> {
-    const names = Object.keys(this.tokens)
+    const names = this.tokenNames()
     return Object.fromEntries(names.map((n) => [n, `var(${this.property(n)})`]))
   }
 
@@ -71,12 +85,30 @@ export class TokenGroup {
     return Object.values(this.tokens).some(isLightDark)
   }
 
+  tokenNames(): string[] {
+    return Object.keys(this.tokens)
+  }
+
+  has(token: string): boolean {
+    return Object.hasOwn(this.tokens, token)
+  }
+
+  /** The token's value as written: a value of the type, a reference or `{ light, dark }`. */
+  valueOf(token: string): unknown {
+    return this.has(token) ? this.tokens[token] : undefined
+  }
+
+  /** The same group with `changes` over its values (C.2): a theme's group. */
+  with(changes: Readonly<Record<string, unknown>>): TokenGroup {
+    return new TokenGroup(this.name, this.type, { ...this.tokens, ...changes })
+  }
+
   private property(token: string): string {
     return `--${this.name}-${token}`
   }
 
   private written(token: string, value: unknown): string {
-    const css = WRITERS[this.type](value)
+    const css = cssValue(this.type, value)
     if (css !== undefined) return css
     const shown = JSON.stringify(value)
     throw new Error(
@@ -124,10 +156,10 @@ function checkName(name: string, where: string): void {
 }
 
 function reservedMessage(name: string): string {
-  return `glyph: a token group can't be called "${name}": the tokens keep .css and .name for their sheet`
+  return `glyph: a token group can't be called "${name}": ${RESERVED[name]}`
 }
 
-function isLightDark(value: unknown): value is LightDark {
+export function isLightDark(value: unknown): value is LightDark {
   return (
     typeof value === 'object' &&
     value !== null &&

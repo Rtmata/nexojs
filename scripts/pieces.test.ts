@@ -28,6 +28,12 @@ const CASES: [module: string, piece: string, name: string][] = [
     'defineTokens',
   ],
   ['shared/glyph/index.ts', 'shared/glyph/pieces/readable-on.ts', 'readableOn'],
+  [
+    'shared/glyph/index.ts',
+    'shared/glyph/pieces/define-theme.ts',
+    'defineTheme',
+  ],
+  ['client/glyph/index.ts', 'client/glyph/pieces/adopt-theme.ts', 'adoptTheme'],
 ]
 
 /** The minified bundle of an entry that imports `name` from `file` and keeps it. */

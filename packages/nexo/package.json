@@ -69,6 +69,20 @@
       },
       "default": "./src/shared/glyph/pieces/*.ts"
     },
+    "./glyph/client": {
+      "nexo-built": {
+        "types": "./src/client/glyph/index.ts",
+        "default": "./dist/client/glyph/index.js"
+      },
+      "default": "./src/client/glyph/index.ts"
+    },
+    "./glyph/client/*": {
+      "nexo-built": {
+        "types": "./src/client/glyph/pieces/*.ts",
+        "default": "./dist/client/glyph/pieces/*.js"
+      },
+      "default": "./src/client/glyph/pieces/*.ts"
+    },
     "./keep": "./src/server/keep/index.ts",
     "./omino": {
       "nexo-built": {

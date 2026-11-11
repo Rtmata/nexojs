@@ -1,7 +1,7 @@
 /**
  * glyph's CSS in real engines (G.2): Chromium, WebKit and Firefox through
- * Playwright, for what only a browser decides — the layer order, and
- * `light-dark()` resolving by `color-scheme`. The CSS is made here, in Bun,
+ * Playwright, for what only a browser decides — the layer order,
+ * `light-dark()` resolving by `color-scheme`, and themes nested in rooms. The CSS is made here, in Bun,
  * and put in a blank page as it is: nothing is bundled.
  */
 import { afterAll, beforeAll, describe, expect, test } from 'bun:test'
@@ -17,6 +17,7 @@ import { base } from './base'
 import { colorMix } from './color/mix'
 import { readColor } from './color/read'
 import { reset } from './reset'
+import { defineTheme } from './theme'
 import { defineTokens } from './tokens'
 
 /** Starting a browser can take longer than a test's default 5 s (Firefox did). */
@@ -39,6 +40,12 @@ const tokens = defineTokens({
   font: { body: 'serif', mono: 'monospace' },
 })
 
+/** A theme that fixes the dark scheme, and one that only changes colours (C.1–C.3). */
+const night = defineTheme(tokens, 'night', { colorScheme: 'dark' })
+const paper = defineTheme(tokens, 'paper', {
+  color: { text: '#300', surface: '#ffe' },
+})
+
 /**
  * glyph's sheets in the reverse of their layer order, then a probe that
  * names the layers the other way round: if the order line in glyph's
@@ -48,6 +55,8 @@ const PAGE = `<!doctype html><title>glyph</title>
 <style>${base(tokens).css}</style>
 <style>${tokens.css}</style>
 <style>${reset.css}</style>
+<style>${paper.css}</style>
+<style>${night.css}</style>
 <style>
   @layer glyph.recipes { .probe { color: rgb(0, 0, 1) } }
   @layer glyph.reset { #probe.probe { color: rgb(0, 0, 2) } }
@@ -61,7 +70,13 @@ const PAGE = `<!doctype html><title>glyph</title>
   <p id="inherits">inherits html's colour, resolved there</p>
   <p id="room" style="color: ${tokens.color.text}">uses the token here</p>
 </div>
-<span id="mix" style="color: color-mix(in oklch, #3b82f6 20%, white)">mix</span>`
+<span id="mix" style="color: color-mix(in oklch, #3b82f6 20%, white)">mix</span>
+<section id="night" data-theme="night">
+  <p id="night-text">a dark room</p>
+  <section id="paper" data-theme="paper">
+    <p id="paper-text">a paper room inside it</p>
+  </section>
+</section>`
 
 /** The computed value of `property` on `#id`. */
 function computed(page: Page, id: string, property: string): Promise<string> {
@@ -122,6 +137,26 @@ for (const [name, engine] of engines) {
 
     test('your unlayered CSS wins over every layer, specificity aside', async () => {
       expect(await computed(page, 'mine', 'color')).toBe('rgb(0, 0, 3)')
+    })
+
+    test("colorScheme: 'dark' flips the light-dark tokens, whatever the system says (C.3)", async () => {
+      await page.emulateMedia({ colorScheme: 'light' })
+      expect(await computed(page, 'night-text', 'color')).toBe(
+        'rgb(238, 238, 238)',
+      )
+      expect(await computed(page, 'night', 'background-color')).toBe(
+        'rgb(17, 17, 17)',
+      )
+    })
+
+    test('a room inside another theme shows its own text and surface (C.1, C.2)', async () => {
+      await page.emulateMedia({ colorScheme: 'light' })
+      expect(await computed(page, 'paper-text', 'color')).toBe('rgb(51, 0, 0)')
+      expect(await computed(page, 'paper', 'background-color')).toBe(
+        'rgb(255, 255, 238)',
+      )
+      // Its light-dark tokens follow the system again, not the dark room around it
+      expect(await computed(page, 'paper', 'color-scheme')).toBe('light dark')
     })
 
     test("colorMix computes what the browser's color-mix(in oklch) shows (C.5)", async () => {

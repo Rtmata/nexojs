@@ -1,7 +1,7 @@
 /**
- * What every piece of glyph that produces CSS gives (reset, base, tokens):
- * a plain value, so omino's `styles` list can take it without importing
- * glyph (A.3). `name` is the key a page emits each sheet once by; `css` is
+ * What every piece of glyph that produces CSS gives (reset, base, tokens,
+ * themes): a plain value, so omino's `styles` list can take it without
+ * importing glyph (A.3). `name` is the key a page emits each sheet once by; `css` is
  * complete and already inside its layer.
  */
 export interface Sheet {
@@ -45,4 +45,16 @@ export function sheet(name: string, layer: Layer, rules: string): Sheet {
 function indented(rules: string): string {
   const lines = rules.trim().split('\n')
   return lines.map((line) => (line ? `  ${line}\n` : '\n')).join('')
+}
+
+/**
+ * One rule, a declaration per line:
+ *
+ *   rule(':root', ['--space-m: 1rem;']) // ':root {\n  --space-m: 1rem;\n}'
+ */
+export function rule(
+  selector: string,
+  declarations: readonly string[],
+): string {
+  return `${selector} {\n${declarations.map((d) => `  ${d}`).join('\n')}\n}`
 }

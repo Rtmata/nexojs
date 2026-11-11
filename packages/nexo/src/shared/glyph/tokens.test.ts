@@ -117,6 +117,13 @@ describe('defineTokens: a mistake throws and says how to fix it', () => {
     )
   })
 
+  test("a group named as one of defineTheme's options", () => {
+    // @ts-expect-error — defineTheme(tokens, name, { from, … }) reads "from" as its base
+    expect(() => defineTokens({ from: typed('color', { a: 'red' }) })).toThrow(
+      `glyph: a token group can't be called "from": defineTheme reads it as an option, beside the groups`,
+    )
+  })
+
   test('a value of the wrong kind', () => {
     // @ts-expect-error — time is milliseconds, a number, in all of Nexo
     expect(() => defineTokens({ duration: { fast: '150ms' } })).toThrow(
@@ -150,4 +157,52 @@ test('the types: each leaf is the exact var() string, a typo is an error', () =>
   expect(primary).toBe('var(--color-primary)')
   // @ts-expect-error — no token "primry"
   expect(tokens.color.primry).toBeUndefined()
+})
+
+describe('defineTokens: contrast checks (C.5)', () => {
+  test('a pair of the tokens that falls short throws, in each scheme it differs', () => {
+    expect(() =>
+      defineTokens(
+        {
+          color: {
+            text: { light: '#222', dark: '#555' },
+            surface: { light: '#fff', dark: '#111' },
+          },
+        },
+        { contrastChecks: [['text', 'surface', 'text']] },
+      ),
+    ).toThrow('glyph: text on surface (dark): 2.53:1, needs 4.5:1')
+  })
+
+  test('a pair through a palette is measured once the palette is named', () => {
+    const palette = defineTokens({ blue: typed('color', { 300: '#93c5fd' }) })
+    const color = { primary: palette.blue[300], 'on-primary': '#fff' }
+    const checks = [['on-primary', 'primary', 'ui']] as const
+    expect(() =>
+      defineTokens({ color }, { contrastChecks: checks, refersTo: [palette] }),
+    ).toThrow('glyph: on-primary on primary: 1.8:1, needs 3:1')
+    expect(() => defineTokens({ color }, { contrastChecks: checks })).toThrow(
+      "glyph: on-primary on primary: --color-primary points to --blue-300, which these tokens don't define",
+    )
+  })
+
+  test('a pair naming a colour that does not exist, or a use that is neither text nor ui', () => {
+    expect(() =>
+      defineTokens(
+        { color: { text: '#000', surface: '#fff' } },
+        // @ts-expect-error — no colour "surfce", no use "body"
+        { contrastChecks: [['text', 'surfce', 'body']] },
+      ),
+    ).toThrow(
+      'glyph: contrastChecks: "surfce" is not a color token; did you mean surface?; contrastChecks: "body" is not a use; write text or ui',
+    )
+  })
+
+  test('pairs that pass: the tokens are made', () => {
+    const tokens = defineTokens(
+      { color: { text: '#222', surface: '#fff' } },
+      { contrastChecks: [['text', 'surface', 'text']] },
+    )
+    expect(tokens.color.text).toBe('var(--color-text)')
+  })
 })
