@@ -1,9 +1,11 @@
 /** Marks a row while CSS slides it to its new place (E.2). */
 export const MOVING = 'data-moving'
 
-/** The elements among a row's nodes. */
+/** The elements among a row's nodes (by `nodeType`: an element from another realm is one too). */
 export function elementsIn(nodes: Node[]): Element[] {
-  return nodes.filter((node): node is Element => node instanceof Element)
+  return nodes.filter(
+    (node): node is Element => node.nodeType === Node.ELEMENT_NODE,
+  )
 }
 
 /** What a row had inline before the move borrowed it. */

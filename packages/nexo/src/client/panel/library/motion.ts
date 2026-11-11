@@ -1,12 +1,10 @@
 /**
- * Shared by the effect panels: the visitor's motion preference, and
- * waiting for animations — theater's pieces underneath (A.1: panels wrap
- * theater), so the rule is written once.
+ * Shared by the effect panels: waiting for animations — theater's pieces
+ * underneath (A.1: panels wrap theater), so the rule is written once —
+ * and speaking text.
  */
 import { finished } from '../../theater/finished'
 import { FIXED_WAIT } from '../../settle/settle'
-
-export { reducedMotion } from '../../theater/reduce'
 
 /** At most this long for a promise that never ends (C.15c's fallback). */
 export function atMost<T>(promise: Promise<T>): Promise<T | void> {

@@ -7,6 +7,7 @@ import {
   FIXED_WAIT,
   markLeaving,
 } from '../settle/settle'
+import { elementsIn } from './row-moves'
 
 /** An element's own `enter` / `exit` (C.15c, item 36): awaited instead of its CSS. */
 export type MotionFn = (
@@ -46,13 +47,13 @@ export class Motions {
 
   /** Nothing to wait for: `undefined`, so the caller goes on right away. */
   leave(nodes: Node[], signal: AbortSignal): Promise<void> | undefined {
-    const els = elementsOf(nodes)
+    const els = elementsIn(nodes)
     for (const el of els) markLeaving(el)
     return this.await(els, 'exit', signal)
   }
 
   enter(nodes: Node[], signal: AbortSignal): Promise<void> | undefined {
-    const els = elementsOf(nodes)
+    const els = elementsIn(nodes)
     for (const el of els) el.setAttribute(MOTION_STATE.enter, '')
     const done = () =>
       els.forEach((el) => el.removeAttribute(MOTION_STATE.enter))
@@ -106,12 +107,6 @@ export class Motions {
     const timeout = new Promise((done) => setTimeout(done, ms))
     return Promise.race([work.catch(reportError), timeout])
   }
-}
-
-function elementsOf(nodes: Node[]): Element[] {
-  return nodes.filter(
-    (node): node is Element => node.nodeType === Node.ELEMENT_NODE,
-  )
 }
 
 /** Live: read when each motion starts. */

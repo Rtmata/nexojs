@@ -34,15 +34,14 @@ export const sequence = panel({
 
 class Sequence {
   private readonly marks = new Marks()
-  private readonly phases: string[]
   private running = false
 
   constructor(
     private readonly el: Element,
-    { phases, command, on }: { phases: string[]; command: string; on: string },
+    private readonly params: { phases: string[]; command: string; on: string },
     private readonly signal: AbortSignal,
   ) {
-    this.phases = phases
+    const { command, on } = params
     const commanded = (e: Event) =>
       (e as Event & { command?: string }).command === command && void this.run()
     el.addEventListener('command', commanded, { signal })
@@ -54,7 +53,8 @@ class Sequence {
     if (this.running) return
     this.running = true
     try {
-      for (const phase of this.phases) if (await this.enter(phase)) return
+      for (const phase of this.params.phases)
+        if (await this.enter(phase)) return
       this.marks.toggle(this.el, 'data-phase', false)
       emit(this.el, 'sequence:done')
     } finally {

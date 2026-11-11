@@ -1,8 +1,5 @@
-import {
-  pageCss,
-  STYLE_MARKER,
-  type ComponentStyles,
-} from '../../shared/omino/styles'
+import { COMPONENT_STYLE } from '../../shared/markup/vocabulary'
+import { pageCss, type ComponentStyles } from '../../shared/omino/styles'
 
 /**
  * A component's CSS in the browser (C.20a): once per document, as the
@@ -10,12 +7,12 @@ import {
  * server already styled is left as it is.
  */
 export function ensureSheet(styles: ComponentStyles): void {
-  const selector = `style[${STYLE_MARKER}="${CSS.escape(styles.name)}"]`
+  const selector = `style[${COMPONENT_STYLE}="${CSS.escape(styles.name)}"]`
   const css = pageCss(styles)
   const existing = document.head.querySelector(selector)
   if (existing) return sameOrThrow(styles.name, existing.textContent ?? '', css)
   const style = document.createElement('style')
-  style.setAttribute(STYLE_MARKER, styles.name)
+  style.setAttribute(COMPONENT_STYLE, styles.name)
   style.textContent = css
   document.head.append(style)
 }

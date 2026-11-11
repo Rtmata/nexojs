@@ -1,8 +1,9 @@
+import { reducedMotion } from '../../theater/reduce'
+import { speedOf } from '../../theater/speed'
 import { panel } from '../panel'
 import { number } from '../params'
 import { emit } from './hold'
-import { speedOf } from '../../theater/speed'
-import { graphemes, reducedMotion, speakingText } from './motion'
+import { graphemes, speakingText } from './motion'
 
 /**
  * Typewriter (Archive): the element's text appears a character at a time

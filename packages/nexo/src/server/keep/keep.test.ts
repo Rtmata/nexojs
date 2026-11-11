@@ -546,6 +546,15 @@ describe('starting, stopping and options', () => {
     ).toThrow("static takes a folder ('./public') or { dir, at }")
   })
 
+  test('an idleTimeout that is no time Bun takes says so', () => {
+    for (const idleTimeout of [NaN, Infinity, -1, 256_000]) {
+      expect(() => keep({ router: boat(), idleTimeout })).toThrow(
+        'keep: idleTimeout is in milliseconds',
+      )
+    }
+    expect(() => keep({ router: boat(), idleTimeout: 255_000 })).not.toThrow()
+  })
+
   test('a file stored NFD is found from an NFC URL, without the index too', async () => {
     const nfd = 'Pokémon.png'.normalize('NFD')
     await writeFile(join(folder, nfd), 'png')

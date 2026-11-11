@@ -11,8 +11,6 @@ export type Encapsulation = 'scope' | 'shadow' | 'none'
 
 /** The root of a component with styles carries its name (C.20a). */
 export const SCOPE_ATTRIBUTE = 'data-scope'
-/** The `<style>` with a component's CSS, once per page: bridge dedupes by it. */
-export const STYLE_MARKER = COMPONENT_STYLE
 
 /**
  * CSS as a plain string; the tag is there for editors to highlight it.
@@ -146,7 +144,7 @@ export class PageSheets {
 
 export function styleElement(styles: ComponentStyles): string {
   const name = escapeHtml(styles.name)
-  return `<style ${STYLE_MARKER}="${name}">${pageCss(styles)}</style>`
+  return `<style ${COMPONENT_STYLE}="${name}">${pageCss(styles)}</style>`
 }
 
 function sameName(name: string): Error {

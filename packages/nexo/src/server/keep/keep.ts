@@ -340,8 +340,8 @@ const BUN_IDLE_LIMIT = 255
 /** Nexo times are milliseconds (audit item 2); Bun counts whole seconds. */
 function bunSeconds(ms: number): number {
   const seconds = Math.ceil(ms / 1000)
-  if (Number.isFinite(ms) && ms >= 0 && seconds <= BUN_IDLE_LIMIT)
-    return seconds
+  // NaN fails the first test, Infinity the second.
+  if (ms >= 0 && seconds <= BUN_IDLE_LIMIT) return seconds
   throw new RangeError(
     `keep: idleTimeout is in milliseconds, from 0 to ${BUN_IDLE_LIMIT * 1000} (Bun's limit), got ${ms}`,
   )

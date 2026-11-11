@@ -1,8 +1,8 @@
+import { reducedMotion } from '../../theater/reduce'
 import { panel } from '../panel'
 import { number, string } from '../params'
 import { emit } from './hold'
 import { Marks } from './marks'
-import { reducedMotion } from './motion'
 
 /**
  * Carousel (WAI-ARIA APG Carousel) on a scroll-snap scroller: layer 0 is

@@ -1,7 +1,8 @@
+import { reducedMotion } from '../../theater/reduce'
 import { panel } from '../panel'
 import { number, string } from '../params'
 import { emit } from './hold'
-import { graphemes, reducedMotion, speakingText } from './motion'
+import { graphemes, speakingText } from './motion'
 
 /**
  * Decode (Archive): the text starts scrambled and settles left to right
