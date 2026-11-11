@@ -198,6 +198,34 @@ describe('defineTokens: contrast checks (C.5)', () => {
     )
   })
 
+  test('a pair in another colour group is named group.name', () => {
+    const brand = typed('color', { ink: '#777', paper: '#fff' })
+    expect(() =>
+      defineTokens(
+        { color: { text: '#000' }, brand },
+        { contrastChecks: [['brand.ink', 'brand.paper', 'text']] },
+      ),
+    ).toThrow('glyph: brand.ink on brand.paper: 4.47:1, needs 4.5:1')
+  })
+
+  test('group.name: a group that is not a colour group, or a token it lacks', () => {
+    const groups = {
+      color: { text: '#000' },
+      brand: typed('color', { ink: '#000', paper: '#fff' }),
+      space: { m: '1rem' },
+    }
+    const checks = [
+      ['brnd.ink', 'space.m', 'text'],
+      ['brand.inc', 'text', 'ui'],
+    ] as const
+    expect(() =>
+      // @ts-expect-error — no colour group "brnd", space is not colour, no token "inc"
+      defineTokens(groups, { contrastChecks: checks }),
+    ).toThrow(
+      'glyph: contrastChecks: "brnd" is not a color group of these tokens; did you mean brand?; contrastChecks: "space" is not a color group of these tokens; contrastChecks: "brand.inc" is not a color token; did you mean brand.ink?',
+    )
+  })
+
   test('pairs that pass: the tokens are made', () => {
     const tokens = defineTokens(
       { color: { text: '#222', surface: '#fff' } },

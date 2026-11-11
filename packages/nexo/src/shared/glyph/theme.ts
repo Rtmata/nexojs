@@ -41,10 +41,22 @@ export type ThemeChanges<D> = {
   }
 }
 
-/** The names in the tokens' `color` group: what a contrast pair may name. */
-export type ColorName<D> = D extends { readonly color: infer C }
-  ? `${keyof NamesOf<C> & (string | number)}`
-  : never
+/** The groups of the tokens `D` whose type is colour. */
+type ColorGroup<D> = {
+  [G in keyof D & string]: TypeOf<D, G> extends 'color' ? G : never
+}[keyof D & string]
+
+/**
+ * What a contrast pair may name: a token of the `color` group by its name
+ * (`text`), or of any colour group as `group.name` (`brand.ink`).
+ */
+export type ColorName<D> =
+  | (D extends { readonly color: infer C }
+      ? `${keyof NamesOf<C> & (string | number)}`
+      : never)
+  | {
+      [G in ColorGroup<D>]: `${G}.${keyof NamesOf<D[G]> & (string | number)}`
+    }[ColorGroup<D>]
 
 /** A pair to check: `['on-primary', 'primary', 'text']` (C.5). */
 export type ContrastPair<D> = readonly [

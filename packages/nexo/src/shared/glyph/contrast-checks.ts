@@ -19,13 +19,43 @@ export function checkProblems(
   set: TokenSet,
   checks: readonly ContrastCheck[],
 ): string[] {
-  const colors = set.group('color')?.tokenNames() ?? []
   return checks.flatMap(([foreground, background, use]) => [
-    ...[foreground, background]
-      .filter((name) => !colors.includes(name))
-      .map((name) => unknownColor(name, colors)),
+    ...[foreground, background].flatMap((name) => nameProblems(set, name)),
     ...(Object.hasOwn(REQUIRED_RATIO, use) ? [] : [unknownUse(use)]),
   ])
+}
+
+/**
+ * Where a pair's name points: `text` is a token of `color`, `brand.ink` a
+ * token of the colour group `brand`. A token name has no dot (CSS_NAME),
+ * so the first one always splits group from token.
+ */
+function placeOf(name: string): { group: string; token: string } {
+  const dot = name.indexOf('.')
+  if (dot === -1) return { group: 'color', token: name }
+  return { group: name.slice(0, dot), token: name.slice(dot + 1) }
+}
+
+/** The custom property a pair's name reads, without `--`: `brand.ink` → `brand-ink`. */
+function propertyOf(name: string): string {
+  const { group, token } = placeOf(name)
+  return `${group}-${token}`
+}
+
+/** Nothing when `name` is a token of a colour group of these tokens, else why not. */
+function nameProblems(set: TokenSet, name: string): string[] {
+  const { group, token } = placeOf(name)
+  const found = set.group(group)
+  if (group !== 'color' && found?.type !== 'color')
+    return [unknownGroup(group, colorGroups(set))]
+  const tokens = found?.tokenNames() ?? []
+  if (tokens.includes(token)) return []
+  const prefix = group === 'color' ? '' : `${group}.`
+  return [unknownColor(name, didYouMean(token, tokens, prefix))]
+}
+
+function colorGroups(set: TokenSet): string[] {
+  return set.groups.filter((g) => g.type === 'color').map((g) => g.name)
 }
 
 /**
@@ -72,7 +102,7 @@ class PairMeasure {
   private in(scheme: ColorScheme, label: string): Measured {
     const resolver = new Resolver(this.set, scheme)
     const [foreground, background] = [this.check[0], this.check[1]].map(
-      (name) => resolver.value(`color-${name}`),
+      (name) => resolver.value(propertyOf(name)),
     )
     return { label, foreground: foreground!, background: background! }
   }
@@ -89,8 +119,12 @@ class PairMeasure {
   }
 }
 
-function unknownColor(name: string, colors: readonly string[]): string {
-  return `contrastChecks: "${name}" is not a color token${didYouMean(name, colors)}`
+function unknownColor(name: string, hint: string): string {
+  return `contrastChecks: "${name}" is not a color token${hint}`
+}
+
+function unknownGroup(group: string, groups: readonly string[]): string {
+  return `contrastChecks: "${group}" is not a color group of these tokens${didYouMean(group, groups)}`
 }
 
 function unknownUse(use: string): string {

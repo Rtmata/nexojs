@@ -2,7 +2,12 @@ import { checkProblems, contrastShortfalls } from './contrast-checks'
 import { rule, sheet, type Sheet } from './sheet'
 import type { ContrastPair } from './theme'
 import { groupFrom, type TokenGroup } from './token-group'
-import { DEFINITION, TokenSet, type Defined } from './token-set'
+import {
+  DEFINITION,
+  TokenSet,
+  type ContrastCheck,
+  type Defined,
+} from './token-set'
 import type {
   GROUP_TYPES,
   GroupOf,
@@ -53,6 +58,8 @@ export interface TokenOptions<D> {
   /**
    * Pairs whose contrast these tokens keep (C.5), checked now and in
    * every theme made from them: `[['on-primary', 'primary', 'text']]`.
+   * A name is a token of `color`; `brand.ink` names one of another colour
+   * group of these tokens.
    */
   readonly contrastChecks?: readonly ContrastPair<D>[]
   /**
@@ -110,7 +117,10 @@ function tokenObject(table: TokenGroup[], set: TokenSet): object {
 /** The tokens' values, once their pairs name real colours that reach the contrast asked. */
 function checkedSet(
   table: TokenGroup[],
-  options: TokenOptions<unknown>,
+  options: {
+    readonly contrastChecks?: readonly ContrastCheck[]
+    readonly refersTo?: readonly Defined<unknown>[]
+  },
 ): TokenSet {
   const { contrastChecks = [], refersTo = [] } = options
   const referred = refersTo.map((tokens) => tokens[DEFINITION])
