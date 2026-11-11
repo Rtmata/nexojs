@@ -17,6 +17,7 @@ import { base } from './base'
 import { colorMix } from './color/mix'
 import { readColor } from './color/read'
 import { reset } from './reset'
+import { recipe } from './recipe'
 import { defineTheme } from './theme'
 import { defineTokens } from './tokens'
 
@@ -45,6 +46,22 @@ const night = defineTheme(tokens, 'night', { colorScheme: 'dark' })
 const paper = defineTheme(tokens, 'paper', {
   color: { text: '#300', surface: '#ffe' },
 })
+/** A recipe over the tokens: a variant beats the base by layer alone, a compound beats both, a part inherits a var (A.1, D). */
+const button = recipe('button', {
+  vars: { bg: tokens.color.surface, pad: '4px' },
+  base: (v) => ({ 'background-color': v.bg, padding: v.pad }),
+  variants: {
+    intent: {
+      primary: { bg: tokens.color.primary },
+      ghost: { bg: 'transparent' },
+    },
+    size: { small: { pad: '2px' }, medium: {} },
+  },
+  defaultVariants: { intent: 'primary', size: 'medium' },
+  when: [{ intent: 'ghost', size: 'small', set: { pad: '0px' } }],
+  parts: { icon: (v) => ({ 'padding-left': v.pad }) },
+})
+
 /** A theme that takes the scheme of the room around it. */
 const inner = defineTheme(tokens, 'inner', { colorScheme: 'inherit' })
 /** A name with everything that could end its selector or its <style>. */
@@ -64,6 +81,7 @@ const PAGE = `<!doctype html><title>glyph</title>
 <style>${paper.css}</style>
 <style>${night.css}</style>
 <style>${inner.css}</style>
+<style>${button.css}</style>
 <style>${odd.css}</style>
 <style>
   @layer glyph.recipes { .probe { color: rgb(0, 0, 1) } }
@@ -79,6 +97,8 @@ const PAGE = `<!doctype html><title>glyph</title>
   <p id="room" style="color: ${tokens.color.text}">uses the token here</p>
 </div>
 <p id="odd" data-theme="modo &quot;noche&quot; \\ &lt;/style&gt;">any text names a theme</p>
+<p id="primary" class="${button().root}"><i id="icon" class="${button().icon}">i</i></p>
+<p id="ghost-small" class="${button({ intent: 'ghost', size: 'small' }).root}">g</p>
 <span id="mix" style="color: color-mix(in oklch, #3b82f6 20%, white)">mix</span>
 <section id="night" data-theme="night">
   <p id="night-text">a dark room</p>
@@ -178,6 +198,18 @@ for (const [name, engine] of engines) {
     test('a theme named with quotes, a backslash and </style> still applies (C.1)', async () => {
       await page.emulateMedia({ colorScheme: 'light' })
       expect(await computed(page, 'odd', 'color')).toBe('rgb(238, 238, 238)')
+    })
+
+    test('a recipe: a variant wins over the base, a compound over both, a part reads the root var (D)', async () => {
+      expect(await computed(page, 'primary', 'background-color')).toBe(
+        'rgb(37, 99, 235)',
+      )
+      expect(await computed(page, 'primary', 'padding-top')).toBe('4px')
+      expect(await computed(page, 'icon', 'padding-left')).toBe('4px')
+      expect(await computed(page, 'ghost-small', 'background-color')).toBe(
+        'rgba(0, 0, 0, 0)',
+      )
+      expect(await computed(page, 'ghost-small', 'padding-top')).toBe('0px')
     })
 
     test("colorMix computes what the browser's color-mix(in oklch) shows (C.5)", async () => {

@@ -4,3 +4,4 @@
  * lists them (A.1b). Nothing acts on import.
  */
 export * from './pieces/adopt-theme'
+export * from './pieces/check-recipes'
