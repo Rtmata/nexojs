@@ -2,6 +2,7 @@
 import * as connector from '../../shared/connector/index'
 import { For } from '../../shared/omino/index'
 import { mount } from '../omino/index'
+import type { MoveFn } from './layout'
 
 /**
  * Mounts `<ul>` with one `<li id="n">` per number, moved as `move` says;
@@ -10,7 +11,7 @@ import { mount } from '../omino/index'
 export function list(
   host: Element,
   numbers: number[],
-  move: boolean | ((rows: Element[], update: () => void) => unknown),
+  move: boolean | MoveFn,
 ): (next: number[]) => void {
   const items = connector.signal(numbers)
   const tree = (

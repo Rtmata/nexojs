@@ -1,3 +1,4 @@
+import { untilAborted } from '../settle/abort'
 import { ending, settled } from '../settle/settle'
 
 export interface FinishedOptions {
@@ -14,25 +15,6 @@ function nameOf(animation: Animation): string | undefined {
   if (animation instanceof CSSAnimation) return animation.animationName
   if (animation instanceof CSSTransition) return animation.transitionProperty
   return undefined
-}
-
-/**
- * `done`, or the signal's abort if that comes first. The abort listener
- * goes either way: a long-lived signal must not keep every wait alive.
- */
-function untilAborted(
-  done: Promise<void>,
-  signal?: AbortSignal,
-): Promise<void> {
-  if (signal?.aborted) return Promise.resolve()
-  const listening = new AbortController()
-  const aborted = new Promise<void>((stop) =>
-    signal?.addEventListener('abort', () => stop(), {
-      once: true,
-      signal: listening.signal,
-    }),
-  )
-  return Promise.race([done, aborted]).finally(() => listening.abort())
 }
 
 /**

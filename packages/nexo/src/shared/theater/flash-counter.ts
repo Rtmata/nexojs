@@ -127,6 +127,9 @@ function transitionsOf(samples: ColorSample[]): Transition[] {
   return transitions.found
 }
 
+/** WCAG 2.3.1: more flashes than this in any one second fails. */
+export const FLASH_LIMIT = 3
+
 /** What the counter says about one region. */
 export interface FlashCount {
   /** The most flashes in any one-second window. */

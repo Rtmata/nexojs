@@ -4,8 +4,9 @@ import {
   delayOf,
   type AnimateOptions,
 } from '../../shared/theater/options'
+import { cssName } from '../../shared/theater/reduce'
 import { animate } from './animate'
-import { applyJumps, cssName, type Keyframes } from './keyframes'
+import { applyJumps, type Keyframes } from './keyframes'
 import { writerOf, type Playback, type ValueTarget } from './playback'
 import { speedOf } from './speed'
 import type { ValueAnimation } from './value'

@@ -19,3 +19,11 @@ test('a delay must be finite; a negative one is fine (it starts partway)', () =>
   expect(() => delayOf({ delay: () => NaN })).toThrow(TypeError)
   expect(delayOf({ delay: -100 })).toBe(-100)
 })
+
+test('a negative or NaN duration says what it takes', () => {
+  for (const duration of [-1, NaN]) {
+    expect(() => curveOf({ duration }, 1)).toThrow(
+      'theater: duration must be a non-negative number',
+    )
+  }
+})

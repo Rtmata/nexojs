@@ -202,36 +202,9 @@ function seekInPage(ms: number): void {
   clock.seek(ms)
 }
 
-/**
- * One clock for both of theater's engines in a browser test (G.1).
- * `advance(ms)` moves Playwright's clock — timers, `requestAnimationFrame`
- * and `performance`, so theater's frame loop — and every element
- * animation by the same amount, a frame at a time. Element animations stay
- * paused between advances. Scroll-linked ones follow the scroll, not
- * this clock.
- *
- *   const clock = await testClock(page) // before page.goto / setContent
- *   await page.click('#enter-room')
- *   await clock.advance(200)
- */
-export class TestClock {
-  private constructor(private readonly page: ClockPage) {}
-
-  /**
-   * Installs Playwright's clock and the page's half on `page`: for every
-   * navigation (an init script), and in the document open now, since
-   * `setContent` rewrites that one without navigating. The page paints
-   * one real frame first: Chrome can't capture a screenshot of a page
-   * that never presented one, and once the clock holds
-   * `requestAnimationFrame` nothing asks for it.
-   */
-  static async on(page: ClockPage): Promise<TestClock> {
-    await page.evaluate(paintedOnce, undefined)
-    await page.clock.install()
-    await page.addInitScript({ content: INSTALL })
-    await page.evaluate((code) => (0, eval)(code), INSTALL)
-    return new TestClock(page)
-  }
+/** The clock `testClock` returns: one way to make it. */
+class TestClock {
+  constructor(private readonly page: ClockPage) {}
 
   /** Moves both clocks `ms` on, a frame at a time. */
   async advance(ms: number): Promise<void> {
@@ -243,7 +216,31 @@ export class TestClock {
   }
 }
 
-/** `TestClock.on(page)`, under the name approved in G.3b. */
-export function testClock(page: ClockPage): Promise<TestClock> {
-  return TestClock.on(page)
+export type { TestClock }
+
+/**
+ * One clock for both of theater's engines in a browser test (G.1).
+ * `advance(ms)` moves Playwright's clock — timers, `requestAnimationFrame`
+ * and `performance`, so theater's frame loop — and every element
+ * animation by the same amount, a frame at a time. Element animations stay
+ * paused between advances. Scroll-linked ones follow the scroll, not
+ * this clock.
+ *
+ * It installs Playwright's clock and the page's half on `page`: for every
+ * navigation (an init script), and in the document open now, since
+ * `setContent` rewrites that one without navigating. The page paints one
+ * real frame first: Chrome can't capture a screenshot of a page that
+ * never presented one, and once the clock holds `requestAnimationFrame`
+ * nothing asks for it.
+ *
+ *   const clock = await testClock(page) // before page.goto / setContent
+ *   await page.click('#enter-room')
+ *   await clock.advance(200)
+ */
+export async function testClock(page: ClockPage): Promise<TestClock> {
+  await page.evaluate(paintedOnce, undefined)
+  await page.clock.install()
+  await page.addInitScript({ content: INSTALL })
+  await page.evaluate((code) => (0, eval)(code), INSTALL)
+  return new TestClock(page)
 }

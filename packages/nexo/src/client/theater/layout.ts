@@ -18,8 +18,9 @@ export interface Measured {
  *   flip(before, { spring: { duration: 400 } })
  */
 export function measure(elements: Iterable<Element>): Measured {
-  const list = [...elements]
-  return { boxes: new Map(list.map((el) => [el, el.getBoundingClientRect()])) }
+  return {
+    boxes: new Map([...elements].map((el) => [el, el.getBoundingClientRect()])),
+  }
 }
 
 /** The offset and scale that put an element's box back where it was. */

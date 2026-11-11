@@ -41,7 +41,6 @@ const DEFAULTS: Defaults = {
   restDelta: 0.5,
   restSpeed: 2,
 }
-const SAMPLE_MS = 10
 
 /** The decay: the target minus a gap that shrinks by e every `timeConstant`. */
 class Decay {
@@ -125,14 +124,6 @@ export class InertiaPath {
       return this.bounce.oscillator.speed(t - this.bounce.start)
     }
     return this.decay.velocityAt(t)
-  }
-
-  /** The path every 10 ms, as keyframes for the browser (an element). */
-  samples(): number[] {
-    const count = Math.max(Math.round(this.duration / SAMPLE_MS), 1)
-    return Array.from({ length: count + 1 }, (_, i) =>
-      this.valueAt((i * this.duration) / count),
-    )
   }
 
   private decayOf(): Decay {

@@ -1,4 +1,4 @@
-import { out, type Easing } from './easing'
+import { inOut, out, type Easing } from './easing'
 
 /** How far back it pulls before going (Penner's 10 % overshoot). */
 const PULL = 1.70158
@@ -18,7 +18,4 @@ function backInBy(pull: number): Easing {
  */
 export const backIn: Easing = backInBy(PULL)
 export const backOut: Easing = out(backIn)
-export const backInOut: Easing = (t) =>
-  t < 0.5
-    ? backInBy(PULL_IN_OUT)(2 * t) / 2
-    : 1 - backInBy(PULL_IN_OUT)(2 - 2 * t) / 2
+export const backInOut: Easing = inOut(backInBy(PULL_IN_OUT))

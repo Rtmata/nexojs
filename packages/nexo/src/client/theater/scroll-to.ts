@@ -1,36 +1,15 @@
 import type { AnimateOptions } from '../../shared/theater/options'
 import { animate } from './animate'
 import type { Playback } from './playback'
+import { Direction, pageScroller, vertical, type ScrollAxis } from './scroll'
 
 export interface ScrollToOptions extends AnimateOptions {
   /** The scroller. The page's by default. */
   container?: Element
   /** `block` (vertical) by default. */
-  axis?: 'block' | 'inline' | 'x' | 'y'
+  axis?: ScrollAxis
   /** Px left before the target (a sticky header's height). */
   offset?: number
-}
-
-function vertical(axis: ScrollToOptions['axis'] = 'block'): boolean {
-  return axis === 'block' || axis === 'y'
-}
-
-/** Where `target` is in the scroller's content, along the axis. */
-function positionOf(
-  target: Element | number,
-  container: Element,
-  down: boolean,
-): number {
-  if (typeof target === 'number') return target
-  const box = target.getBoundingClientRect()
-  const page = container === document.scrollingElement
-  const origin = page
-    ? 0
-    : down
-      ? container.getBoundingClientRect().top
-      : container.getBoundingClientRect().left
-  const scrolled = down ? container.scrollTop : container.scrollLeft
-  return (down ? box.top : box.left) - origin + scrolled
 }
 
 /**
@@ -46,11 +25,13 @@ export function scrollTo(
   target: Element | number,
   options: ScrollToOptions = {},
 ): Playback {
-  const container =
-    options.container ?? document.scrollingElement ?? document.documentElement
+  const container = options.container ?? pageScroller()
   const down = vertical(options.axis)
-  const from = down ? container.scrollTop : container.scrollLeft
-  const to = positionOf(target, container, down) - (options.offset ?? 0)
+  const direction = new Direction(down)
+  const from = direction.scrolled(container)
+  const at =
+    typeof target === 'number' ? target : direction.startIn(target, container)
+  const to = at - (options.offset ?? 0)
   const write = (v: number) => container.scrollTo(instantlyTo(v, down))
   return animate([from, to], write, { ...options, reduce: 'jump' })
 }

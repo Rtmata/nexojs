@@ -23,7 +23,7 @@ const STEP_MS = 0.01
 
 /**
  * An easing over a fixed duration (B.4): a CSS string read into a
- * function, or a function.
+ * function, or a function. The duration comes checked (`curveOf`).
  *
  *   const curve = new EasedCurve(cubicOut, 400)
  *   curve.at(200) // 0.875
@@ -32,9 +32,7 @@ export class EasedCurve implements Curve {
   constructor(
     private readonly easing: Easing,
     readonly duration: number,
-  ) {
-    checkDuration(duration)
-  }
+  ) {}
 
   /** Before the start it is at the start: even a duration of 0 has one. */
   at(ms: number): number {
@@ -51,14 +49,6 @@ export class EasedCurve implements Curve {
   toCss(): string {
     return toCss(this.easing, this.duration)
   }
-}
-
-/** Infinity is WAAPI's too: it holds the start forever. NaN fails the test. */
-function checkDuration(duration: number): void {
-  if (duration >= 0) return
-  throw new RangeError(
-    `theater: an animation lasts 0 ms or more, got ${duration}`,
-  )
 }
 
 /**

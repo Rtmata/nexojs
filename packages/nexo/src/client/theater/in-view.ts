@@ -37,13 +37,12 @@ class Visits {
     private readonly threshold: number,
   ) {}
 
-  /** True when this entry started a visit. */
-  seen(entry: IntersectionObserverEntry): boolean {
+  /** Starts a visit when the entry is inside, ends it when outside. */
+  seen(entry: IntersectionObserverEntry): void {
     const inside =
       entry.isIntersecting && entry.intersectionRatio >= this.threshold
-    if (inside && !this.visit) return this.start(entry)
+    if (inside && !this.visit) this.start(entry)
     if (!inside) this.end()
-    return false
   }
 
   end(): void {
@@ -57,14 +56,13 @@ class Visits {
    * visit stays started, so whatever `enter` hooked to its signal before
    * throwing still ends when the element leaves.
    */
-  private start(entry: IntersectionObserverEntry): boolean {
+  private start(entry: IntersectionObserverEntry): void {
     this.visit = new AbortController()
     try {
       this.enter(entry, { signal: this.visit.signal })
     } catch (error) {
       reportError(error)
     }
-    return true
   }
 }
 
@@ -98,12 +96,21 @@ class Watch {
     private readonly options: InViewOptions,
   ) {
     const threshold = thresholdOf(options.amount)
-    this.visits = new Map(
-      elements.map((el) => [el, new Visits(enter, threshold)]),
-    )
+    const visits = (el: Element) =>
+      new Visits(this.enterOf(el, enter), threshold)
+    this.visits = new Map(elements.map((el) => [el, visits(el)]))
     this.observer = this.observerOf(threshold)
     for (const el of elements) this.observer.observe(el)
     options.signal?.addEventListener('abort', () => this.stop(), { once: true })
+  }
+
+  /** With `once`, the first visit also stops watching the element (even if `enter` throws). */
+  private enterOf(el: Element, enter: Visit): Visit {
+    if (!this.options.once) return enter
+    return (entry, visit) => {
+      this.observer.unobserve(el)
+      enter(entry, visit)
+    }
   }
 
   private observerOf(threshold: number): IntersectionObserver {
@@ -114,8 +121,7 @@ class Watch {
   }
 
   private seen(entry: IntersectionObserverEntry): void {
-    const started = this.visits.get(entry.target)!.seen(entry)
-    if (started && this.options.once) this.observer.unobserve(entry.target)
+    this.visits.get(entry.target)!.seen(entry)
   }
 
   private stop(): void {

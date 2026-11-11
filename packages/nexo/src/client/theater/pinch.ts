@@ -2,6 +2,7 @@ import type { AnimateOptions } from '../../shared/theater/options'
 import type { SpringOptions } from '../../shared/theater/spring'
 import { recentOf, speed, type Sample } from '../../shared/theater/velocity'
 import { animate } from './animate'
+import { elasticOf, GestureMotion } from './gesture'
 import type { Playback } from './playback'
 
 export interface PinchOptions {
@@ -24,7 +25,6 @@ export interface Pinchable {
   set(scale: number, options?: AnimateOptions): Playback
 }
 
-const ELASTIC = 0.35
 const RELEASE = { duration: 300, bounce: 0.3 }
 /** Chrome and Firefox send a trackpad pinch as a ctrl + wheel: this much zoom per wheel unit. */
 const WHEEL_ZOOM = 0.01
@@ -89,18 +89,21 @@ class Pinch implements Pinchable {
   private readonly pointers = new Map<number, Point>()
   private start: Start | null = null
   private samples: Sample[] = []
-  private motion = new AbortController()
+  private readonly motion: GestureMotion
+  private readonly elastic: number
 
   constructor(
     private readonly el: HTMLElement,
     private readonly options: PinchOptions,
   ) {
+    this.elastic = elasticOf(options.elastic, 'pinch')
+    this.motion = new GestureMotion(options.signal)
     el.style.touchAction = options.pan ? 'none' : 'pan-x pan-y'
     this.listen(options.signal)
   }
 
   set(scale: number, options: AnimateOptions = { spring: RELEASE }): Playback {
-    const signal = this.restartMotion()
+    const signal = this.motion.restart()
     const write = (v: number) => ((this.scale = v), this.write())
     return animate([this.scale, this.limited(scale)], write, {
       ...options,
@@ -144,7 +147,7 @@ class Pinch implements Pinchable {
 
   /** A new pinch stops the release spring. Two fingers win over a gesture already running: their span is real. */
   private begin(by: Source, span: Span): void {
-    this.restartMotion()
+    this.motion.restart()
     this.start = {
       by,
       span,
@@ -207,7 +210,7 @@ class Pinch implements Pinchable {
   private wheel(event: WheelEvent): void {
     if (!event.ctrlKey) return
     event.preventDefault()
-    this.restartMotion()
+    this.motion.restart()
     this.scale = this.limited(this.scale * Math.exp(-event.deltaY * WHEEL_ZOOM))
     this.write()
   }
@@ -242,16 +245,7 @@ class Pinch implements Pinchable {
   /** Past a limit, only part of the way (`elastic`). */
   private stretched(scale: number): number {
     const limit = this.limited(scale)
-    return limit + (scale - limit) * (this.options.elastic ?? ELASTIC)
-  }
-
-  private restartMotion(): AbortSignal {
-    this.motion.abort()
-    this.motion = new AbortController()
-    const own = this.motion.signal
-    return this.options.signal
-      ? AbortSignal.any([this.options.signal, own])
-      : own
+    return limit + (scale - limit) * this.elastic
   }
 
   private write(): void {

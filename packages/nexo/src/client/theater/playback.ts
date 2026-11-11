@@ -31,18 +31,10 @@ export function isValueTarget(value: unknown): value is ValueTarget<unknown> {
 }
 
 /** A promise settled from outside, marked handled as WAAPI's `finished` is. */
-export class Deferred<T> {
-  readonly promise: Promise<T>
-  resolve!: (value: T) => void
-  reject!: (reason: unknown) => void
-
-  constructor() {
-    this.promise = new Promise<T>((resolve, reject) => {
-      this.resolve = resolve
-      this.reject = reject
-    })
-    this.promise.catch(() => {})
-  }
+export function deferred<T>(): PromiseWithResolvers<T> {
+  const resolvers = Promise.withResolvers<T>()
+  resolvers.promise.catch(() => {})
+  return resolvers
 }
 
 /** WAAPI rejects `finished` with this when an animation is cancelled. */

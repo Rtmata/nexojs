@@ -1,5 +1,6 @@
 import { frames } from './frame'
 import { reducedMotion } from './reduce'
+import { pageScroller } from './scroll'
 
 export interface SmoothWheelOptions {
   /** Turns it off. Required: nothing else ever ends it. */
@@ -46,14 +47,12 @@ class Glide {
   /** Where the glide is, with its fractions: the browser rounds `scrollTop`, and sub-pixel steps would be lost. */
   private current = 0
   private gliding: AbortController | null = null
-  private readonly page = document.scrollingElement ?? document.documentElement
+  private readonly page = pageScroller()
 
   constructor(private readonly options: SmoothWheelOptions) {
     const listen = { signal: options.signal, passive: false }
+    // The frame job ends with the signal too: nothing else to let go on abort.
     window.addEventListener('wheel', (e) => this.wheel(e), listen)
-    options.signal.addEventListener('abort', () => this.gliding?.abort(), {
-      once: true,
-    })
   }
 
   private wheel(event: WheelEvent): void {
@@ -104,11 +103,12 @@ class Glide {
   private step(delta: number): void {
     if (this.movedOnItsOwn()) return this.rest()
     const gap = this.target - this.current
+    const arrived = Math.abs(gap) <= REST_PX
     const share = 1 - Math.exp(-delta / (this.options.smoothing ?? 120))
-    this.current += Math.abs(gap) <= REST_PX ? gap : gap * share
+    this.current += arrived ? gap : gap * share
     // `instant`: a page with `scroll-behavior: smooth` would start its own glide on every write
     this.page.scrollTo({ top: this.current, behavior: 'instant' })
-    if (Math.abs(gap) <= REST_PX) this.rest()
+    if (arrived) this.rest()
   }
 
   private rest(): void {
@@ -130,7 +130,7 @@ function pixels(event: WheelEvent): number {
   return event.deltaY
 }
 
-/** An ancestor below the page that can still scroll that way: it keeps the wheel. */
+/** An ancestor below the page that scrolls vertically (whether or not it has room left that way): it keeps the wheel. */
 function nestedScroller(el: Element, page: Element): boolean {
   for (let at: Element | null = el; at && at !== page; at = at.parentElement) {
     const { overflowY } = getComputedStyle(at)

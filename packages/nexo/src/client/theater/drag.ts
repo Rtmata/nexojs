@@ -2,9 +2,10 @@ import type { InertiaOptions } from '../../shared/theater/inertia'
 import type { AnimateOptions } from '../../shared/theater/options'
 import type { SpringOptions } from '../../shared/theater/spring'
 import { animate } from './animate'
+import { elasticOf, GestureMotion } from './gesture'
 import { AnimationGroup } from './group'
 import type { Playback } from './playback'
-import { PointerTrack } from './pointer'
+import { PointerTrack, type TrackEvents } from './pointer'
 
 export interface Bounds {
   min?: number
@@ -35,7 +36,6 @@ export interface Draggable {
 
 /** A press that hardly moves is a tap, not a drag (Android's touch slop, 8 dp). */
 const SLOP = 8
-const ELASTIC = 0.35
 const SET_SPRING = { duration: 400 }
 /** The way that keeps scrolling, per axis; its keys are the axes `drag` takes. */
 const TOUCH_ACTION = { x: 'pan-y', y: 'pan-x', both: 'none' } as const
@@ -74,14 +74,6 @@ function axisOf(options: DragOptions): 'x' | 'y' | 'both' {
   )
 }
 
-function elasticOf(options: DragOptions): number {
-  const elastic = options.elastic ?? ELASTIC
-  if (elastic >= 0 && elastic <= 1) return elastic
-  throw new RangeError(
-    `theater: drag's elastic goes from 0 (stops) to 1 (free), got ${elastic}`,
-  )
-}
-
 /** Unset sides are open; NaN fails the comparison too. */
 function checkBounds(name: 'x' | 'y', bounds: Bounds): void {
   const { min = -Infinity, max = Infinity } = bounds
@@ -116,11 +108,11 @@ export function drag(el: HTMLElement, options: DragOptions = {}): Draggable {
   return new Drag(el, options)
 }
 
-class Drag implements Draggable {
+class Drag implements Draggable, TrackEvents {
   private readonly axes: Axis[]
   private start = { x: 0, y: 0 }
   private tracking = false
-  private motion = new AbortController()
+  private readonly motion: GestureMotion
 
   constructor(
     private readonly el: HTMLElement,
@@ -128,10 +120,11 @@ class Drag implements Draggable {
   ) {
     const axis = axisOf(options)
     const names = axis === 'both' ? (['x', 'y'] as const) : [axis]
-    const elastic = elasticOf(options)
+    const elastic = elasticOf(options.elastic, 'drag')
     this.axes = names.map(
       (n) => new Axis(n, boundsFor(n, options.bounds), elastic),
     )
+    this.motion = new GestureMotion(options.signal)
     el.style.touchAction = TOUCH_ACTION[axis]
     this.listen(options.signal)
   }
@@ -157,7 +150,7 @@ class Drag implements Draggable {
     options: AnimateOptions = { spring: SET_SPRING },
   ): Playback {
     this.checkTarget(to)
-    const signal = this.restartMotion()
+    const signal = this.motion.restart()
     const moving = this.axes.filter((axis) => to[axis.name] !== undefined)
     const run = (axis: Axis) =>
       this.run(axis, [axis.value, to[axis.name]!], { ...options, signal })
@@ -178,25 +171,14 @@ class Drag implements Draggable {
 
   private down(event: PointerEvent): void {
     if (event.button !== 0 || this.tracking) return
-    this.restartMotion()
+    this.motion.restart()
     this.tracking = true
     this.start = { x: this.x, y: this.y }
-    new PointerTrack(
-      event,
-      this.events(),
-      this.options.signal ?? new AbortController().signal,
-    )
+    const signal = this.options.signal ?? new AbortController().signal
+    new PointerTrack(event, this, signal)
   }
 
-  private events() {
-    return {
-      move: (track: PointerTrack) => this.moved(track),
-      end: (track: PointerTrack, released: boolean) =>
-        this.ended(track, released),
-    }
-  }
-
-  private moved(track: PointerTrack): void {
+  move(track: PointerTrack): void {
     this.el.setAttribute('data-dragging', '')
     for (const axis of this.axes)
       axis.value = axis.constrain(
@@ -205,11 +187,11 @@ class Drag implements Draggable {
     this.write()
   }
 
-  private ended(track: PointerTrack, released: boolean): void {
+  end(track: PointerTrack, released: boolean): void {
     this.stopTracking()
     if (Math.hypot(track.offset.x, track.offset.y) >= SLOP)
       swallowClick(this.el)
-    const signal = this.restartMotion()
+    const signal = this.motion.restart()
     for (const axis of this.axes)
       this.release(axis, released ? track.velocity[axis.name] : 0, signal)
   }
@@ -239,15 +221,6 @@ class Drag implements Draggable {
   private stopTracking(): void {
     this.tracking = false
     this.el.removeAttribute('data-dragging')
-  }
-
-  private restartMotion(): AbortSignal {
-    this.motion.abort()
-    this.motion = new AbortController()
-    const own = this.motion.signal
-    return this.options.signal
-      ? AbortSignal.any([this.options.signal, own])
-      : own
   }
 
   private write(): void {

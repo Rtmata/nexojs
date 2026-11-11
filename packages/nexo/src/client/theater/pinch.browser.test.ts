@@ -210,4 +210,24 @@ describe.skipIf(!chrome)('pinch in Chrome', () => {
     await clock.advance(240)
     expect(await scale(page)).toBe(2)
   })
+
+  test('an elastic outside 0 to 1 says what it takes', async () => {
+    const { page } = await clockedPage(browser, code, PAGE)
+    const errors = await page.evaluate(() => {
+      const { pinch } = (window as any).theater
+      const screen = document.getElementById('screen')
+      const thrown = (elastic: number) => {
+        try {
+          pinch(screen, { elastic })
+        } catch (error) {
+          return (error as Error).message
+        }
+      }
+      return [thrown(2), thrown(NaN)]
+    })
+    expect(errors).toEqual([
+      "theater: pinch's elastic goes from 0 (stops) to 1 (free), got 2",
+      "theater: pinch's elastic goes from 0 (stops) to 1 (free), got NaN",
+    ])
+  })
 })

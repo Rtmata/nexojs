@@ -1,6 +1,6 @@
 import { animate } from './animate'
 import { reducedMotion } from './reduce'
-import { scroll, type ScrollAxis } from './scroll'
+import { scroll, vertical, type ScrollAxis } from './scroll'
 
 export interface ParallaxOptions {
   /**
@@ -27,7 +27,7 @@ const REACH = 50
 export function parallax(el: Element, options: ParallaxOptions): void {
   if (reducedMotion()) return
   const reach = options.depth * REACH
-  const down = options.axis !== 'inline' && options.axis !== 'x'
+  const down = vertical(options.axis)
   const at = (amount: number) => (down ? `0 ${amount}vh` : `${amount}vw 0`)
   const keyframes = { translate: [at(-reach), at(reach)] }
   const timing = { duration: 1000, easing: 'linear', reduce: false } as const

@@ -34,7 +34,7 @@ export interface ScrollOptions {
 }
 
 /** `block` and `y` scroll vertically here; writing modes are not read. */
-function vertical(axis: ScrollAxis = 'block'): boolean {
+export function vertical(axis: ScrollAxis = 'block'): boolean {
   return axis === 'block' || axis === 'y'
 }
 
@@ -45,6 +45,11 @@ function vertical(axis: ScrollAxis = 'block'): boolean {
 function scrollerOf(el: Element): Element {
   for (let at = el.parentElement; at; at = at.parentElement)
     if (isScrollContainer(at)) return at
+  return pageScroller()
+}
+
+/** The page's scroller: `<html>` where the browser names none. */
+export function pageScroller(): Element {
   return document.scrollingElement ?? document.documentElement
 }
 
@@ -63,7 +68,7 @@ function givesOverflowToPage(el: Element): boolean {
 }
 
 /** One scroll direction's measures (pattern: strategy, vertical or horizontal). */
-class Direction {
+export class Direction {
   constructor(private readonly down: boolean) {}
 
   scrolled(el: Element): number {
@@ -82,6 +87,14 @@ class Direction {
   span(box: DOMRect): [number, number] {
     return this.down ? [box.top, box.height] : [box.left, box.width]
   }
+
+  /** Where `el` starts in `scroller`'s content; the page's scroller counts from the page's top. */
+  startIn(el: Element, scroller: Element): number {
+    const [start] = this.span(el.getBoundingClientRect())
+    const page = scroller === document.scrollingElement
+    const origin = page ? 0 : this.span(scroller.getBoundingClientRect())[0]
+    return start - origin + this.scrolled(scroller)
+  }
 }
 
 /**
@@ -93,13 +106,13 @@ class Gauge {
   private readonly direction: Direction
   private readonly from: RangePoint
   private readonly to: RangePoint
+  private readonly subject?: Element
 
-  constructor(
-    private readonly subject?: Element,
-    options: ScrollOptions = {},
-  ) {
-    const page = document.scrollingElement ?? document.documentElement
-    this.source = options.source ?? (subject ? scrollerOf(subject) : page)
+  constructor(options: ScrollOptions) {
+    const { subject } = options
+    this.subject = subject
+    this.source =
+      options.source ?? (subject ? scrollerOf(subject) : pageScroller())
     this.direction = new Direction(vertical(options.axis))
     this.from = rangePoint(options.rangeStart ?? 'cover 0%')
     this.to = rangePoint(options.rangeEnd ?? 'cover 100%')
@@ -114,18 +127,15 @@ class Gauge {
     ]
     if (!this.subject)
       return scrollProgress(scrolled, direction.size(source), viewport)
-    const view = { ...this.subjectOf(this.subject, scrolled), viewport }
+    const view = { ...this.subjectOf(this.subject), viewport }
     return viewProgress(scrolled, view, this.from, this.to)
   }
 
   /** The subject's start in the scroller's content, and its size. */
-  private subjectOf(subject: Element, scrolled: number) {
-    const [start, size] = this.direction.span(subject.getBoundingClientRect())
-    const page = this.source === document.scrollingElement
-    const origin = page
-      ? 0
-      : this.direction.span(this.source.getBoundingClientRect())[0]
-    return { subjectStart: start - origin + scrolled, subjectSize: size }
+  private subjectOf(subject: Element) {
+    const [, size] = this.direction.span(subject.getBoundingClientRect())
+    const start = this.direction.startIn(subject, this.source)
+    return { subjectStart: start, subjectSize: size }
   }
 }
 
@@ -162,6 +172,11 @@ function linkNative(animation: Animation, options: ScrollOptions): boolean {
   return true
 }
 
+/** A group's members, or the one animation. */
+function membersOf(target: Playback): Playback[] {
+  return target instanceof AnimationGroup ? target.members : [target]
+}
+
 /** Moves a paused animation to a progress of its whole length. */
 function seeker(member: Playback): (progress: number) => void {
   member.pause()
@@ -177,7 +192,7 @@ function seekersOf(
   target: Playback,
   options: ScrollOptions,
 ): ((p: number) => void)[] {
-  const members = target instanceof AnimationGroup ? target.members : [target]
+  const members = membersOf(target)
   for (const member of members)
     if (member instanceof Animation) linkToScroll(member)
   const left = members.filter(
@@ -220,7 +235,7 @@ class Follower {
 
 /** On abort (or already aborted), element members are unlinked and kept where they are (B.5b). */
 function unlinkOnAbort(target: Playback, signal?: AbortSignal): void {
-  const members = target instanceof AnimationGroup ? target.members : [target]
+  const members = membersOf(target)
   const unlink = () =>
     members.forEach((m) => m instanceof Animation && unlinkFromScroll(m))
   if (signal?.aborted) return unlink()
@@ -242,10 +257,16 @@ export function scroll(
   target: Playback | ((progress: number) => void),
   options: ScrollOptions = {},
 ): void {
-  const seekers =
-    typeof target === 'function' ? [target] : seekersOf(target, options)
-  if (typeof target !== 'function') unlinkOnAbort(target, options.signal)
-  if (seekers.length === 0) return
-  const gauge = new Gauge(options.subject, options)
-  new Follower(seekers, gauge, options.signal).listen()
+  if (typeof target === 'function') return follow([target], options)
+  const seekers = seekersOf(target, options)
+  unlinkOnAbort(target, options.signal)
+  if (seekers.length > 0) follow(seekers, options)
+}
+
+/** The scroll read on the page's frames and handed to `seekers`. */
+function follow(
+  seekers: ((p: number) => void)[],
+  options: ScrollOptions,
+): void {
+  new Follower(seekers, new Gauge(options), options.signal).listen()
 }

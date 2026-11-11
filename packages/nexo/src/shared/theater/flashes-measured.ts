@@ -1,4 +1,4 @@
-import { countFlashes, type ColorSample } from './flash-counter'
+import { countFlashes, FLASH_LIMIT, type ColorSample } from './flash-counter'
 import type { TestClock } from './test-clock'
 
 /** What the measured source needs from a Playwright page. */
@@ -53,10 +53,9 @@ class PageTiles {
       bitmap.width,
       bitmap.height,
     )
-    const tiles = Array.from({ length: grid * grid }, (_, i) =>
+    return Array.from({ length: grid * grid }, (_, i) =>
       this.average(data, width, height, grid, i),
     )
-    return tiles
   }
 
   /**
@@ -122,13 +121,12 @@ function base64Of(bytes: Uint8Array): string {
 async function frame(
   page: FlashPage,
   clock: TestClock,
-  grid: number,
 ): Promise<Omit<ColorSample, 't'>[]> {
   await clock.advance(FRAME_MS)
   const png = base64Of(await page.screenshot())
   return page.evaluate(
     ([png, grid]) => (window as any).theaterTiles.read(png, grid),
-    [png, grid] as const,
+    [png, GRID] as const,
   )
 }
 
@@ -162,7 +160,7 @@ async function recorded(
 ): Promise<ColorSample[][]> {
   const series: ColorSample[][] = Array.from({ length: GRID * GRID }, () => [])
   for (let i = 0; i < frames; i++) {
-    const tiles = await frame(page, clock, GRID)
+    const tiles = await frame(page, clock)
     tiles.forEach((color, tile) =>
       series[tile]!.push({ t: i * FRAME_MS, ...color }),
     )
@@ -177,6 +175,6 @@ function verdict(samples: ColorSample[], tile: number): MeasuredFlash {
     row: Math.floor(tile / GRID),
     perSecond,
     red,
-    fails: perSecond > 3,
+    fails: perSecond > FLASH_LIMIT,
   }
 }

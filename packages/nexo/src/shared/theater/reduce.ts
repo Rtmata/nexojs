@@ -61,12 +61,13 @@ const BLURRING = new Set(['filter', 'backdrop-filter'])
  *   movesThings('opacity', [0, 1])              // false
  */
 export function movesThings(property: string, values: unknown[]): boolean {
-  const name = kebab(property)
+  const name = cssName(property)
   if (MOVING.has(name) || SIDES.test(name)) return true
   return BLURRING.has(name) && values.some((v) => String(v).includes('blur('))
 }
 
-function kebab(property: string): string {
+/** A WAAPI (camelCase) property name as CSS writes it; a custom property as it is. */
+export function cssName(property: string): string {
   if (property.startsWith('--')) return property
   return property.replace(/[A-Z]/g, (letter) => `-${letter.toLowerCase()}`)
 }

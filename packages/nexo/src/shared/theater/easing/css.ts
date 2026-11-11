@@ -1,7 +1,7 @@
 import { cubicBezier } from './cubic-bezier'
 import { linear, type Easing } from './easing'
 import { linearPoints, type LinearStop } from './linear-points'
-import { steps, type StepPosition } from './steps'
+import { isStepPosition, steps, STEP_POSITIONS } from './steps'
 
 /** The CSS easing keywords, as the functions they stand for. */
 const KEYWORDS: Record<string, () => Easing> = {
@@ -19,16 +19,6 @@ const FUNCTIONS: Record<string, (args: string[]) => Easing> = {
   'cubic-bezier': (args) => cubicBezier(...fourNumbers(args)),
   steps: stepsOf,
   linear: (args) => linearPoints(args.flatMap(stopsOf)),
-}
-
-/** The positions `steps()` takes, to refuse any other before it is looked up. */
-const STEP_POSITIONS: Record<StepPosition, true> = {
-  'jump-start': true,
-  'jump-end': true,
-  'jump-none': true,
-  'jump-both': true,
-  start: true,
-  end: true,
 }
 
 /** A CSS `<number>`. `Number()` alone reads `''` as 0 and a word as NaN. */
@@ -72,11 +62,10 @@ function fourNumbers(args: string[]): [number, number, number, number] {
 /** `steps(4)` or `steps(4, jump-none)`; a count that isn't whole is `steps`' own RangeError. */
 function stepsOf(args: string[]): Easing {
   const [count = '', position = 'end'] = args
-  const known = Object.hasOwn(STEP_POSITIONS, position)
-  if (args.length <= 2 && isNumber(count) && known)
-    return steps(Number(count), position as StepPosition)
+  if (args.length <= 2 && isNumber(count) && isStepPosition(position))
+    return steps(Number(count), position)
   throw new SyntaxError(
-    `theater: steps() takes a count and one of ${Object.keys(STEP_POSITIONS).join(', ')}, got "${args.join(', ')}"`,
+    `theater: steps() takes a count and one of ${STEP_POSITIONS.join(', ')}, got "${args.join(', ')}"`,
   )
 }
 

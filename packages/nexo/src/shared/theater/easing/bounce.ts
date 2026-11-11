@@ -1,4 +1,4 @@
-import { inOut, type Easing } from './easing'
+import { inOut, out, type Easing } from './easing'
 
 /**
  * A ball dropped on the floor: four bounces, each lower (out). Robert
@@ -13,5 +13,5 @@ export const bounceOut: Easing = (t) => {
     return (4356 / 361) * t * t - (35442 / 1805) * t + 16061 / 1805
   return 10.8 * t * t - 20.52 * t + 10.72
 }
-export const bounceIn: Easing = (t) => 1 - bounceOut(1 - t)
+export const bounceIn: Easing = out(bounceOut)
 export const bounceInOut: Easing = inOut(bounceIn)

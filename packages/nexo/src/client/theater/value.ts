@@ -7,7 +7,7 @@ import {
   type AnimateOptions,
 } from '../../shared/theater/options'
 import { frames } from './frame'
-import { abortError, Deferred, isValueTarget, type Playback } from './playback'
+import { abortError, deferred, isValueTarget, type Playback } from './playback'
 import { reducedMotion } from './reduce'
 
 /** Where a value is at a moment of one iteration, and how long one lasts. */
@@ -35,19 +35,23 @@ export class KeyframeTrack implements Track {
   }
 
   velocityAt(ms: number): number {
-    const gaps = this.keyframes.length - 1
-    const place = this.curve.at(ms) * gaps
-    const i = Math.min(Math.max(Math.floor(place), 0), gaps - 1)
-    const span = this.keyframes[i + 1]! - this.keyframes[i]!
+    const { index, gaps } = this.segmentAt(ms)
+    const span = this.keyframes[index + 1]! - this.keyframes[index]!
     return span * gaps * this.curve.velocityAt(ms)
   }
 
   valueAt(ms: number): number {
+    const { index, place } = this.segmentAt(ms)
+    const [from, to] = [this.keyframes[index]!, this.keyframes[index + 1]!]
+    return from + (to - from) * (place - index)
+  }
+
+  /** The curve's progress at `ms` across all the gaps, and the gap it is in. */
+  private segmentAt(ms: number) {
     const gaps = this.keyframes.length - 1
     const place = this.curve.at(ms) * gaps
-    const i = Math.min(Math.max(Math.floor(place), 0), gaps - 1)
-    const [from, to] = [this.keyframes[i]!, this.keyframes[i + 1]!]
-    return from + (to - from) * (place - i)
+    const index = Math.min(Math.max(Math.floor(place), 0), gaps - 1)
+    return { gaps, place, index }
   }
 }
 
@@ -77,7 +81,7 @@ export class ValueAnimation implements Playback {
   private ticking: AbortController | null = null
   /** The caller's signal is heard only while it has something to stop. */
   private listening: AbortController | null = null
-  private done = new Deferred<ValueAnimation>()
+  private done = deferred<ValueAnimation>()
 
   constructor(
     private readonly track: Track,
@@ -226,12 +230,12 @@ export class ValueAnimation implements Playback {
     this.state = 'idle'
     this.retire()
     this.done.reject(reason)
-    this.done = new Deferred()
+    this.done = deferred()
   }
 
   /** WAAPI: leaving the finished state makes a new `finished`; until then it stays resolved. */
   private renew(): void {
-    if (this.state === 'finished') this.done = new Deferred()
+    if (this.state === 'finished') this.done = deferred()
   }
 
   private retire(): void {
@@ -297,23 +301,26 @@ export class ValueAnimation implements Playback {
   }
 
   private backwardsAt(local: number): boolean {
-    const duration = this.track.duration
-    if (duration === 0) return false
-    return this.backwards(Math.floor(local / duration))
+    if (this.track.duration === 0) return false
+    return this.backwards(this.iterationOf(local))
   }
 
   /** The time inside the current iteration, direction applied. */
   private iterationTime(local: number): number {
     const { duration } = this.track
     if (duration === 0) return 0
-    const total = duration * this.timing.iterations
-    const clamped = Math.min(local, total)
-    const iteration = Math.min(
-      Math.floor(clamped / duration),
-      this.timing.iterations - 1,
-    )
+    const clamped = Math.min(local, duration * this.timing.iterations)
+    const iteration = this.iterationOf(local)
     const within = clamped - iteration * duration
     return this.backwards(iteration) ? duration - within : within
+  }
+
+  /** Which iteration `local` is in; past the end, the last one. */
+  private iterationOf(local: number): number {
+    const { duration } = this.track
+    const clamped = Math.min(local, duration * this.timing.iterations)
+    const iteration = Math.floor(clamped / duration)
+    return Math.min(iteration, this.timing.iterations - 1)
   }
 
   private backwards(iteration: number): boolean {

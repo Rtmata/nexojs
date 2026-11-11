@@ -1,6 +1,13 @@
 import { describe, expect, test } from 'bun:test'
 import { InertiaPath } from './inertia'
 
+/** The path every 10 ms, and where it rests. */
+function every10ms(path: InertiaPath): number[] {
+  const count = Math.floor(path.duration / 10)
+  const times = Array.from({ length: count + 1 }, (_, i) => i * 10)
+  return [...times, path.duration].map((ms) => path.valueAt(ms))
+}
+
 describe('InertiaPath', () => {
   test('starts at the release speed times power, and slows down', () => {
     const path = new InertiaPath(0, {
@@ -55,7 +62,7 @@ describe('InertiaPath', () => {
       bounds: { min: -4000, max: 0 },
     })
     expect(path.to).toBe(0)
-    const samples = path.samples()
+    const samples = every10ms(path)
     expect(Math.max(...samples)).toBeGreaterThan(0) // it overshoots the edge…
     expect(samples.at(-1)!).toBeCloseTo(0, 0) // …and comes back to it
   })
@@ -69,7 +76,7 @@ describe('InertiaPath', () => {
 
   test('the speed is continuous where the decay meets the edge spring', () => {
     const path = new InertiaPath(-100, { velocity: 1800, bounds: { max: 0 } })
-    const hit = path.samples().findIndex((v) => v >= 0) * 10
+    const hit = every10ms(path).findIndex((v) => v >= 0) * 10
     expect(path.velocityAt(hit - 1)).toBeCloseTo(path.velocityAt(hit + 1), -2)
   })
 

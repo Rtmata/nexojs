@@ -39,10 +39,18 @@ function clampStep(step: number, t: number, jumps: number): number {
   return step
 }
 
+/** The positions `steps()` takes, as CSS names them. */
+export const STEP_POSITIONS = Object.keys(JUMPS) as StepPosition[]
+
+/** Whether `position` is one `steps()` takes (own keys only: `constructor` is on every object). */
+export function isStepPosition(position: string): position is StepPosition {
+  return Object.hasOwn(JUMPS, position)
+}
+
 function checkPosition(position: string): void {
-  if (Object.hasOwn(JUMPS, position)) return
+  if (isStepPosition(position)) return
   throw new RangeError(
-    `theater: steps() takes ${Object.keys(JUMPS).join(', ')} as its position, got ${position}`,
+    `theater: steps() takes ${STEP_POSITIONS.join(', ')} as its position, got ${position}`,
   )
 }
 

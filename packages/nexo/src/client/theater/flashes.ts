@@ -1,6 +1,7 @@
 import { fromCss } from '../../shared/theater/easing/css'
 import {
   countFlashes,
+  FLASH_LIMIT,
   SAFE_AREA_SHARE,
   type ColorSample,
 } from '../../shared/theater/flash-counter'
@@ -161,19 +162,21 @@ function samplesOf(effect: KeyframeEffect, backdrop: Backdrop): ColorSample[] {
   })
 }
 
-/** An animated element's verdict. */
+/** An animated element's verdict; null when it animates nothing inside `root`. */
 function predict(
   animation: Animation,
+  root: ParentNode,
   reader: ColorReader,
   page: RGB,
 ): PredictedFlash | null {
   const effect = animation.effect
-  if (!(effect instanceof KeyframeEffect) || !effect.target) return null
+  if (!(effect instanceof KeyframeEffect)) return null
   const element = effect.target
+  if (!element || !root.contains(element)) return null
   const backdrop = new Backdrop(reader, getComputedStyle(element), page)
   const counted = countFlashes(samplesOf(effect, backdrop))
   const area = shareOf(element)
-  const fails = counted.perSecond > 3 && area > SAFE_AREA_SHARE
+  const fails = counted.perSecond > FLASH_LIMIT && area > SAFE_AREA_SHARE
   return { element, ...counted, area, fails }
 }
 
@@ -197,12 +200,6 @@ export function predictFlashes(root: ParentNode = document): PredictedFlash[] {
   const page = Backdrop.pageOf(reader)
   const found = document
     .getAnimations()
-    .filter((animation) => isIn(root, animation))
-    .map((a) => predict(a, reader, page))
+    .map((a) => predict(a, root, reader, page))
   return found.filter((f): f is PredictedFlash => f !== null)
-}
-
-function isIn(root: ParentNode, animation: Animation): boolean {
-  const target = (animation.effect as KeyframeEffect | null)?.target
-  return target ? root.contains(target) : false
 }

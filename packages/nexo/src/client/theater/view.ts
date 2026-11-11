@@ -44,8 +44,8 @@ async function shape(
 
 /** A transition's promises reject together when the change fails; one rejection is enough. */
 function markHandled(transition: ViewTransition): void {
-  const { ready, updateCallbackDone, finished } = transition
-  for (const promise of [ready, updateCallbackDone, finished])
+  const { updateCallbackDone, finished } = transition // `ready` is handled where `shape` waits on it
+  for (const promise of [updateCallbackDone, finished])
     promise.catch(countsAsFinished)
 }
 
@@ -58,10 +58,11 @@ function countsAsFinished(): void {}
 /** The transition's animations get theater's timing, at the page's speed. */
 function giveTiming(options: AnimateOptions): void {
   const speed = speedOf(document.documentElement)
-  const timing = choseCurve(options) ? curveTiming(options, speed) : {}
+  const chosen = choseCurve(options)
+  const timing = chosen ? curveTiming(options, speed) : {}
   for (const part of partsOf()) {
     part.effect?.updateTiming(timing as OptionalEffectTiming)
-    part.playbackRate = choseCurve(options) ? 1 : speed
+    part.playbackRate = chosen ? 1 : speed
   }
 }
 

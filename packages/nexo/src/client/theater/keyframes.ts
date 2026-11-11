@@ -1,4 +1,4 @@
-import { movesThings, type Reduce } from '../../shared/theater/reduce'
+import { cssName, movesThings, type Reduce } from '../../shared/theater/reduce'
 
 /** WAAPI's two keyframe formats: by property, or a list of frames. */
 export type Keyframes = PropertyIndexedKeyframes | Keyframe[]
@@ -74,10 +74,4 @@ export function applyJumps(el: Element, jumps: Map<string, string>): void {
   const style = (el as HTMLElement).style
   for (const [property, value] of jumps)
     style.setProperty(cssName(property), value)
-}
-
-/** A WAAPI (camelCase) property name as CSS writes it. */
-export function cssName(property: string): string {
-  if (property.startsWith('--')) return property
-  return property.replace(/[A-Z]/g, (letter) => `-${letter.toLowerCase()}`)
 }

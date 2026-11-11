@@ -1,11 +1,11 @@
-import { toCss } from '../../shared/theater/easing/to-css'
 import {
   curveOf,
-  DEFAULT_DURATION,
   DEFAULT_EASING,
   delayOf,
+  durationOf,
   type AnimateOptions,
 } from '../../shared/theater/options'
+import { onAbortUntil } from '../settle/abort'
 import { applyJumps, splitForReduce, type Keyframes } from './keyframes'
 import { reducedMotion } from './reduce'
 import { speedOf } from './speed'
@@ -37,7 +37,7 @@ export function curveTiming(
   options: AnimateOptions,
   speed: number,
 ): KeyframeAnimationOptions {
-  const duration = (options.duration ?? DEFAULT_DURATION) / speed
+  const duration = durationOf(options) / speed
   const easing = options.easing ?? DEFAULT_EASING
   if (!options.spring && typeof easing === 'string') return { duration, easing }
   const curve = curveOf(options, speed)
@@ -53,14 +53,11 @@ export function curveTiming(
 function keepWhatIsSeen(animation: Animation, signal?: AbortSignal): void {
   const retire = () => settle(animation)
   if (signal?.aborted) return retire()
-  // A long-lived signal (a page's, a mount's) must not keep every ended animation alive.
-  const listening = new AbortController()
-  signal?.addEventListener('abort', retire, {
-    once: true,
-    signal: listening.signal,
-  })
-  const ended = () => settleAtEnd(animation)
-  animation.finished.then(ended, () => {}).finally(() => listening.abort())
+  const ended = animation.finished.then(
+    () => settleAtEnd(animation),
+    () => {},
+  )
+  onAbortUntil(signal, retire, ended)
 }
 
 /**

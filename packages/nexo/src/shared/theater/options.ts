@@ -37,7 +37,7 @@ export interface AnimateOptions {
   signal?: AbortSignal
 }
 
-export const DEFAULT_DURATION = 300
+const DEFAULT_DURATION = 300
 export const DEFAULT_EASING = 'ease'
 
 /**
@@ -75,7 +75,7 @@ function nonNegative(value: number, name: string): number {
 }
 
 /** A CSS string read into a function; a function as it is. */
-export function easingOf(easing: string | Easing): Easing {
+function easingOf(easing: string | Easing): Easing {
   return typeof easing === 'string' ? fromCss(easing) : easing
 }
 

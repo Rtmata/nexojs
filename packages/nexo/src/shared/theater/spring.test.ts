@@ -174,14 +174,6 @@ describe('EasedCurve', () => {
     expect(curve.at(0)).toBe(1)
   })
 
-  test('a negative or NaN duration says what it takes', () => {
-    for (const duration of [-1, NaN]) {
-      expect(() => new EasedCurve(cubicOut, duration)).toThrow(
-        'theater: an animation lasts 0 ms or more',
-      )
-    }
-  })
-
   test('reads its easing over its duration, 1 after it', () => {
     const curve = new EasedCurve(cubicOut, 400)
     expect(curve.at(200)).toBeCloseTo(0.875, 12)

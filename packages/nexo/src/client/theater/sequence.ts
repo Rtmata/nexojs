@@ -9,6 +9,7 @@ import {
   type Position,
   type Slot,
 } from '../../shared/theater/schedule'
+import { onAbortUntil } from '../settle/abort'
 import { animateElement, settle } from './element'
 import { AnimationGroup } from './group'
 import type { Keyframes } from './keyframes'
@@ -210,9 +211,9 @@ export class Sequence extends AnimationGroup {
   ) {
     super(members)
     const retire = () => this.retire()
-    this.finished.then(retire, () => {})
+    const ended = this.finished.then(retire, () => {})
     if (signal?.aborted) retire()
-    signal?.addEventListener('abort', retire, { once: true })
+    else onAbortUntil(signal, retire, ended)
   }
 
   private retire(): void {
