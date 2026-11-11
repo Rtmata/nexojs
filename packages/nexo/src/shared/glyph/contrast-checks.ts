@@ -87,7 +87,7 @@ class PairMeasure {
 
   /** Both schemes, or one when the theme fixes it or the colours are the same in both. */
   private measured(): Measured[] {
-    const fixed = this.set.colorScheme
+    const fixed = this.set.fixedScheme()
     if (fixed) return [this.in(fixed, '')]
     const [light, dark] = [
       this.in('light', ' (light)'),

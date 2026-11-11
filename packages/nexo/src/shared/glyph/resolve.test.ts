@@ -65,6 +65,16 @@ describe('resolve (C.6)', () => {
     )
   })
 
+  test('a theme that inherits its scheme answers for either', () => {
+    const inner = defineTheme(tokens, 'inner', { colorScheme: 'inherit' })
+    expect(resolve(inner, { colorScheme: 'dark' }).values['color-text']).toBe(
+      '#eee',
+    )
+    expect(resolve(inner, { colorScheme: 'light' }).values['color-text']).toBe(
+      '#222',
+    )
+  })
+
   test('a reference into tokens it was not told about names the fix', () => {
     const alone = defineTokens({ color: { primary: palette.blue[700] } })
     expect(() => resolve(alone, { colorScheme: 'light' })).toThrow(

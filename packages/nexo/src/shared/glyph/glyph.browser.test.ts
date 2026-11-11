@@ -45,6 +45,8 @@ const night = defineTheme(tokens, 'night', { colorScheme: 'dark' })
 const paper = defineTheme(tokens, 'paper', {
   color: { text: '#300', surface: '#ffe' },
 })
+/** A theme that takes the scheme of the room around it. */
+const inner = defineTheme(tokens, 'inner', { colorScheme: 'inherit' })
 
 /**
  * glyph's sheets in the reverse of their layer order, then a probe that
@@ -57,6 +59,7 @@ const PAGE = `<!doctype html><title>glyph</title>
 <style>${reset.css}</style>
 <style>${paper.css}</style>
 <style>${night.css}</style>
+<style>${inner.css}</style>
 <style>
   @layer glyph.recipes { .probe { color: rgb(0, 0, 1) } }
   @layer glyph.reset { #probe.probe { color: rgb(0, 0, 2) } }
@@ -76,6 +79,7 @@ const PAGE = `<!doctype html><title>glyph</title>
   <section id="paper" data-theme="paper">
     <p id="paper-text">a paper room inside it</p>
   </section>
+  <section id="inner" data-theme="inner">an inheriting room inside it</section>
 </section>`
 
 /** The computed value of `property` on `#id`. */
@@ -157,6 +161,12 @@ for (const [name, engine] of engines) {
       )
       // Its light-dark tokens follow the system again, not the dark room around it
       expect(await computed(page, 'paper', 'color-scheme')).toBe('light dark')
+    })
+
+    test("colorScheme: 'inherit' takes the dark of the room around it (C.3)", async () => {
+      await page.emulateMedia({ colorScheme: 'light' })
+      expect(await computed(page, 'inner', 'color-scheme')).toBe('dark')
+      expect(await computed(page, 'inner', 'color')).toBe('rgb(238, 238, 238)')
     })
 
     test("colorMix computes what the browser's color-mix(in oklch) shows (C.5)", async () => {

@@ -6,6 +6,12 @@ import type { TokenType } from './typed'
 export type ColorScheme = 'light' | 'dark'
 
 /**
+ * What a theme may say of its scheme: one fixed, or `inherit`, CSS's own
+ * word, to take the scheme of the room around it (C.3).
+ */
+export type ThemeScheme = ColorScheme | 'inherit'
+
+/**
  * A pair to check (C.5): foreground and background, names in the `color`
  * group, and what the foreground is — `text` needs 4.5:1 (WCAG 2.2 1.4.3),
  * `ui` 3:1 (1.4.11).
@@ -48,8 +54,13 @@ export class TokenSet<D = unknown> {
     readonly groups: readonly TokenGroup[],
     readonly checks: readonly ContrastCheck[],
     readonly refersTo: readonly TokenSet[],
-    readonly colorScheme?: ColorScheme,
+    readonly colorScheme?: ThemeScheme,
   ) {}
+
+  /** The scheme it always shows, if any: `inherit` may show either. */
+  fixedScheme(): ColorScheme | undefined {
+    return this.colorScheme === 'inherit' ? undefined : this.colorScheme
+  }
 
   group(name: string): TokenGroup | undefined {
     return this.groups.find((group) => group.name === name)
@@ -89,7 +100,7 @@ export class TokenSet<D = unknown> {
   /** A new set: `changes` over these values, more pairs, maybe a fixed scheme (C.2). */
   with(
     changes: Readonly<Record<string, Readonly<Record<string, unknown>>>>,
-    more: { checks: readonly ContrastCheck[]; colorScheme?: ColorScheme },
+    more: { checks: readonly ContrastCheck[]; colorScheme?: ThemeScheme },
   ): TokenSet<D> {
     const changed = (g: TokenGroup) =>
       Object.hasOwn(changes, g.name) ? g.with(changes[g.name]!) : g

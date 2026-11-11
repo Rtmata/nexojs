@@ -91,6 +91,33 @@ describe('defineTheme (C.1–C.3)', () => {
     expect(flat.css).toContain('    color-scheme: light dark;\n') // as the tokens' :root
   })
 
+  test("colorScheme: 'inherit' writes CSS's own inherit, and from passes it on", () => {
+    const dual = defineTokens({
+      color: { text: { light: '#222', dark: '#eee' }, surface: '#fff' },
+    })
+    const inner = defineTheme(dual, 'inner', { colorScheme: 'inherit' })
+    expect(inner.css).toContain('    color-scheme: inherit;\n')
+    const deeper = defineTheme(dual, 'deeper', { from: inner })
+    expect(deeper.css).toContain('    color-scheme: inherit;\n')
+  })
+
+  test("colorScheme: 'inherit' may show either scheme: contrast is measured in both", () => {
+    const dual = defineTokens({
+      color: {
+        text: { light: '#222', dark: '#555' },
+        surface: { light: '#fff', dark: '#111' },
+      },
+    })
+    expect(() =>
+      defineTheme(dual, 'inner', {
+        colorScheme: 'inherit',
+        contrastChecks: [['text', 'surface', 'text']],
+      }),
+    ).toThrow(
+      'glyph: theme "inner": text on surface (dark): 2.53:1, needs 4.5:1',
+    )
+  })
+
   test('tokens without text or surface colours: no color or background-color', () => {
     const spacing = defineTokens({ space: { m: '1rem' } })
     expect(defineTheme(spacing, 'roomy', { space: { m: '2rem' } }).css)
@@ -226,7 +253,7 @@ describe('defineTheme: a mistake throws and says how to fix it', () => {
   test('a scheme that is neither light nor dark', () => {
     // @ts-expect-error — colorScheme is 'light' or 'dark'
     expect(() => defineTheme(tokens, 'dim', { colorScheme: 'dim' })).toThrow(
-      'glyph: theme "dim": colorScheme: "dim" is neither "light" nor "dark"',
+      'glyph: theme "dim": colorScheme: "dim" is not "light", "dark" or "inherit"',
     )
   })
 

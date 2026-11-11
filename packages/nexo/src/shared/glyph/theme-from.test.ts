@@ -110,7 +110,7 @@ describe('themeFrom (C.4)', () => {
       ok: false,
       errors: [
         `name: undefined can't be a theme name; use letters, digits, - and _, such as "night"`,
-        'colorScheme: "dim" is neither "light" nor "dark"',
+        'colorScheme: "dim" is not "light", "dark" or "inherit"',
       ],
     })
   })

@@ -4,9 +4,9 @@ import { rule, sheet, type Sheet } from './sheet'
 import { CSS_NAME } from './token-group'
 import {
   DEFINITION,
-  type ColorScheme,
   type ContrastCheck,
   type Defined,
+  type ThemeScheme,
   type TokenSet,
 } from './token-set'
 import { changeProblems, codeValue, type ValueCheck } from './theme-values'
@@ -69,8 +69,11 @@ export type ContrastPair<D> = readonly [
 export type ThemeOptions<D> = {
   /** The theme this one changes; without it, the tokens' own values (C.2). */
   readonly from?: Theme<D>
-  /** Fixes `color-scheme`; without it the theme keeps its base's (C.3). */
-  readonly colorScheme?: ColorScheme
+  /**
+   * Fixes `color-scheme`, or `inherit` takes the room around it's; without
+   * it the theme keeps its base's, else follows the system (C.3).
+   */
+  readonly colorScheme?: ThemeScheme
   /** More pairs to check, besides the tokens' and the base theme's (C.5). */
   readonly contrastChecks?: readonly ContrastPair<D>[]
 } & ThemeChanges<D>
@@ -172,7 +175,7 @@ export class ThemeDraft<D> {
 
   private merged(): TokenSet<D> {
     const { colorScheme, checks, changes } = this.parts
-    const scheme = colorScheme as ColorScheme | undefined
+    const scheme = colorScheme as ThemeScheme | undefined
     const groups = changes as Record<string, Record<string, unknown>>
     return this.base.with(groups, { checks, colorScheme: scheme })
   }
@@ -185,10 +188,10 @@ function themeSheet(name: string, lines: readonly string[]): Sheet {
 }
 
 /**
- * Always written, so a room never takes its scheme from the room around
- * it (C.2): the fixed one (C.3), else what the tokens write on `:root` —
- * `light dark` when a colour is `light-dark()` — else `normal`, the page's
- * own default.
+ * Always written, so a room takes its scheme from the room around it only
+ * when it says `inherit` (C.2): the one it says (C.3), else what the tokens
+ * write on `:root` — `light dark` when a colour is `light-dark()` — else
+ * `normal`, the page's own default.
  */
 function schemeDeclaration(set: TokenSet, tokens: TokenSet): string {
   const follows = set.hasLightDark() || tokens.hasLightDark()
@@ -219,8 +222,9 @@ function nameProblems(name: unknown): string[] {
 }
 
 function schemeProblems(scheme: unknown): string[] {
-  if (scheme === undefined || scheme === 'light' || scheme === 'dark') return []
+  if ([undefined, 'light', 'dark', 'inherit'].includes(scheme as string))
+    return []
   return [
-    `colorScheme: ${JSON.stringify(scheme)} is neither "light" nor "dark"`,
+    `colorScheme: ${JSON.stringify(scheme)} is not "light", "dark" or "inherit"`,
   ]
 }

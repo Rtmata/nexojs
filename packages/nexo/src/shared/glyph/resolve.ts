@@ -24,9 +24,10 @@ export function resolve<D>(
   { colorScheme }: { readonly colorScheme: ColorScheme },
 ): ResolvedTokens<D> {
   const set = source[DEFINITION]
-  if (set.colorScheme && set.colorScheme !== colorScheme)
+  const fixed = set.fixedScheme()
+  if (fixed && fixed !== colorScheme)
     throw new Error(
-      `glyph: resolve: this theme is always ${set.colorScheme}; ask for colorScheme: '${set.colorScheme}'`,
+      `glyph: resolve: this theme is always ${fixed}; ask for colorScheme: '${fixed}'`,
     )
   const resolver = new Resolver(set, colorScheme)
   const values = set.properties().map((p) => [p, resolver.value(p)])
