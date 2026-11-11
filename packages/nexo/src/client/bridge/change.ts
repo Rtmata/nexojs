@@ -1,8 +1,12 @@
 import { ending, ENTERING, settled } from '../settle/settle'
+import { speedAt } from '../settle/speed'
 import { announce } from './events'
 
 /** Which way the visitor went: ahead (a link), back, or replacing where they are. */
 export type Direction = 'forward' | 'back' | 'replace'
+
+/** A return through history: back or forward. */
+export type ReturnDirection = Exclude<Direction, 'replace'>
 
 /** What `data-bridge-transition` says (decision 35): snapshots or not, and the types. */
 export interface TransitionSays {
@@ -82,11 +86,6 @@ export class ViewChange {
     if (!this.snapshots) this.announce(null)
   }
 
-  /** The change won't happen (cancelled during its leave): its marks go. */
-  abandon(): void {
-    this.unmark()
-  }
-
   /** The swap, shown the way this change says; the new elements as soon as they are in. */
   async run(swap: () => Element[] | null): Promise<Element[] | null> {
     if (this.snapshots) return this.withSnapshots(swap)
@@ -102,7 +101,7 @@ export class ViewChange {
       this.mark() // a whole-page swap copies the new <html>'s attributes over
       return elements
     } catch (error) {
-      this.unmark()
+      this.abandon()
       throw error
     }
   }
@@ -124,8 +123,8 @@ export class ViewChange {
   /** At the page's speed once it runs; its marks cleared when it ends. */
   private follow(transition: ViewTransition): void {
     transition.ready.then(atPageSpeed, () => {})
-    const unmark = () => this.unmark()
-    transition.finished.then(unmark, unmark)
+    const abandon = () => this.abandon()
+    transition.finished.then(abandon, abandon)
   }
 
   /** With its types where the browser takes them (else `<html>` carries them anyway). */
@@ -134,7 +133,8 @@ export class ViewChange {
       typeof ViewTransition !== 'undefined' &&
       'types' in ViewTransition.prototype
     if (!typed) return document.startViewTransition(update)
-    return document.startViewTransition({ update, types: this.allTypes() })
+    const types = [this.detail.direction, ...this.says.types] // the direction is a type too
+    return document.startViewTransition({ update, types })
   }
 
   /** The new elements are marked until their entry animations end. */
@@ -145,17 +145,12 @@ export class ViewChange {
     )
     await settled(ending(animations))
     for (const el of elements) el.removeAttribute(ENTERING)
-    this.unmark()
+    this.abandon()
   }
 
   private announce(transition: ViewTransition | null): void {
     const detail = { ...this.detail, transition, types: this.says.types }
     announce(this.trigger, 'bridge:transition', detail)
-  }
-
-  /** The direction and the declared types, as View Transition types. */
-  private allTypes(): string[] {
-    return [this.detail.direction, ...this.says.types]
   }
 
   private mark(): void {
@@ -165,8 +160,11 @@ export class ViewChange {
     root.setAttribute(TYPES, this.says.types.join(' '))
   }
 
-  /** Only the latest change clears the marks: a newer one may be under way. */
-  private unmark(): void {
+  /**
+   * Its marks go: it ended, or it won't happen (cancelled during its
+   * leave). Only the latest change clears them: a newer one may be under way.
+   */
+  abandon(): void {
     if (latest !== this.token) return
     document.documentElement.removeAttribute(DIRECTION)
     document.documentElement.removeAttribute(TYPES)
@@ -174,30 +172,13 @@ export class ViewChange {
   }
 }
 
-/** The page's speed (C.1b): the inherited `--theater-speed` on `<html>`, 1 when unset; anything but a positive number is reported and 1 is used, as theater's own reading does (a copy: bridge imports no theater). */
-function pageSpeed(): number {
-  const text = getComputedStyle(document.documentElement)
-    .getPropertyValue('--theater-speed')
-    .trim()
-  if (text === '') return 1
-  const speed = Number(text)
-  return Number.isFinite(speed) && speed > 0 ? speed : notASpeed(text)
-}
-
-/** CSS is markup: reported, and the change still runs at 1 (audit item 4). */
-function notASpeed(text: string): number {
-  const message = `bridge: --theater-speed: ${text} is not a speed (a positive number); 1 is used`
-  reportError(new RangeError(message))
-  return 1
-}
-
 /**
  * Snapshots run at the page's speed (C.1b): bridge reads the CSS property
- * itself — it imports no theater — and sets each View Transition
- * animation's rate once they exist.
+ * as theater does (`settle/speed`) — it imports no theater — and sets
+ * each View Transition animation's rate once they exist.
  */
 function atPageSpeed(): void {
-  const speed = pageSpeed()
+  const speed = speedAt(document.documentElement, 'bridge')
   if (speed === 1) return
   for (const animation of document.getAnimations()) {
     const pseudo = (animation.effect as KeyframeEffect | null)?.pseudoElement

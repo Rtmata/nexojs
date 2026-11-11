@@ -1,4 +1,4 @@
-import { SEGMENT_ATTRIBUTE } from '../../shared/bridge/vocabulary'
+import { SEGMENT_ATTRIBUTE } from '../../shared/markup/vocabulary'
 
 /** Kept alive across swaps, as Turbo's `data-turbo-permanent` (C.19b). */
 export const PERSIST = 'data-bridge-persist'

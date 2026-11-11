@@ -1,5 +1,9 @@
 import { enclosingSegment, inherited } from './attributes'
-import { transitionSays, type TransitionSays } from './change'
+import {
+  transitionSays,
+  type ReturnDirection,
+  type TransitionSays,
+} from './change'
 import { focusOf, type Focus } from './focus'
 import { targetOf, type Target } from './target'
 
@@ -22,7 +26,7 @@ export interface Options {
   /** Snapshots or live, and the types (decision 35, E.4). */
   transition: TransitionSays
   /** Set by a return through history; otherwise it follows `history`. */
-  direction?: 'back' | 'forward'
+  direction?: ReturnDirection
   /** The segment that shows error responses instead of the target. */
   fail: string | null
   /** Another segment marked busy while loading: a global indicator. */
@@ -68,7 +72,7 @@ export function optionsOf(
 /** The options an object gives, the rest read around `from` as a link there would: a wrong value the script gave throws, a wrong one from the markup is reported. */
 export function optionsFrom(given: VisitOptions, from: Element): Options {
   const target = givenTarget(given.target, from)
-  const own: Record<string, unknown> = { ...given }
+  const own = given as Record<string, unknown> // read by role name, never written
   const has = (role: string) => own[role] !== undefined && own[role] !== null
   const read = (role: string) =>
     has(role) ? asAttribute(own[role]) : inherited(from, role)

@@ -1,7 +1,5 @@
-import {
-  ATTRIBUTE_PREFIX,
-  SEGMENT_ATTRIBUTE,
-} from '../../shared/bridge/vocabulary'
+import { ATTRIBUTE_PREFIX } from '../../shared/bridge/vocabulary'
+import { SEGMENT_ATTRIBUTE } from '../../shared/markup/vocabulary'
 
 /**
  * The one inheritance rule for every bridge attribute: an element's value

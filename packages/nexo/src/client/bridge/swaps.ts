@@ -1,8 +1,8 @@
-import { ending, settled, UndoableLeave } from '../settle/settle'
+import { ending, FIXED_WAIT, settled, UndoableLeave } from '../settle/settle'
 import {
   COMPONENT_STYLE,
   SEGMENT_ATTRIBUTE,
-} from '../../shared/bridge/vocabulary'
+} from '../../shared/markup/vocabulary'
 import { segmentIn } from './attributes'
 import { announce } from './events'
 import { lives, PERSIST } from './lives'
@@ -144,9 +144,6 @@ export function leavingOf(swaps: Swap[]): Element[] {
     .map((swap) => swap.current)
 }
 
-/** At most this long for exits that never finish (C.15c, Angular's 4 s). */
-const LEAVE_WAIT = 4000
-
 /** Who holds an element's live leave, and what marking it changed. */
 interface Held {
   owner: Leave
@@ -179,7 +176,7 @@ export class Leave {
     for (const element of elements)
       announce(element, 'bridge:leave', { waitUntil })
     if (live) waits.push(this.exits(elements))
-    const atMost = new Promise((done) => setTimeout(done, LEAVE_WAIT))
+    const atMost = new Promise((done) => setTimeout(done, FIXED_WAIT)) // exits that never finish (C.15c)
     await Promise.race([Promise.all(waits), atMost])
   }
 

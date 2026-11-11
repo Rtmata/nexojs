@@ -1,5 +1,5 @@
 import { samePage } from '../../shared/bridge/segment-url'
-import { SEGMENT_ATTRIBUTE } from '../../shared/bridge/vocabulary'
+import { SEGMENT_ATTRIBUTE } from '../../shared/markup/vocabulary'
 import { isPlainNavigation, plainClickOn } from './click'
 import { QuietFallback } from './fallback'
 import type { Wanted } from './loader'

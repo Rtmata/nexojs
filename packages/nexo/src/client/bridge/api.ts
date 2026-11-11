@@ -1,3 +1,4 @@
+import { untilAborted } from '../settle/abort'
 import { BrowserFallback } from './fallback'
 import type { Wanted as Full } from './loader'
 import { Navigation, type Outcome, type Session } from './navigation'
@@ -72,18 +73,4 @@ type Wanted = Omit<Full, 'segments'>
 function ended(outcome: Outcome, url: URL): void {
   if (outcome === 'swapped') return
   throw new Error(`bridge: the visit to ${url} was ${outcome}`)
-}
-
-/** Waits for `work`, or stops waiting when `signal` aborts; either way the signal is let go. */
-function untilAborted(
-  work: Promise<void>,
-  signal?: AbortSignal,
-): Promise<void> {
-  if (!signal) return work
-  const listening = new AbortController()
-  const options = { once: true, signal: listening.signal }
-  const aborted = new Promise<void>((done) =>
-    signal.addEventListener('abort', () => done(), options),
-  )
-  return Promise.race([work, aborted]).finally(() => listening.abort())
 }

@@ -9,6 +9,7 @@
 import { TOP } from '../../shared/bridge/vocabulary'
 import { Api } from './api'
 import { ResponseCache } from './cache'
+import type { ReturnDirection } from './change'
 import { isPlainNavigation, plainClickOn, type Click } from './click'
 import { BrowserFallback, RETURN } from './fallback'
 import { isPlainSubmission, submissionOf, wantedFrom } from './forms'
@@ -114,7 +115,7 @@ function navigation(
 function restore(
   url: URL,
   targets: string[],
-  direction: 'back' | 'forward',
+  direction: ReturnDirection,
 ): Promise<void> {
   const root = document.documentElement
   const options = { ...restoreOptions(root), direction }

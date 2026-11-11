@@ -1,8 +1,6 @@
 import { samePage } from '../../shared/bridge/segment-url'
-import {
-  ATTRIBUTE_PREFIX,
-  SEGMENT_ATTRIBUTE,
-} from '../../shared/bridge/vocabulary'
+import { ATTRIBUTE_PREFIX } from '../../shared/bridge/vocabulary'
+import { SEGMENT_ATTRIBUTE } from '../../shared/markup/vocabulary'
 import { joined, transitionSays, ViewChange, type Direction } from './change'
 import { announce } from './events'
 import { lives } from './lives'
@@ -50,9 +48,9 @@ export class Navigation {
   async run(): Promise<Outcome> {
     const { url, method } = this.wanted
     const detail = { url, method, targets: this.swapper.targets }
-    if (this.stopped || !announce(this.trigger, 'bridge:fetch', detail))
-      return 'cancelled'
-    if (this.stopped) return 'cancelled' // a bridge:fetch listener aborted it: nothing starts, nothing else is cancelled
+    const announced = () => announce(this.trigger, 'bridge:fetch', detail)
+    // The second `stopped`: a bridge:fetch listener aborted it: nothing starts, nothing else is cancelled
+    if (this.stopped || !announced() || this.stopped) return 'cancelled'
     await this.fly(this.start())
     return this.outcome
   }

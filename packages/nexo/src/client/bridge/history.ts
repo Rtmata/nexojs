@@ -1,3 +1,5 @@
+import type { ReturnDirection } from './change'
+
 /**
  * The browser history as bridge uses it. Each entry remembers its URL,
  * every segment swapped since the page first loaded, and where the page
@@ -28,7 +30,7 @@ export interface Entry {
 export type Restore = (
   url: URL,
   targets: string[],
-  direction: 'back' | 'forward',
+  direction: ReturnDirection,
 ) => Promise<void>
 
 /** Milliseconds without a change before the entry is written. */

@@ -6,9 +6,6 @@
 /** Every bridge attribute starts with this: `data-bridge-target`, `data-bridge-segment`… */
 export const ATTRIBUTE_PREFIX = 'data-bridge-'
 
-/** Shared with omino, so they live in the neutral `shared/markup` (audit item 8). */
-export { COMPONENT_STYLE, SEGMENT_ATTRIBUTE } from '../markup/vocabulary'
-
 /** Where a link or form goes: segment names, `_top` or `_none`. */
 export const TARGET_ATTRIBUTE = `${ATTRIBUTE_PREFIX}target`
 
