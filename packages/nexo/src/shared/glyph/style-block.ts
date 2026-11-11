@@ -6,8 +6,8 @@ export type CssValue = string | number
  * nested by CSS's own selectors as keys (`'&:hover'`, `'@media (…)'`,
  * D.3), written as native CSS nesting.
  */
-export interface StyleBlock {
-  readonly [key: string]: CssValue | StyleBlock
+export interface StyleObject {
+  readonly [key: string]: CssValue | StyleObject
 }
 
 /** `&…` and `@…` keys open a nested rule; any other key is a property. */
@@ -27,7 +27,7 @@ const BREAKS_OUT = /[;{}\n\r]|<\/style/i
  * for a variant's vars — or says why it can't be one.
  */
 export function blockLines(
-  block: StyleBlock,
+  block: StyleObject,
   name: (key: string) => string,
   where: string,
 ): string[] {
@@ -40,7 +40,7 @@ export function blockLines(
 
 function nestedLines(
   key: string,
-  value: CssValue | StyleBlock,
+  value: CssValue | StyleObject,
   name: (key: string) => string,
   where: string,
 ): string[] {

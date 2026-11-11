@@ -1,5 +1,5 @@
 import type { Sheet } from './sheet'
-import type { CssValue, StyleBlock } from './style-block'
+import type { CssValue, StyleObject } from './style-block'
 
 /** A recipe's vars and their default values (D.1): `{ bg: tokens.color.surface }`. */
 export type Vars = Readonly<Record<string, CssValue>>
@@ -45,7 +45,7 @@ export type When<G, V> = Choice<G> & { readonly set: WhenSet<V> }
 
 /** Each part's style, from the recipe's vars (D.5). */
 export type Parts<V> = Readonly<
-  Record<string, (vars: VarReads<V>) => StyleBlock>
+  Record<string, (vars: VarReads<V>) => StyleObject>
 >
 
 /** `recipe`'s second argument. */
@@ -53,7 +53,7 @@ export interface RecipeConfig<V extends Vars, G, P> {
   /** The recipe's own custom properties and their defaults: `--<recipe>-<var>`. */
   readonly vars: V
   /** The root's style; `v.bg` reads the var `bg`. */
-  readonly base: (vars: VarReads<V>) => StyleBlock
+  readonly base: (vars: VarReads<V>) => StyleObject
   /** Groups of values; each value changes vars only (D.1). */
   readonly variants?: G
   readonly defaultVariants?: NoInfer<Choice<G>>
@@ -61,7 +61,7 @@ export interface RecipeConfig<V extends Vars, G, P> {
   readonly when?: NoInfer<readonly When<G, V>[]>
   /** Inner parts, reading the root's vars through inheritance (D.5). */
   readonly parts?: {
-    readonly [K in keyof P]: (vars: VarReads<V>) => StyleBlock
+    readonly [K in keyof P]: (vars: VarReads<V>) => StyleObject
   }
 }
 

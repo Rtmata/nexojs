@@ -13,7 +13,7 @@ import {
   propertyName,
   ruleLines,
   valueText,
-  type StyleBlock,
+  type StyleObject,
 } from './style-block'
 import { CSS_NAME } from './token-group'
 
@@ -57,23 +57,23 @@ export function recipe<
 /** The config as glyph reads it, past the types that check it. */
 interface RecipeParts {
   readonly vars: Vars
-  readonly base: (vars: VarReads<Vars>) => StyleBlock
+  readonly base: (vars: VarReads<Vars>) => StyleObject
   readonly variants?: Readonly<
-    Record<string, Readonly<Record<string, StyleBlock>>>
+    Record<string, Readonly<Record<string, StyleObject>>>
   >
   readonly defaultVariants?: Readonly<Record<string, string>>
   readonly when?: readonly (Readonly<Record<string, string>> & {
-    readonly set: StyleBlock
+    readonly set: StyleObject
   })[]
   readonly parts?: Readonly<
-    Record<string, (vars: VarReads<Vars>) => StyleBlock>
+    Record<string, (vars: VarReads<Vars>) => StyleObject>
   >
 }
 
 /** One recipe, checked once: its CSS and the classes for each call. */
 class RecipeDefinition {
   private readonly variants: Readonly<
-    Record<string, Readonly<Record<string, StyleBlock>>>
+    Record<string, Readonly<Record<string, StyleObject>>>
   >
   private readonly defaults: Readonly<Record<string, string>>
 
@@ -181,7 +181,7 @@ class RecipeDefinition {
   }
 
   /** A variant writes vars only (D.1), by their custom property. */
-  private varLines(set: StyleBlock, at: string): string[] {
+  private varLines(set: StyleObject, at: string): string[] {
     const where = `recipe "${this.name}" ${at}`
     const name = (key: string) => {
       if (Object.hasOwn(this.config.vars, key)) return this.varProperty(key)
