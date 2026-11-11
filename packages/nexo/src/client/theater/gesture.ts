@@ -19,13 +19,17 @@ export function elasticOf(elastic: number | undefined, owner: string): number {
 export class GestureMotion {
   private motion = new AbortController()
 
-  constructor(private readonly signal?: AbortSignal) {}
+  constructor(private readonly gesture?: AbortSignal) {}
 
-  /** Stops the running motion; the signal of the next one, which the gesture's own signal ends too. */
-  restart(): AbortSignal {
+  /** Stops the running motion; the next one listens to a fresh `signal`. */
+  restart(): void {
     this.motion.abort()
     this.motion = new AbortController()
+  }
+
+  /** The running motion's signal, which the gesture's own signal ends too. */
+  get signal(): AbortSignal {
     const own = this.motion.signal
-    return this.signal ? AbortSignal.any([this.signal, own]) : own
+    return this.gesture ? AbortSignal.any([this.gesture, own]) : own
   }
 }

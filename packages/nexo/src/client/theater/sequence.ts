@@ -211,9 +211,12 @@ export class Sequence extends AnimationGroup {
   ) {
     super(members)
     const retire = () => this.retire()
-    const ended = this.finished.then(retire, () => {})
+    this.finished.then(retire, () => {})
+    // Until every part settles: `finished` rejects as soon as one part is
+    // cancelled, and an abort after that must still settle the others.
+    const settled = Promise.allSettled(members.map((m) => m.finished))
     if (signal?.aborted) retire()
-    else onAbortUntil(signal, retire, ended)
+    else onAbortUntil(signal, retire, settled)
   }
 
   private retire(): void {

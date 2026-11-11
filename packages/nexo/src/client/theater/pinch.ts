@@ -103,7 +103,8 @@ class Pinch implements Pinchable {
   }
 
   set(scale: number, options: AnimateOptions = { spring: RELEASE }): Playback {
-    const signal = this.motion.restart()
+    this.motion.restart()
+    const signal = this.motion.signal
     const write = (v: number) => ((this.scale = v), this.write())
     return animate([this.scale, this.limited(scale)], write, {
       ...options,

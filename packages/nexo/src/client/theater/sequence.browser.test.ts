@@ -170,6 +170,36 @@ describe.skipIf(!chrome)('sequences in Chrome', () => {
     expect(await page.evaluate(() => document.getAnimations().length)).toBe(0)
   })
 
+  test('aborting after one part was cancelled still settles the others', async () => {
+    const { page, clock } = await clockedPage(browser, code, ROOM)
+    await page.evaluate(() => {
+      const w = window as any
+      const $ = (id: string) => document.getElementById(id)!
+      w.stop = new AbortController()
+      w.theater.animate(
+        [
+          [$('title'), { opacity: [0, 1] }, { duration: 1000 }],
+          [
+            $('count'),
+            { opacity: [0, 1] },
+            { duration: 1000, with: 'previous' },
+          ],
+        ],
+        { signal: w.stop.signal },
+      )
+    })
+    await clock.advance(400)
+    const count = await page.evaluate(async () => {
+      document.getElementById('title')!.getAnimations()[0]!.cancel()
+      await new Promise((settled) => setTimeout(settled, 0)) // the group's finished has rejected
+      ;(window as any).stop.abort()
+      const count = document.getElementById('count')!
+      return { left: count.getAnimations().length, inline: count.style.opacity }
+    })
+    expect(count.left).toBe(0)
+    expect(count.inline).not.toBe('')
+  })
+
   test('stagger: each element of a list starts later, from where it says', async () => {
     const { page, clock } = await clockedPage(
       browser,

@@ -154,6 +154,8 @@
       },
       "default": "./src/client/theater/pieces/*.ts"
     },
+    "./theater/flashes": "./src/shared/theater/flashes-measured.ts",
+    "./theater/test-clock": "./src/shared/theater/test-clock.ts",
     "./voices": {
       "nexo-built": {
         "types": "./src/shared/voices/index.ts",

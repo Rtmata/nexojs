@@ -4,6 +4,12 @@ import { tmpdir } from 'node:os'
 import { join, resolve } from 'node:path'
 import { entries } from './build-client'
 
+/** An export the client build makes: the source, and where its build lands. */
+type Built = {
+  'nexo-built': { types: string; default: string }
+  default: string
+}
+
 const out = mkdtempSync(join(tmpdir(), 'nexo-built-'))
 afterAll(() => rmSync(out, { recursive: true, force: true }))
 
@@ -45,5 +51,26 @@ describe('the client build (F.2)', () => {
     expect(listed).toContain('./src/client/panel/pieces/tabs.ts')
     expect(listed).toContain('./src/client/theater/pieces/easing/back.ts')
     expect(listed.filter((source) => source.includes('*'))).toEqual([])
+    expect(listed).not.toContain('./src/shared/theater/test-clock.ts') // runs beside the browser
+    expect(listed).not.toContain('./src/shared/theater/flashes-measured.ts')
+  })
+
+  test('each nexo-built target is its source built: dist/ for src/, .js for .ts', async () => {
+    const pkg = await Bun.file(
+      resolve(import.meta.dir, '../packages/nexo/package.json'),
+    ).json()
+    const built = Object.values(pkg.exports as Record<string, Built>).filter(
+      (target) => typeof target === 'object',
+    )
+    expect(built.length).toBeGreaterThan(0)
+    for (const target of built) {
+      const dist = target.default
+        .replace('./src/', './dist/')
+        .replace(/\.ts$/, '.js')
+      expect(target['nexo-built']).toEqual({
+        types: target.default,
+        default: dist,
+      })
+    }
   })
 })

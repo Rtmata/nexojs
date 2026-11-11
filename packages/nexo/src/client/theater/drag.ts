@@ -150,7 +150,8 @@ class Drag implements Draggable, TrackEvents {
     options: AnimateOptions = { spring: SET_SPRING },
   ): Playback {
     this.checkTarget(to)
-    const signal = this.motion.restart()
+    this.motion.restart()
+    const signal = this.motion.signal
     const moving = this.axes.filter((axis) => to[axis.name] !== undefined)
     const run = (axis: Axis) =>
       this.run(axis, [axis.value, to[axis.name]!], { ...options, signal })
@@ -191,7 +192,8 @@ class Drag implements Draggable, TrackEvents {
     this.stopTracking()
     if (Math.hypot(track.offset.x, track.offset.y) >= SLOP)
       swallowClick(this.el)
-    const signal = this.motion.restart()
+    this.motion.restart()
+    const signal = this.motion.signal
     for (const axis of this.axes)
       this.release(axis, released ? track.velocity[axis.name] : 0, signal)
   }

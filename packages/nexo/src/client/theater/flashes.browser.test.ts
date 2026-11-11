@@ -75,6 +75,36 @@ describe.skipIf(!chrome)('flashes in Chrome', () => {
     expect(found).toBe(5)
   })
 
+  test('predicted: 1.5 iterations end halfway through the second, as WAAPI does', async () => {
+    const page = await pageWith(browser, code, '<div id="b"></div>')
+    const found = await page.evaluate(() => {
+      const b = document.getElementById('b')!
+      b.style.cssText = 'width: 900px; height: 900px'
+      const step = { easing: 'steps(1)' }
+      const blink = b.animate(
+        [
+          { backgroundColor: '#000', ...step },
+          { backgroundColor: '#fff', offset: 0.5, ...step },
+          { backgroundColor: '#fff' },
+        ],
+        { duration: 200, iterations: 1.5, fill: 'forwards' },
+      )
+      const progressAt = (ms: number) => (
+        (blink.currentTime = ms),
+        blink.effect!.getComputedTiming().progress
+      )
+      const progress = [progressAt(250), progressAt(1000)]
+      blink.currentTime = 0
+      return {
+        progress,
+        perSecond: (window as any).theater.predictFlashes()[0].perSecond,
+      }
+    })
+    expect(found.progress[0]).toBeCloseTo(0.25, 9) // black again
+    expect(found.progress[1]).toBeCloseTo(0.5, 9) // then held white
+    expect(found.perSecond).toBe(1) // black, white, black, white: one flash
+  })
+
   test('predicted: currentcolor is the text colour; a value that is no colour is reported, the background used', async () => {
     const page = await pageWith(browser, code, '<div id="b"></div>')
     const found = await page.evaluate(() => {
