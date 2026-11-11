@@ -1,7 +1,6 @@
 import { checkProblems, contrastShortfalls } from './contrast-checks'
 import type { ContrastUse } from './color/contrast'
 import { rule, sheet, type Sheet } from './sheet'
-import { CSS_NAME } from './token-group'
 import {
   DEFINITION,
   type ContrastCheck,
@@ -104,7 +103,9 @@ export function defineTheme<D>(
   const draft = draftOf(tokens, name, options)
   const problems = draft.problems()
   if (problems.length > 0)
-    throw new Error(`glyph: theme "${name}": ${problems.join('; ')}`)
+    throw new Error(
+      `glyph: theme ${JSON.stringify(name)}: ${problems.join('; ')}`,
+    )
   return draft.theme()
 }
 
@@ -183,7 +184,7 @@ export class ThemeDraft<D> {
 
 /** `[data-theme="<name>"]` in `glyph.themes`, named after the theme so a page emits it once. */
 function themeSheet(name: string, lines: readonly string[]): Sheet {
-  const selector = `[data-theme="${name}"]`
+  const selector = `[data-theme="${cssString(name)}"]`
   return sheet(`glyph.themes(${name})`, 'glyph.themes', rule(selector, lines))
 }
 
@@ -214,11 +215,28 @@ function surfaceDeclarations(set: TokenSet): string[] {
   ]
 }
 
+/**
+ * Any text names a theme (C.1): `modo noche` too. Only empty text can't,
+ * since `data-theme=""` is an element with no theme.
+ */
 function nameProblems(name: unknown): string[] {
-  if (typeof name === 'string' && CSS_NAME.test(name)) return []
+  if (typeof name === 'string' && name !== '') return []
   return [
-    `name: ${JSON.stringify(name)} can't be a theme name; use letters, digits, - and _, such as "night"`,
+    `name: ${JSON.stringify(name)} can't be a theme name; write some text, such as "night"`,
   ]
+}
+
+/**
+ * `text` inside a CSS string: each character that could end the string, the
+ * rule or the `<style>` around it — quote, backslash, `<`, `>`, a control
+ * character — written as its hex escape, which CSS reads back as itself.
+ * A name from a person's JSON can't step outside its selector.
+ */
+function cssString(text: string): string {
+  return text.replace(
+    /[\\"<>\u0000-\u001f\u007f]/g,
+    (c) => `\\${c.codePointAt(0)!.toString(16)} `,
+  )
 }
 
 function schemeProblems(scheme: unknown): string[] {

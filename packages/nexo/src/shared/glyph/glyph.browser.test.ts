@@ -47,6 +47,10 @@ const paper = defineTheme(tokens, 'paper', {
 })
 /** A theme that takes the scheme of the room around it. */
 const inner = defineTheme(tokens, 'inner', { colorScheme: 'inherit' })
+/** A name with everything that could end its selector or its <style>. */
+const odd = defineTheme(tokens, 'modo "noche" \\ </style>', {
+  colorScheme: 'dark',
+})
 
 /**
  * glyph's sheets in the reverse of their layer order, then a probe that
@@ -60,6 +64,7 @@ const PAGE = `<!doctype html><title>glyph</title>
 <style>${paper.css}</style>
 <style>${night.css}</style>
 <style>${inner.css}</style>
+<style>${odd.css}</style>
 <style>
   @layer glyph.recipes { .probe { color: rgb(0, 0, 1) } }
   @layer glyph.reset { #probe.probe { color: rgb(0, 0, 2) } }
@@ -73,6 +78,7 @@ const PAGE = `<!doctype html><title>glyph</title>
   <p id="inherits">inherits html's colour, resolved there</p>
   <p id="room" style="color: ${tokens.color.text}">uses the token here</p>
 </div>
+<p id="odd" data-theme="modo &quot;noche&quot; \\ &lt;/style&gt;">any text names a theme</p>
 <span id="mix" style="color: color-mix(in oklch, #3b82f6 20%, white)">mix</span>
 <section id="night" data-theme="night">
   <p id="night-text">a dark room</p>
@@ -167,6 +173,11 @@ for (const [name, engine] of engines) {
       await page.emulateMedia({ colorScheme: 'light' })
       expect(await computed(page, 'inner', 'color-scheme')).toBe('dark')
       expect(await computed(page, 'inner', 'color')).toBe('rgb(238, 238, 238)')
+    })
+
+    test('a theme named with quotes, a backslash and </style> still applies (C.1)', async () => {
+      await page.emulateMedia({ colorScheme: 'light' })
+      expect(await computed(page, 'odd', 'color')).toBe('rgb(238, 238, 238)')
     })
 
     test("colorMix computes what the browser's color-mix(in oklch) shows (C.5)", async () => {

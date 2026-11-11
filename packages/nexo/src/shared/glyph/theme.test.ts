@@ -118,6 +118,17 @@ describe('defineTheme (C.1–C.3)', () => {
     )
   })
 
+  test('any text names a theme; the selector escapes what could end it (C.1)', () => {
+    expect(defineTheme(tokens, 'modo noche', {}).css).toContain(
+      '[data-theme="modo noche"] {',
+    )
+    const odd = defineTheme(tokens, 'a"b\\c</style>\n', {})
+    expect(odd.css).toContain(
+      '[data-theme="a\\22 b\\5c c\\3c /style\\3e \\a "] {',
+    )
+    expect(odd.css).not.toContain('</style')
+  })
+
   test('tokens without text or surface colours: no color or background-color', () => {
     const spacing = defineTokens({ space: { m: '1rem' } })
     expect(defineTheme(spacing, 'roomy', { space: { m: '2rem' } }).css)
@@ -244,9 +255,9 @@ describe('defineTheme: a mistake throws and says how to fix it', () => {
     )
   })
 
-  test('a name that would need escaping in the selector', () => {
-    expect(() => defineTheme(tokens, 'my theme', {})).toThrow(
-      `glyph: theme "my theme": name: "my theme" can't be a theme name; use letters, digits, - and _, such as "night"`,
+  test('an empty name', () => {
+    expect(() => defineTheme(tokens, '', {})).toThrow(
+      `glyph: theme "": name: "" can't be a theme name; write some text, such as "night"`,
     )
   })
 

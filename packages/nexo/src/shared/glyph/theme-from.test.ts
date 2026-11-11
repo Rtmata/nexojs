@@ -109,7 +109,7 @@ describe('themeFrom (C.4)', () => {
     expect(themeFrom(tokens, { colorScheme: 'dim' })).toEqual({
       ok: false,
       errors: [
-        `name: undefined can't be a theme name; use letters, digits, - and _, such as "night"`,
+        `name: undefined can't be a theme name; write some text, such as "night"`,
         'colorScheme: "dim" is not "light", "dark" or "inherit"',
       ],
     })
