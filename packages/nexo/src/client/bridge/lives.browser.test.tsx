@@ -16,7 +16,7 @@ const chrome = Boolean(
 )
 
 class Badge extends Component {
-  static styles = ':scope { color: rgb(255, 0, 0) }' // the root itself: :scope
+  static styles = [':scope { color: rgb(255, 0, 0) }'] // the root itself: :scope
   template(): Child {
     return <b>badge</b>
   }

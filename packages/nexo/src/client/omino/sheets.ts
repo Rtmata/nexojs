@@ -1,5 +1,10 @@
-import { COMPONENT_STYLE } from '../../shared/markup/vocabulary'
-import { pageCss, type ComponentStyles } from '../../shared/omino/styles'
+import { COMPONENT_STYLE, PAGE_SHEET } from '../../shared/markup/vocabulary'
+import {
+  pageCss,
+  samePageSheet,
+  type ComponentStyles,
+  type PageSheet,
+} from '../../shared/omino/styles'
 
 /**
  * A component's CSS in the browser (C.20a): once per document, as the
@@ -14,6 +19,20 @@ export function ensureSheet(styles: ComponentStyles): void {
   const style = document.createElement('style')
   style.setAttribute(COMPONENT_STYLE, styles.name)
   style.textContent = css
+  document.head.append(style)
+}
+
+/** A page-wide sheet (glyph's), once per document by name, as the server writes it. */
+export function ensurePageSheet(sheet: PageSheet): void {
+  const selector = `style[${PAGE_SHEET}="${CSS.escape(sheet.name)}"]`
+  const existing = document.head.querySelector(selector)
+  if (existing) {
+    if ((existing.textContent ?? '').trim() === sheet.css.trim()) return
+    throw samePageSheet(sheet.name)
+  }
+  const style = document.createElement('style')
+  style.setAttribute(PAGE_SHEET, sheet.name)
+  style.textContent = sheet.css
   document.head.append(style)
 }
 

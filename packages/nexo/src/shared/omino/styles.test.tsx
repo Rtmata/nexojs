@@ -3,14 +3,16 @@ import { Component, css, render, type Child } from './index'
 import { renderToString } from './render'
 
 class Card extends Component {
-  static styles = css`
-    :scope {
-      padding: ${1}rem;
-    }
-    p {
-      color: red;
-    }
-  `
+  static styles = [
+    css`
+      :scope {
+        padding: ${1}rem;
+      }
+      p {
+        color: red;
+      }
+    `,
+  ]
   template(): Child {
     return (
       <section>
@@ -21,7 +23,7 @@ class Card extends Component {
 }
 
 class Loud extends Component {
-  static styles = 'b { color: red }'
+  static styles = ['b { color: red }']
   static encapsulation = 'none' as const
   template(): Child {
     return <b>!</b>
@@ -29,7 +31,7 @@ class Loud extends Component {
 }
 
 class Boxed extends Component {
-  static styles = 'p { color: blue }'
+  static styles = ['p { color: blue }']
   static encapsulation = 'shadow' as const
   template(): Child {
     return (
@@ -87,7 +89,7 @@ describe('component styles on the server', () => {
 
   test('two classes with one name and different styles are an error', async () => {
     const Other = class Card extends Component {
-      static styles = 'p { color: green }'
+      static styles = ['p { color: green }']
       template(): Child {
         return <p />
       }
@@ -97,9 +99,76 @@ describe('component styles on the server', () => {
     )
   })
 
+  test('a page-wide sheet goes once, before the components', async () => {
+    const sheet = {
+      name: 'glyph.recipes(button)',
+      css: '.button { color: red }',
+    }
+    class Buy extends Component {
+      static styles = [sheet, 'p { margin: 0 }']
+      template(): Child {
+        return <p />
+      }
+    }
+    class Plain extends Component {
+      static styles = [sheet]
+      template(): Child {
+        return <b />
+      }
+    }
+    const html = await renderToString(page([<Buy />, <Plain />, <Buy />]))
+    expect(html.match(/data-sheet=/g)).toHaveLength(1)
+    expect(html).toContain(
+      '<style data-sheet="glyph.recipes(button)">.button { color: red }</style><style data-scope-for="Buy">',
+    )
+    expect(html).toContain('<b></b>') // only sheets: nothing to scope, no mark
+  })
+
+  test('sheets: one name with two CSS, a non-list, a wrong item, a shadow component', async () => {
+    const one = (css: string) =>
+      class extends Component {
+        static styles = [{ name: 'same', css }]
+        template(): Child {
+          return <p />
+        }
+      }
+    const [A, B] = [one('a {}'), one('b {}')]
+    await expect(renderToString(page([<A />, <B />]))).rejects.toThrow(
+      'two sheets named "same" have different CSS',
+    )
+    class Single extends Component {
+      static styles = 'p {}' as never
+      template(): Child {
+        return <p />
+      }
+    }
+    await expect(renderToString(<Single />)).rejects.toThrow(
+      'Single.styles is a list',
+    )
+    class Wrong extends Component {
+      static styles = [{ name: 'x' }] as never
+      template(): Child {
+        return <p />
+      }
+    }
+    await expect(renderToString(<Wrong />)).rejects.toThrow(
+      'each item is CSS text or a sheet with a name and its css',
+    )
+    class Shadowy extends Component {
+      static styles = [{ name: 'x', css: '' }]
+      static encapsulation = 'shadow' as const
+      template(): Child {
+        return <x-y />
+      }
+    }
+    await expect(renderToString(<Shadowy />)).rejects.toThrow(
+      "Shadowy lists page-wide sheets but has encapsulation 'shadow'",
+    )
+  })
+
   test('a </style> inside the CSS is an error', async () => {
     class Bad extends Component {
-      static styles = 'p {} </style><script>'
+      static styles = ['p {} </style><script>']
       template(): Child {
         return <p />
       }

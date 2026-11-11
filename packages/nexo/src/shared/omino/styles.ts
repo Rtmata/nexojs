@@ -1,4 +1,4 @@
-import { COMPONENT_STYLE } from '../markup/vocabulary'
+import { COMPONENT_STYLE, PAGE_SHEET } from '../markup/vocabulary'
 import { Element as OminoElement, Fragment, type Child } from './element'
 import { escapeHtml } from './html'
 
@@ -15,7 +15,7 @@ export const SCOPE_ATTRIBUTE = 'data-scope'
 /**
  * CSS as a plain string; the tag is there for editors to highlight it.
  *
- *   static styles = css`:scope { padding: 1rem } h2 { margin: 0 }`
+ *   static styles = [css`:scope { padding: 1rem } h2 { margin: 0 }`]
  */
 export function css(
   strings: TemplateStringsArray,
@@ -24,28 +24,87 @@ export function css(
   return strings.reduce((text, part, i) => text + String(values[i - 1]) + part)
 }
 
-/** What omino reads from a component class: its styles, name and encapsulation. */
+/** A component's own CSS, its name and encapsulation. */
 export interface ComponentStyles {
   name: string
   css: string
   encapsulation: Encapsulation
 }
 
+/**
+ * A page-wide sheet in a `styles` list: any value with a name and its CSS
+ * (glyph's tokens, themes, recipes; A.2). omino puts it once per page as
+ * it is, with no scope: it brings its own classes and layers.
+ */
+export interface PageSheet {
+  readonly name: string
+  readonly css: string
+}
+
+/** What a component's `styles` list holds, split: its own CSS, and the page-wide sheets. */
+export interface ListedStyles {
+  readonly own?: ComponentStyles
+  readonly sheets: readonly PageSheet[]
+}
+
 interface StyledClass {
   name: string
-  styles?: string
+  styles?: unknown
   encapsulation?: Encapsulation
 }
 
-export function stylesOf(type: unknown): ComponentStyles | undefined {
-  const styled = type as StyledClass
-  if (typeof styled.styles !== 'string') return undefined
-  ensureNoClosingTag(styled.name, styled.styles)
-  return {
-    name: styled.name,
-    css: styled.styles,
-    encapsulation: styled.encapsulation ?? 'scope',
-  }
+/**
+ * The list read: strings are the component's own CSS, joined in order;
+ * `{ name, css }` values are page-wide sheets.
+ *
+ *   static styles = [tokens, button, css`:scope { display: grid }`]
+ */
+export function stylesOf(type: unknown): ListedStyles | undefined {
+  const { name, styles, encapsulation = 'scope' } = type as StyledClass
+  if (styles === undefined) return undefined
+  const items = listOf(name, styles)
+  const texts = items.filter((item) => typeof item === 'string')
+  const sheets = items.filter((item) => typeof item !== 'string')
+  if (sheets.length > 0 && encapsulation === 'shadow')
+    throw sheetsInShadow(name)
+  const css = texts.join('\n')
+  for (const item of [css, ...sheets.map((s) => s.css)])
+    ensureNoClosingTag(name, item)
+  const own = texts.length > 0 ? { name, css, encapsulation } : undefined
+  return { own, sheets }
+}
+
+/** Every item a string or a `{ name, css }`, or an error that says what was given. */
+function listOf(name: string, styles: unknown): (string | PageSheet)[] {
+  if (!Array.isArray(styles))
+    throw new Error(
+      `omino: ${name}.styles is a list: static styles = [css\`…\`], with any sheets beside it`,
+    )
+  for (const item of styles) if (!isStyle(item)) throw notAStyle(name, item)
+  return styles as (string | PageSheet)[]
+}
+
+function isStyle(item: unknown): item is string | PageSheet {
+  if (typeof item === 'string') return true
+  const sheet = item as PageSheet | null
+  return typeof sheet?.name === 'string' && typeof sheet.css === 'string'
+}
+
+function notAStyle(name: string, item: unknown): Error {
+  return new Error(
+    `omino: ${name}.styles holds ${typeof item === 'object' ? JSON.stringify(item) : String(item)}; each item is CSS text or a sheet with a name and its css`,
+  )
+}
+
+/**
+ * shortcut: page-wide sheets don't reach into a shadow root, so a recipe's
+ * classes wouldn't apply inside; upgrade (adopt them in each shadow root
+ * too) when a shadow component needs one.
+ */
+function sheetsInShadow(name: string): Error {
+  return new Error(
+    `omino: ${name} lists page-wide sheets but has encapsulation 'shadow'; they reach the document only, not a shadow root. Use 'scope', or ask for shadow support`,
+  )
 }
 
 /**
@@ -123,6 +182,7 @@ function ensureNoClosingTag(name: string, css: string): void {
  */
 export class PageSheets {
   private readonly sheets = new Map<string, ComponentStyles>()
+  private readonly pageWide = new Map<string, PageSheet>()
 
   add(styles: ComponentStyles): void {
     const known = this.sheets.get(styles.name)
@@ -130,21 +190,42 @@ export class PageSheets {
     this.sheets.set(styles.name, styles)
   }
 
+  /** Once per page by name; one name with two different CSS is an error (glyph item 10). */
+  addPageWide(sheet: PageSheet): void {
+    const known = this.pageWide.get(sheet.name)
+    if (known && known.css !== sheet.css) throw samePageSheet(sheet.name)
+    this.pageWide.set(sheet.name, sheet)
+  }
+
   into(html: string): string {
-    if (this.sheets.size === 0) return html
+    if (this.sheets.size === 0 && this.pageWide.size === 0) return html
     const at = html.search(/<\/head>/i)
     if (at < 0) return this.html() + html
     return html.slice(0, at) + this.html() + html.slice(at)
   }
 
+  /** The page-wide sheets first: a component's own CSS is unlayered and wins anyway. */
   private html(): string {
-    return [...this.sheets.values()].map(styleElement).join('')
+    const pageWide = [...this.pageWide.values()].map(pageSheetElement)
+    return [...pageWide, ...[...this.sheets.values()].map(styleElement)].join(
+      '',
+    )
   }
 }
 
 export function styleElement(styles: ComponentStyles): string {
   const name = escapeHtml(styles.name)
   return `<style ${COMPONENT_STYLE}="${name}">${pageCss(styles)}</style>`
+}
+
+export function pageSheetElement(sheet: PageSheet): string {
+  return `<style ${PAGE_SHEET}="${escapeHtml(sheet.name)}">${sheet.css}</style>`
+}
+
+export function samePageSheet(name: string): Error {
+  return new Error(
+    `omino: two sheets named "${name}" have different CSS; a page holds one per name, so give one another name`,
+  )
 }
 
 function sameName(name: string): Error {

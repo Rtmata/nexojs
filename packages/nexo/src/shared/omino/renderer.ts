@@ -174,10 +174,13 @@ export class Renderer {
 
   /** Its root marked, and its CSS kept for the page's head (C.20a). */
   private styled(type: ComponentClass, tree: Child): Child {
-    const styles = stylesOf(type)
-    if (!styles) return tree
-    if (styles.encapsulation !== 'shadow') this.sheets.add(styles)
-    return styledTree(tree, styles)
+    const listed = stylesOf(type)
+    if (!listed) return tree
+    for (const sheet of listed.sheets) this.sheets.addPageWide(sheet)
+    const { own } = listed
+    if (!own) return tree
+    if (own.encapsulation !== 'shadow') this.sheets.add(own)
+    return styledTree(tree, own)
   }
 
   /** A <Slot> (or a subclass of it, defaults included) shows what its scope gives it. */

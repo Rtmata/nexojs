@@ -1,6 +1,7 @@
 import { ending, FIXED_WAIT, settled, UndoableLeave } from '../settle/settle'
 import {
   COMPONENT_STYLE,
+  PAGE_SHEET,
   SEGMENT_ATTRIBUTE,
 } from '../../shared/markup/vocabulary'
 import { segmentIn } from './attributes'
@@ -217,12 +218,12 @@ export function carryPersisted(current: Element, incoming: Element): void {
   }
 }
 
-/** A segment response brings its components' styles in front: into the head, once (C.20a). */
+/** A segment response brings its styles in front — components' and page-wide sheets — into the head, once (C.20a). */
 export function adoptStyles(page: Document): void {
-  for (const style of page.querySelectorAll(`style[${COMPONENT_STYLE}]`)) {
-    const name = CSS.escape(style.getAttribute(COMPONENT_STYLE)!)
-    if (document.head.querySelector(`style[${COMPONENT_STYLE}="${name}"]`))
-      continue
-    document.head.append(document.adoptNode(style))
-  }
+  for (const marker of [COMPONENT_STYLE, PAGE_SHEET])
+    for (const style of page.querySelectorAll(`style[${marker}]`)) {
+      const name = CSS.escape(style.getAttribute(marker)!)
+      if (document.head.querySelector(`style[${marker}="${name}"]`)) continue
+      document.head.append(document.adoptNode(style))
+    }
 }

@@ -1005,14 +1005,16 @@ export function bindErrors() {
 }
 
 class Tile extends Component {
-  static styles = css`
-    p {
-      color: rgb(255, 0, 0);
-    }
-    :scope {
-      padding: 3px;
-    }
-  `
+  static styles = [
+    css`
+      p {
+        color: rgb(255, 0, 0);
+      }
+      :scope {
+        padding: 3px;
+      }
+    `,
+  ]
   template(): Child {
     return (
       <article>
@@ -1024,7 +1026,7 @@ class Tile extends Component {
 }
 
 class Inner extends Component {
-  static styles = 'em { font-style: normal }'
+  static styles = ['em { font-style: normal }']
   template(): Child {
     return (
       <div>
@@ -1035,7 +1037,7 @@ class Inner extends Component {
 }
 
 class Shadowed extends Component {
-  static styles = 'p { color: rgb(0, 0, 255) }'
+  static styles = ['p { color: rgb(0, 0, 255) }']
   static encapsulation = 'shadow' as const
   template(): Child {
     return (
@@ -1064,6 +1066,40 @@ export function scopedStyles() {
     root: getComputedStyle(el.querySelector('article')!).paddingTop,
     sheets: document.querySelectorAll('style[data-scope-for="Tile"]').length,
     marked: el.querySelector('article')!.getAttribute('data-scope'),
+  }
+}
+
+const MARK = { name: 'test.mark', css: '.mark { color: rgb(0, 128, 0) }' }
+
+class Marked extends Component {
+  static styles = [MARK]
+  template(): Child {
+    return <p class="mark">marked</p>
+  }
+}
+
+class MarkedToo extends Component {
+  static styles = [MARK, 'p { padding: 2px }']
+  template(): Child {
+    return <p class="mark">too</p>
+  }
+}
+
+/** A page-wide sheet listed by two components: once in the head, no scope, applies anywhere. */
+export function pageSheets() {
+  const { el } = run(
+    <div>
+      <Marked />
+      <MarkedToo />
+      <p class="mark outside">outside</p>
+    </div>,
+  )
+  const [first, second] = el.querySelectorAll('p')
+  return {
+    sheets: document.querySelectorAll('style[data-sheet="test.mark"]').length,
+    outside: getComputedStyle(el.querySelector('.outside')!).color,
+    onlySheet: first!.getAttribute('data-scope'),
+    withOwn: second!.getAttribute('data-scope'),
   }
 }
 

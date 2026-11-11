@@ -372,6 +372,15 @@ for (const [name, engine] of engines) {
       })
     })
 
+    test('a page-wide sheet: once in the head, no scope, a component with only sheets unmarked', async () => {
+      expect(await play('pageSheets')).toEqual({
+        sheets: 1,
+        outside: 'rgb(0, 128, 0)',
+        onlySheet: null,
+        withOwn: 'MarkedToo',
+      })
+    })
+
     test("encapsulation 'shadow': a shadow root, one shared adopted sheet", async () => {
       expect(await play('shadowStyles')).toEqual({
         inShadow: 'in the shadow',

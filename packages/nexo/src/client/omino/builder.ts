@@ -32,7 +32,7 @@ import { Motions } from './motions'
 import { ElementProps } from './props'
 import type { Reactivity } from './reactivity'
 import { Region } from './region'
-import { ensureSheet, shadowSheet } from './sheets'
+import { ensurePageSheet, ensureSheet, shadowSheet } from './sheets'
 
 const HTML = 'http://www.w3.org/1999/xhtml'
 const SVG = 'http://www.w3.org/2000/svg'
@@ -261,10 +261,13 @@ export class DomBuilder {
 
 /** Its root marked and its CSS in the document (C.20a), or its shadow root (item 36). */
 function styled(type: ComponentClass, tree: Child): Child {
-  const styles = stylesOf(type)
-  if (!styles) return tree
-  if (styles.encapsulation !== 'shadow') ensureSheet(styles)
-  return styledTree(tree, styles)
+  const listed = stylesOf(type)
+  if (!listed) return tree
+  for (const sheet of listed.sheets) ensurePageSheet(sheet)
+  const { own } = listed
+  if (!own) return tree
+  if (own.encapsulation !== 'shadow') ensureSheet(own)
+  return styledTree(tree, own)
 }
 
 function create(tag: string, ns: string): Element {

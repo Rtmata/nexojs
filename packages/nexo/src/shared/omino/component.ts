@@ -1,6 +1,6 @@
 import type { Child } from './element'
 import type { RenderContext } from './render'
-import type { Encapsulation } from './styles'
+import type { Encapsulation, PageSheet } from './styles'
 
 /**
  * Props every component receives besides its own. `children` is opaque:
@@ -37,10 +37,13 @@ export abstract class Component<P extends object = {}> {
   static defaults: object = {}
 
   /**
-   * The component's CSS (C.20a): `static styles = css\`…\``. It reaches only
-   * this component's markup: `:scope` is its root.
+   * The component's CSS (C.20a) and the page-wide sheets it uses (glyph's
+   * tokens, themes, recipes; A.2), in one list:
+   * `static styles = [tokens, button, css\`:scope { … }\`]`. Its own CSS
+   * reaches only this component's markup (`:scope` is its root); a sheet
+   * goes once per page, as it is.
    */
-  static styles?: string
+  static styles?: readonly (string | PageSheet)[]
 
   /** How the styles stay inside (item 36): `@scope` by default. */
   static encapsulation?: Encapsulation

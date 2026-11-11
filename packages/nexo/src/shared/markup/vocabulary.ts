@@ -11,3 +11,11 @@ export const SEGMENT_ATTRIBUTE = 'data-bridge-segment'
  * those a segment response brings into the head, once.
  */
 export const COMPONENT_STYLE = 'data-scope-for'
+
+/**
+ * The marker omino writes on a page-wide sheet a `styles` list names
+ * (glyph's tokens, themes, recipes): once per page by its name. bridge
+ * moves those a segment brings into the head; glyph, in development, looks
+ * for a recipe's to warn when it was never listed (A.2).
+ */
+export const PAGE_SHEET = 'data-sheet'
