@@ -174,6 +174,7 @@ export class ThemeDraft<D> {
 
   /** The same in code, as lines, with the pairs' own mistakes too. */
   messages(): string[] {
+    if (this.base.origin !== this.tokens.origin) return [OTHER_TOKENS]
     const written = [
       ...this.written().map((error) => error.message),
       ...checkProblems(this.base, this.parts.checks),
@@ -207,6 +208,14 @@ export class ThemeDraft<D> {
     return this.base.with(groups, { checks, colorScheme: scheme })
   }
 }
+
+/**
+ * TS stops a `from` of other tokens; without TS only this does: the theme
+ * would write the other tokens' properties, and every other line would
+ * describe the wrong tokens, so it is said alone.
+ */
+const OTHER_TOKENS =
+  'from is a theme of other tokens; make it from the same tokens object'
 
 /** `[data-theme="<name>"]` in `glyph.themes`, named after the theme so a page emits it once. */
 function themeSheet(name: string, lines: readonly string[]): Sheet {

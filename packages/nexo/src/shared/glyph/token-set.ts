@@ -55,7 +55,13 @@ export class TokenSet<D = unknown> {
     readonly checks: readonly ContrastCheck[],
     readonly refersTo: readonly TokenSet[],
     readonly colorScheme?: ThemeScheme,
+    private readonly made?: TokenSet,
   ) {}
+
+  /** The token object's set every theme of it was made from: itself, for tokens. */
+  get origin(): TokenSet {
+    return this.made ?? this
+  }
 
   /** The scheme it always shows, if any: `inherit` may show either. */
   fixedScheme(): ColorScheme | undefined {
@@ -113,7 +119,7 @@ export class TokenSet<D = unknown> {
     const groups = this.groups.map(changed)
     const checks = [...this.checks, ...more.checks.filter(this.isNew, this)]
     const scheme = more.colorScheme ?? this.colorScheme
-    return new TokenSet(groups, checks, this.refersTo, scheme)
+    return new TokenSet(groups, checks, this.refersTo, scheme, this.origin)
   }
 
   private isNew(check: ContrastCheck): boolean {

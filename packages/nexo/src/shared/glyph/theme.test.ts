@@ -255,6 +255,16 @@ describe('defineTheme: a mistake throws and says how to fix it', () => {
     )
   })
 
+  test('a from made of other tokens: TS stops it, and so does glyph without TS', () => {
+    const other = defineTokens({ color: { text: '#000', surface: '#fff' } })
+    const otherNight = defineTheme(other, 'other-night', {})
+    const later = defineTheme(other, 'later', { from: otherNight })
+    // @ts-expect-error — a theme of other tokens
+    expect(() => defineTheme(tokens, 'dusk', { from: later })).toThrow(
+      'glyph: theme "dusk": from is a theme of other tokens; make it from the same tokens object',
+    )
+  })
+
   test('an empty name', () => {
     expect(() => defineTheme(tokens, '', {})).toThrow(
       `glyph: theme "": name: "" can't be a theme name; write some text, such as "night"`,
