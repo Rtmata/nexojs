@@ -22,6 +22,12 @@ const CASES: [module: string, piece: string, name: string][] = [
   ['client/panel/index.ts', 'client/panel/pieces/drag.ts', 'drag'],
   ['client/theater/index.ts', 'client/theater/pieces/animate.ts', 'animate'],
   ['client/theater/index.ts', 'client/theater/pieces/scroll.ts', 'scroll'],
+  [
+    'shared/glyph/index.ts',
+    'shared/glyph/pieces/define-tokens.ts',
+    'defineTokens',
+  ],
+  ['shared/glyph/index.ts', 'shared/glyph/pieces/readable-on.ts', 'readableOn'],
 ]
 
 /** The minified bundle of an entry that imports `name` from `file` and keeps it. */
