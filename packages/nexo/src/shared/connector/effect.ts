@@ -239,7 +239,9 @@ export function isOwnCancel(signal: AbortSignal, error: unknown): boolean {
 const nodes = new WeakMap<Dispose, EffectNode>()
 
 /**
- * Runs `fn` now-ish and again when what it reads changes. Returns how to end it.
+ * Runs `fn` through its scheduler — the first time too, so with the default
+ * `microtask` it runs after the current code, before the browser paints —
+ * and again each time what it read changes. Returns how to end it.
  *
  *   const stop = effect(({ signal }) => {
  *     window.addEventListener('resize', layout, { signal })
