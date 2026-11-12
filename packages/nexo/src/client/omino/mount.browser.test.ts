@@ -157,6 +157,15 @@ for (const [name, engine] of engines) {
       expect(caught[5]).toContain('returned a promise')
     })
 
+    test('prop: is guarded as its attribute is: srcdoc from raw() only, no script URL', async () => {
+      const result = await play('guardedProps')
+      expect(result.trusted).toBe('<p>book</p>')
+      expect(result.text).toContain(
+        "srcdoc> runs as a page, so plain text isn't taken there",
+      )
+      expect(result.url).toContain('holds a script URL')
+    })
+
     test('svg namespaces, foreignObject and raw()', async () => {
       expect(await play('svgAndRaw')).toEqual({
         svg: 'http://www.w3.org/2000/svg',

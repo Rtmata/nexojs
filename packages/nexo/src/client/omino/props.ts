@@ -76,7 +76,11 @@ export class ElementProps {
     signal: AbortSignal,
   ) {
     const key = name.slice('prop:'.length)
-    this.holes.write(value, (v) => ((el as any)[key] = v), signal)
+    this.holes.write(
+      value,
+      (v) => ((el as any)[key] = guarded(el, key, v)),
+      signal,
+    )
   }
 
   /**
@@ -157,6 +161,13 @@ export class ElementProps {
     const style = (el as HTMLElement).style
     this.holes.write(value, (v) => setStyle(style, property, v), signal)
   }
+}
+
+/** A property gets the same guards its attribute has: no script URL, srcdoc only from raw(). */
+function guarded(el: Element, key: string, given: unknown): unknown {
+  const value = documentValue(el.localName, key, given)
+  if (typeof value === 'string') ensureNoScriptUrl(el.localName, key, value)
+  return value
 }
 
 function setAttribute(el: Element, name: string, given: unknown): void {

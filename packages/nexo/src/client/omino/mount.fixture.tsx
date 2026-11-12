@@ -1335,3 +1335,21 @@ export async function regionKeepsOld() {
   controller.abort()
   return { during, after, threw: errors.length > 0 }
 }
+
+/** prop: gets the guards its attribute has: srcdoc only from raw(), no script URL. */
+export function guardedProps() {
+  const tried = (tree: () => Child) => {
+    try {
+      run(tree())
+      return 'ok'
+    } catch (error) {
+      return (error as Error).message
+    }
+  }
+  const { el } = run(<iframe prop:srcdoc={raw('<p>book</p>')} />)
+  return {
+    trusted: (el.querySelector('iframe') as HTMLIFrameElement).srcdoc,
+    text: tried(() => <iframe prop:srcdoc="<script>alert(1)</script>" />),
+    url: tried(() => <a prop:href="javascript:alert(1)">x</a>),
+  }
+}
