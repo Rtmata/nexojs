@@ -183,7 +183,9 @@
     "src",
     "!src/**/*.test.ts",
     "!src/**/*.test.tsx",
-    "!src/**/*.fixture.tsx"
+    "!src/**/*.fixture.ts",
+    "!src/**/*.fixture.tsx",
+    "!src/**/fixtures/**"
   ],
   "repository": {
     "type": "git",
