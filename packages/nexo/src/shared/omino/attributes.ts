@@ -1,5 +1,6 @@
 import { isReadable, readOnce } from './hole'
 import { isOwnProp } from './own-props'
+import { RawHtml } from './element'
 import { escapeHtml } from './html'
 
 /**
@@ -62,7 +63,7 @@ export class Attributes {
     ensureName(tag, name)
     if (/^on/i.test(name)) return handlerOnServer(tag, name, given)
     const raw = readOnce(given) // the server reads a hole once
-    const value = valueOf(tag, name, raw)
+    const value = documentValue(tag, name, valueOf(tag, name, raw))
     if (value === null || value === undefined || value === false) return ''
     ensureNoScriptUrl(tag, name, value) // handlers were dealt with above
     if (value === true) return ` ${name}`
@@ -150,6 +151,24 @@ function initialValues(tag: string, props: Record<string, unknown>) {
 
 function inGroup(group: unknown, value: unknown): boolean {
   return Array.isArray(group) ? group.includes(value) : group === value
+}
+
+/**
+ * Shared with the client renderer: `srcdoc` is a page the browser runs, so
+ * it takes only HTML marked as trusted with `raw()`, as content does; plain
+ * text there (a visitor's) is refused on both sides.
+ */
+export function documentValue(
+  tag: string,
+  name: string,
+  value: unknown,
+): unknown {
+  if (name.toLowerCase() !== 'srcdoc') return value
+  if (value instanceof RawHtml) return value.html
+  if (value === null || value === undefined || value === false) return value
+  throw new Error(
+    `omino: <${tag} srcdoc> runs as a page, so plain text isn't taken there; pass raw(html) for HTML you trust`,
+  )
 }
 
 /** Shared with the client renderer: a URL that would run code is refused on both sides. */

@@ -2,6 +2,7 @@ import {
   classNames,
   ensureCssName,
   ensureName,
+  documentValue,
   ensureNoScriptUrl,
   type ClassValue,
 } from '../../shared/omino/attributes'
@@ -158,7 +159,8 @@ export class ElementProps {
   }
 }
 
-function setAttribute(el: Element, name: string, value: unknown): void {
+function setAttribute(el: Element, name: string, given: unknown): void {
+  const value = documentValue(el.localName, name, given)
   if (value === null || value === undefined || value === false)
     return el.removeAttribute(name)
   if (value === true) return el.setAttribute(name, '')

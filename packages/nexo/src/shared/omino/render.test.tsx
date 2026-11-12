@@ -924,3 +924,16 @@ describe('the server side of client features', () => {
     )
   })
 })
+
+describe('srcdoc', () => {
+  test('a page in srcdoc takes only HTML marked with raw()', async () => {
+    expect(
+      await renderToString(<iframe srcdoc={raw('<p>a "book"</p>')} />),
+    ).toBe('<iframe srcdoc="&lt;p&gt;a &quot;book&quot;&lt;/p&gt;"></iframe>')
+    await expect(
+      renderToString(<iframe srcdoc={'<script>alert(1)</script>'} />),
+    ).rejects.toThrow(
+      "<iframe srcdoc> runs as a page, so plain text isn't taken there; pass raw(html) for HTML you trust",
+    )
+  })
+})
