@@ -18,7 +18,7 @@ export interface PanelOptions<S extends Schema, C> {
   connect?(el: Element, params: ParamsOf<S>, run: { signal: AbortSignal }): C
 }
 
-/** What a panel is: the same shape as `ref`, plus its typed and markup forms. */
+/** What a panel is: the same shape as `ref`, plus its typed form. */
 export interface Panel<S extends Schema, C> {
   /** Connect with the params' defaults. */
   (el: Element, run: { signal: AbortSignal }): void
@@ -26,9 +26,24 @@ export interface Panel<S extends Schema, C> {
   with(
     params: Partial<ParamsOf<S>>,
   ): (el: Element, run: { signal: AbortSignal }) => void
-  /** Params from the markup's `data-<name>-<key>`: what `attach` uses. */
+  /** Types only: the params' schema, for `registry().markup`. */
+  readonly schema?: S
+  /** Types only: what `connect` returns. */
+  readonly ctx?: C
+}
+
+/** What `attach` and `registry` need of a panel, kept out of its public shape. */
+export interface PanelInside {
+  /** Params from the markup's `data-<name>-<key>`. */
   fromMarkup(el: Element, name: string, run: { signal: AbortSignal }): void
-  readonly options: PanelOptions<S, C>
+  readonly params: Schema
+}
+
+const insides = new WeakMap<Function, PanelInside>()
+
+/** A panel's inside; a function `panel()` didn't make has none. */
+export function insideOf(found: unknown): PanelInside | undefined {
+  return typeof found === 'function' ? insides.get(found) : undefined
 }
 
 /**
@@ -50,11 +65,13 @@ export function panel<S extends Schema = {}, C = void>(
   const definition = new Definition(options)
   const connect = (el: Element, run: { signal: AbortSignal }) =>
     definition.connect(el, definition.defaults(), run.signal)
+  insides.set(connect, {
+    fromMarkup: (el, name, run) =>
+      definition.connect(el, definition.read(name, el), run.signal),
+    params: options.params ?? {},
+  })
   return Object.assign(connect, {
     with: (given: Partial<ParamsOf<S>>) => definition.withParams(given),
-    fromMarkup: (el: Element, name: string, run: { signal: AbortSignal }) =>
-      definition.connect(el, definition.read(name, el), run.signal),
-    options,
   })
 }
 

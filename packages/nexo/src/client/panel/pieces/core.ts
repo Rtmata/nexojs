@@ -1,6 +1,5 @@
 /** The `core` piece: its own import path, only what is public. */
 export { attach, PANEL_ATTRIBUTE } from '../attach'
-export type { Registry } from '../attach'
 export { observe } from '../observe'
 export { registry } from '../registry'
 export type { PanelRegistry } from '../registry' // made by registry()

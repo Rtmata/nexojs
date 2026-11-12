@@ -1,7 +1,7 @@
-import { attach, detach, type Registry } from './attach'
+import { attach, detach } from './attach'
 import type { PanelRegistry } from './registry'
 
-type Panels = Registry | PanelRegistry<any>
+type Panels = PanelRegistry<any>
 
 /**
  * Opt-in: `attach` for DOM changed outside bridge. Started

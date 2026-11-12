@@ -1,4 +1,4 @@
-import { defined, type Panel } from './panel'
+import { defined, insideOf, type Panel } from './panel'
 import { attributeOf, type Param, type ParamsOf } from './params'
 import { PANEL_ATTRIBUTE } from './vocabulary'
 
@@ -15,25 +15,14 @@ export type Markup = Record<string, string | true>
  * them and `markup` writes them, typed by the key.
  *
  *   const panels = registry({ gallery, tabs })
- *   <section {...panels.markup('gallery', { start: 2 })}>
+ *   <section {...panels.markup({ gallery: { start: 2 } })}>
  */
 export class PanelRegistry<R extends Record<string, AnyPanel>> {
   constructor(readonly panels: R) {}
 
-  /** One panel: `markup('gallery', { start: 2 })`; several: `markup({ gallery: {…}, tabs: {} })`. */
-  markup<K extends keyof R & string>(
-    name: K,
-    values?: Partial<PanelParams<R[K]>>,
-  ): Markup
-  markup(several: { [K in keyof R]?: Partial<PanelParams<R[K]>> }): Markup
-  markup(
-    first: string | Record<string, object | undefined>,
-    values: object = {},
-  ): Markup {
-    const entries =
-      typeof first === 'string'
-        ? [[first, values] as const]
-        : Object.entries(first)
+  /** The attributes for one panel or several: `markup({ gallery: { start: 2 }, tabs: {} })`. */
+  markup(panels: { [K in keyof R]?: Partial<PanelParams<R[K]>> }): Markup {
+    const entries = Object.entries(panels as Record<string, object | undefined>)
     const attributes: Markup = {
       [PANEL_ATTRIBUTE]: entries.map(([name]) => name).join(' '),
     }
@@ -44,7 +33,7 @@ export class PanelRegistry<R extends Record<string, AnyPanel>> {
 
   /** Each value given, written by its own parser as `data-<name>-<key>`. */
   private params(name: string, values: object): Markup {
-    const schema = (this.panels[name]?.options.params ?? {}) as Schema
+    const schema = (insideOf(this.panels[name])?.params ?? {}) as Schema
     const attributes: Markup = {}
     for (const [key, value] of Object.entries(defined(values)))
       write(attributes, attributeOf(name, key), schema[key]?.write(value))

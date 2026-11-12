@@ -43,8 +43,8 @@ export function fromMarkup() {
       <div class="tile"></div>
     </section>`)
   const controller = new AbortController()
-  attach(host, { gallery }, { signal: controller.signal })
-  attach(host, { gallery }, { signal: controller.signal }) // idempotent
+  attach(host, registry({ gallery }), { signal: controller.signal })
+  attach(host, registry({ gallery }), { signal: controller.signal }) // idempotent
   host
     .querySelector('span')!
     .dispatchEvent(new MouseEvent('click', { bubbles: true }))
@@ -62,7 +62,7 @@ export function fromMarkup() {
 export function laterChildren() {
   log.length = 0
   const host = html('<section data-panel="gallery"></section>')
-  attach(host, { gallery }, { signal: new AbortController().signal })
+  attach(host, registry({ gallery }), { signal: new AbortController().signal })
   const button = document.createElement('button')
   button.className = 'next'
   host.firstElementChild!.append(button)
@@ -81,7 +81,7 @@ export function errors() {
   const root = html(
     '<div data-panel="nope"></div><div data-panel="gallery" data-gallery-start="two"></div><div data-panel="gallery" data-gallery-start="4"></div>',
   )
-  attach(root, { gallery }, { signal: new AbortController().signal })
+  attach(root, registry({ gallery }), { signal: new AbortController().signal })
   window.removeEventListener('error', onError)
   return [
     ...caught,
@@ -110,7 +110,7 @@ export async function observing() {
   log.length = 0
   const host = html('<main></main>')
   const controller = new AbortController()
-  observe(host, { gallery }, { signal: controller.signal })
+  observe(host, registry({ gallery }), { signal: controller.signal })
   const added = document.createElement('section')
   added.setAttribute('data-panel', 'gallery')
   host.firstElementChild!.append(added)
@@ -125,10 +125,12 @@ export async function observing() {
 export function roundTrip() {
   log.length = 0
   const panels = registry({ gallery })
-  const attributes = panels.markup('gallery', {
-    start: 4,
-    loop: true,
-    shots: ['a', 'b', 'c'],
+  const attributes = panels.markup({
+    gallery: {
+      start: 4,
+      loop: true,
+      shots: ['a', 'b', 'c'],
+    },
   })
   const section = document.createElement('section')
   for (const [name, value] of Object.entries(attributes))

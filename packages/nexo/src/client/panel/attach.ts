@@ -1,11 +1,11 @@
-import type { Panel } from './panel'
+import { insideOf, type Panel, type PanelInside } from './panel'
 import { PanelRegistry } from './registry'
 import { PANEL_ATTRIBUTE } from './vocabulary'
 
 export { PANEL_ATTRIBUTE }
 
-/** Panels by the name markup uses: `data-panel="gallery tabs"`. A plain object. */
-export type Registry = Record<string, Panel<any, any>>
+/** Panels by the name markup uses (`data-panel="gallery tabs"`): what a `registry()` holds. */
+type Registry = Record<string, Panel<any, any>>
 
 /** Who is connected, so `attach` is idempotent per element and `observe` can end them. */
 const connected = new WeakMap<Element, Map<string, AbortController>>()
@@ -19,10 +19,14 @@ const connected = new WeakMap<Element, Map<string, AbortController>>()
  */
 export function attach(
   root: Element,
-  registry: Registry | PanelRegistry<any>,
+  registry: PanelRegistry<any>,
   { signal }: { signal: AbortSignal },
 ): void {
-  const panels = registry instanceof PanelRegistry ? registry.panels : registry
+  if (!(registry instanceof PanelRegistry))
+    throw new Error(
+      'panel: attach takes the registry the markup names: attach(root, registry({ gallery, tabs }), { signal })',
+    )
+  const panels = registry.panels
   for (const el of withPanels(root))
     for (const name of namesOf(el)) connectOnce(el, name, panels, signal)
 }
@@ -72,9 +76,13 @@ function tryConnect(
   }
 }
 
-function panelNamed(registry: Registry, name: string, el: Element) {
-  const found = registry[name]
-  if (found) return found
+function panelNamed(
+  registry: Registry,
+  name: string,
+  el: Element,
+): PanelInside {
+  const inside = insideOf(registry[name])
+  if (inside) return inside
   throw new Error(
     `panel: <${el.localName} data-panel="${name}"> names no panel in the registry`,
   )

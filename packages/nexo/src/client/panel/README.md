@@ -20,7 +20,7 @@ const gallery = panel({
 const panels = registry({ gallery })
 
 // Server markup, written by the same schema:
-<section {...panels.markup('gallery', { start: 2 })}>…</section>
+<section {...panels.markup({ gallery: { start: 2 } })}>…</section>
 // → <section data-panel="gallery" data-gallery-start="2">…</section>
 
 // In the browser, once for the page and again for each arrival:
@@ -67,7 +67,7 @@ params: {
 
 ## registry, attach and observe
 
-- `registry({ gallery, tabs })` gives the names markup uses, once. Its `markup('gallery', { start: 2 })` (or `markup({ gallery: {…}, tabs: {} })` for several) returns the attributes as JSX takes them, typed by each panel's schema. A plain object `{ gallery, tabs }` works as a registry too.
+- `registry({ gallery, tabs })` gives the names markup uses, once. Its `markup({ gallery: { start: 2 } })` (one panel or several: `{ gallery: {…}, tabs: {} }`) returns the attributes as JSX takes them, typed by each panel's schema. `attach` and `observe` take a `registry()`, the one way to name panels for markup.
 - `attach(root, registry, { signal })` connects every `data-panel` in `root`, `root` included. `data-panel="gallery tabs"` names several. Each connection gets a child of `signal`. An element already connected to a panel isn't connected again while that connection lives. A panel that throws (the wrong element, a name the registry doesn't have) is reported and skipped: the rest of the page connects.
 - `observe(root, registry, { signal })` is opt-in, for DOM that changes outside bridge. It attaches what is added and ends what is removed, after the fact, so removed elements get no exits. bridge's segment lifetimes stay the main path.
 
