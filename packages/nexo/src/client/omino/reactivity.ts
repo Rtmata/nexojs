@@ -5,7 +5,8 @@
  *   mount(<App />, document.body, { signal, reactivity: connector })
  *
  * connector meets it as is; another library enters through an adapter. omino
- * never imports one: every module works alone.
+ * never imports one: every module works alone. boat's client router declares
+ * its own, overlapping on purpose: each asks only for what it uses.
  */
 export interface Reactivity {
   signal<T>(value: T): ReactiveValue<T>

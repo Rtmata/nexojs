@@ -1,6 +1,8 @@
 /**
- * What the client router needs from a signals library, as a value (the
- * same shape omino asks for): connector meets it as is. boat imports none.
+ * What the client router needs from a signals library, as a value:
+ * connector meets it as is. boat imports none. omino declares its own,
+ * overlapping on purpose: each module asks only for what it uses, so the
+ * two never change together and another library has less to meet.
  */
 export interface Reactivity {
   signal<T>(value: T): ReactiveValue<T>
