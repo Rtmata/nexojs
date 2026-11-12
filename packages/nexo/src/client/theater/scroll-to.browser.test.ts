@@ -24,7 +24,11 @@ describe.skipIf(!chrome)('follow, scrollTo, smoothWheel in Chrome', () => {
     await page.evaluate(() => {
       const w = window as any
       w.price = w.theater.connectorSignal(0)
-      w.smooth = w.theater.follow(w.price, { duration: 200, easing: 'linear' })
+      w.smooth = w.theater.follow(w.price, {
+        signal: new AbortController().signal,
+        duration: 200,
+        easing: 'linear',
+      })
       w.price.set(100)
     })
     await clock.advance(16) // the watch runs, the tween starts

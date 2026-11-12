@@ -40,6 +40,7 @@ describe.skipIf(!chrome)('drag in Chrome', () => {
     const { page, clock } = await clockedPage(browser, code, PAGE)
     await page.evaluate(() =>
       (window as any).theater.drag(document.getElementById('shelf'), {
+        signal: new AbortController().signal,
         axis: 'x',
         bounds: { min: -400, max: 0 },
       }),
@@ -56,6 +57,7 @@ describe.skipIf(!chrome)('drag in Chrome', () => {
     await page.evaluate(() => {
       const w = window as any
       w.d = w.theater.drag(document.getElementById('shelf'), {
+        signal: new AbortController().signal,
         axis: 'x',
         bounds: { min: -2000, max: 0 },
         release: {
@@ -79,7 +81,10 @@ describe.skipIf(!chrome)('drag in Chrome', () => {
       document
         .getElementById('game')!
         .addEventListener('click', (e) => (e.preventDefault(), w.clicks++))
-      w.theater.drag(document.getElementById('shelf'), { axis: 'x' })
+      w.theater.drag(document.getElementById('shelf'), {
+        signal: new AbortController().signal,
+        axis: 'x',
+      })
     })
     const box = (await page.locator('#game').boundingBox())!
     await page.mouse.move(box.x + 5, box.y + 5)
@@ -97,7 +102,10 @@ describe.skipIf(!chrome)('drag in Chrome', () => {
     const { page, clock } = await clockedPage(browser, code, PAGE)
     await page.evaluate(() => {
       const w = window as any
-      w.d = w.theater.drag(document.getElementById('shelf'), { axis: 'x' })
+      w.d = w.theater.drag(document.getElementById('shelf'), {
+        signal: new AbortController().signal,
+        axis: 'x',
+      })
       w.d.set({ x: -220 }, { duration: 200, easing: 'linear' })
     })
     await clock.advance(100)
@@ -134,7 +142,10 @@ describe.skipIf(!chrome)('drag in Chrome', () => {
     const { page } = await clockedPage(browser, code, PAGE)
     const errors = await page.evaluate(() => {
       const shelf = document.getElementById('shelf')
-      const d = (window as any).theater.drag(shelf, { axis: 'x' })
+      const d = (window as any).theater.drag(shelf, {
+        signal: new AbortController().signal,
+        axis: 'x',
+      })
       const thrown = (to: object) => {
         try {
           d.set(to)
@@ -193,6 +204,7 @@ describe.skipIf(!chrome)('drag in Chrome', () => {
     await page.evaluate(() => {
       const w = window as any
       w.d = w.theater.drag(document.getElementById('shelf'), {
+        signal: new AbortController().signal,
         axis: 'x',
         release: { inertia: { snap: [0, -220, -440] } },
       })

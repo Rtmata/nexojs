@@ -69,7 +69,7 @@ Every piece takes a `signal`: aborting it stops what the piece started. Nothing 
 
 ## tween
 
-`tween(target, initial, options)` is a value that lives over time. Each `set(next)` is exactly `animate` from where it is now to `next`, and returns that animation. A spring keeps the speed it had, so a new target in the middle doesn't jolt. `follow(source, options)` is a signal that follows another through a tween: the one piece that uses connector.
+`tween(target, initial, options)` is a value that lives over time. Each `set(next)` is exactly `animate` from where it is now to `next`, and returns that animation. A spring keeps the speed it had, so a new target in the middle doesn't jolt. `follow(source, { …, signal })` is a signal that follows another through a tween: the one piece that uses connector. Its `signal` is required: the watch on `source` lives until it aborts.
 
 ## Curves: easings and springs
 
@@ -94,8 +94,9 @@ Every piece takes a `signal`: aborting it stops what the piece started. Nothing 
 
 ## Scroll and view
 
+- Every piece here that listens to the page takes a **required** `signal` (`scroll`, `inView`, `parallax`, `drag`, `pinch`, `follow`): nothing else would ever end its listeners.
 - `scroll(animation, { source, subject, axis, rangeStart, rangeEnd, signal })` links an animation, or a function of progress, to a scroll. Elements use the browser's `ScrollTimeline` / `ViewTimeline` where there is one; elsewhere a listener does the same.
-- `inView(el, (entry, { signal }) => …, { root, margin, amount, once, signal })` runs once per visit, with a signal that aborts when the element leaves.
+- `inView(el, (entry, { signal }) => …, { root, margin, amount, once, signal })` runs once per visit, with a signal that aborts when the element leaves. With `once`, only the first visit runs, and its signal still aborts when the element leaves.
 - `parallax(el, { depth, axis, signal })` is exactly a `scroll` of a `translate`. Under reduced motion there is no parallax.
 - `scrollTo(target, { offset, container, axis, …animate options })` scrolls with theater's curve, and jumps under reduced motion.
 - `smoothWheel({ signal, prevent, smoothing })` smooths the vertical mouse wheel only; touch, keys, scrollbars and anchors stay native. It is off unless you turn it on.

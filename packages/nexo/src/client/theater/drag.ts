@@ -24,7 +24,8 @@ export interface DragOptions {
     inertia?: Omit<InertiaOptions, 'velocity' | 'bounds'>
     spring?: SpringOptions
   }
-  signal?: AbortSignal
+  /** Required: its listeners live until it aborts. */
+  signal: AbortSignal
 }
 
 /** A dragged element's place, and a way to move it without dragging (WCAG 2.5.7). */
@@ -104,7 +105,7 @@ function boundsFor(
  *     release: { inertia: { snap: (x) => Math.round(x / 220) * 220 } }, signal })
  *   next.onclick = () => shelfDrag.set({ x: shelfDrag.x - 220 })
  */
-export function drag(el: HTMLElement, options: DragOptions = {}): Draggable {
+export function drag(el: HTMLElement, options: DragOptions): Draggable {
   return new Drag(el, options)
 }
 
@@ -130,9 +131,9 @@ class Drag implements Draggable, TrackEvents {
   }
 
   /** An abort mid-drag takes the track's listeners too: no `end` will come to stop it. */
-  private listen(signal?: AbortSignal): void {
+  private listen(signal: AbortSignal): void {
     this.el.addEventListener('pointerdown', (e) => this.down(e), { signal })
-    signal?.addEventListener('abort', () => this.stopTracking(), {
+    signal.addEventListener('abort', () => this.stopTracking(), {
       once: true,
     })
   }

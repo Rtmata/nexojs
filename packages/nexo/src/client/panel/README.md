@@ -30,7 +30,7 @@ attach(document.body, panels, { signal })
 ## Setup
 
 - `@nexoamigos/nexo/panel` holds the core (`panel`, `registry`, `attach`, `observe`) and the built-in panels of the [library](library/README.md). The parsers live in `@nexoamigos/nexo/panel/params`, meant for a namespace import (`import * as param`), so `number` never collides with another module's.
-- Nothing connects at import. Call `attach` for the page, and for each part of the page that arrives later. With bridge: `arrivals((segment, { signal }) => attach(segment, panels, { signal }))`.
+- Nothing connects at import. Call `attach` for the page, and for each part of the page that arrives later. With bridge: `arrivals((segment, run) => attach(segment, panels, run), { signal })`.
 
 ## panel
 

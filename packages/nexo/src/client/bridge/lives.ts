@@ -70,10 +70,7 @@ export type Arrival = (
  *
  *   arrivals((segment, { signal }) => attach(segment, registry, { signal }), { signal })
  */
-export function arrivals(
-  fn: Arrival,
-  options: { signal?: AbortSignal } = {},
-): void {
+export function arrivals(fn: Arrival, options: { signal: AbortSignal }): void {
   visit(document.body, fn)
   const arrived = (event: Event) => visit(event.target as Element, fn)
   document.addEventListener('bridge:swapped', arrived, {

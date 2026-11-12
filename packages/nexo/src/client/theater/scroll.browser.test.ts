@@ -55,6 +55,7 @@ describe.skipIf(!chrome)('scroll in Chrome', () => {
         const s = document.getElementById('s')!
         scroll(animate(s, { opacity: [0, 1] }, { easing: 'linear' }), {
           subject: s,
+          signal: new AbortController().signal,
         })
       })
       // cover runs from 1500 − 720 = 780 to 1700: 920 px
@@ -75,6 +76,7 @@ describe.skipIf(!chrome)('scroll in Chrome', () => {
           subject: s,
           rangeStart: 'entry 0%',
           rangeEnd: 'entry 100%',
+          signal: new AbortController().signal,
         })
       })
       await scrolledTo(page, 780 + 100) // entry: 780 → 980
@@ -103,6 +105,7 @@ describe.skipIf(!chrome)('scroll in Chrome', () => {
         const s = document.getElementById('s')!
         scroll(animate(s, { opacity: [0, 1] }, { easing: 'linear' }), {
           subject: s,
+          signal: new AbortController().signal,
         })
       })
       await scrolledTo(page, 780 + 460)
@@ -116,6 +119,7 @@ describe.skipIf(!chrome)('scroll in Chrome', () => {
         const s = document.getElementById('s')!
         scroll(animate(s, { opacity: [0, 1] }, { easing: 'linear' }), {
           subject: s,
+          signal: new AbortController().signal,
         })
         document.getElementById('box')!.scrollTop = 900 // cover: 600 → 1200
         for (let i = 0; i < 3; i++) await new Promise(requestAnimationFrame)
@@ -129,10 +133,12 @@ describe.skipIf(!chrome)('scroll in Chrome', () => {
     await page.evaluate(() => {
       const w = window as any
       const { animate, scroll } = w.theater
+      const signal = new AbortController().signal
       scroll(
         animate([0, 100], (v: number) => (w.value = v), { easing: 'linear' }),
+        { signal },
       )
-      scroll((p: number) => (w.progress = p))
+      scroll((p: number) => (w.progress = p), { signal })
     })
     await scrolledTo(page, (4000 - 720) / 2)
     const [value, progress] = await page.evaluate(() => [
@@ -192,6 +198,7 @@ describe.skipIf(!chrome)('scroll in Chrome', () => {
           w.visits++
           signal.addEventListener('abort', () => w.left++)
         },
+        { signal: new AbortController().signal },
       )
     })
     await scrolledTo(page, 1200)
@@ -236,7 +243,7 @@ describe.skipIf(!chrome)('scroll in Chrome', () => {
           w.entered.push(entry.target.id)
           if (entry.target === a) throw new Error('enter broke')
         },
-        { once: true },
+        { once: true, signal: new AbortController().signal },
       )
     })
     await scrolledTo(page, 0)
@@ -249,10 +256,37 @@ describe.skipIf(!chrome)('scroll in Chrome', () => {
     expect(errors).toEqual(['enter broke'])
   })
 
+  test('inView once: only the first visit runs, and its signal aborts when the element leaves', async () => {
+    const page = await pageWith(browser, code, PAGE)
+    await page.evaluate(() => {
+      const w = window as any
+      w.visits = 0
+      w.left = 0
+      w.theater.inView(
+        document.getElementById('s'),
+        (_: unknown, { signal }: { signal: AbortSignal }) => {
+          w.visits++
+          signal.addEventListener('abort', () => w.left++)
+        },
+        { once: true, signal: new AbortController().signal },
+      )
+    })
+    await scrolledTo(page, 1200)
+    await scrolledTo(page, 0)
+    await scrolledTo(page, 1200)
+    await scrolledTo(page, 0)
+    const result = await page.evaluate(() => [
+      (window as any).visits,
+      (window as any).left,
+    ])
+    expect(result).toEqual([1, 1])
+  })
+
   test('parallax: the layer lags as it crosses; under reduced motion it stays put', async () => {
     const page = await pageWith(browser, code, PAGE)
     await page.evaluate(() =>
       (window as any).theater.parallax(document.getElementById('s'), {
+        signal: new AbortController().signal,
         depth: 0.2,
       }),
     )
@@ -266,6 +300,7 @@ describe.skipIf(!chrome)('scroll in Chrome', () => {
     )
     await calm.evaluate(() =>
       (window as any).theater.parallax(document.getElementById('s'), {
+        signal: new AbortController().signal,
         depth: 0.2,
       }),
     )

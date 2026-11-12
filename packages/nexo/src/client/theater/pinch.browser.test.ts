@@ -50,6 +50,9 @@ async function pinchPage() {
     () =>
       ((window as any).zoom = (window as any).theater.pinch(
         document.getElementById('screen'),
+        {
+          signal: new AbortController().signal,
+        },
       )),
   )
   return clocked
@@ -70,6 +73,7 @@ describe.skipIf(!chrome)('pinch in Chrome', () => {
     const thrown = await page.evaluate(() => {
       try {
         ;(window as any).theater.pinch(document.getElementById('screen'), {
+          signal: new AbortController().signal,
           scale: { min: 4, max: 1 },
         })
       } catch (error) {
@@ -87,6 +91,9 @@ describe.skipIf(!chrome)('pinch in Chrome', () => {
       () =>
         ((window as any).zoom = (window as any).theater.pinch(
           document.getElementById('screen'),
+          {
+            signal: new AbortController().signal,
+          },
         )),
     )
     await touch(page, 'pointerdown', 1, 100)
@@ -104,7 +111,7 @@ describe.skipIf(!chrome)('pinch in Chrome', () => {
       () =>
         ((window as any).zoom = (window as any).theater.pinch(
           document.getElementById('screen'),
-          { scale: { min: 1, max: 4 } },
+          { signal: new AbortController().signal, scale: { min: 1, max: 4 } },
         )),
     )
     await touch(page, 'pointerdown', 1, 100)
@@ -122,6 +129,9 @@ describe.skipIf(!chrome)('pinch in Chrome', () => {
       () =>
         ((window as any).zoom = (window as any).theater.pinch(
           document.getElementById('screen'),
+          {
+            signal: new AbortController().signal,
+          },
         )),
     )
     await page.evaluate(() => {
@@ -220,7 +230,9 @@ describe.skipIf(!chrome)('pinch in Chrome', () => {
     const { page, clock } = await clockedPage(browser, code, PAGE)
     await page.evaluate(() => {
       const w = window as any
-      w.zoom = w.theater.pinch(document.getElementById('screen'))
+      w.zoom = w.theater.pinch(document.getElementById('screen'), {
+        signal: new AbortController().signal,
+      })
       w.zoom.set(2, { duration: 200, easing: 'linear' })
     })
     await clock.advance(240)
@@ -234,7 +246,7 @@ describe.skipIf(!chrome)('pinch in Chrome', () => {
       const screen = document.getElementById('screen')
       const thrown = (elastic: number) => {
         try {
-          pinch(screen, { elastic })
+          pinch(screen, { elastic, signal: new AbortController().signal })
         } catch (error) {
           return (error as Error).message
         }

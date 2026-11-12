@@ -16,7 +16,8 @@ export interface PinchOptions {
   elastic?: number
   /** The spring back inside the limits on release. */
   release?: { spring?: SpringOptions }
-  signal?: AbortSignal
+  /** Required: its listeners live until it aborts. */
+  signal: AbortSignal
 }
 
 /** A pinchable element's zoom, and a way to zoom it without two fingers (buttons). */
@@ -78,7 +79,7 @@ const GESTURE_SPAN = spanOf({ x: 0, y: 0 }, { x: 1, y: 0 })
  *   const zoom = pinch(screen, { scale: { min: 1, max: 4 }, pan: true, signal })
  *   plus.onclick = () => zoom.set(zoom.scale * 1.5)
  */
-export function pinch(el: HTMLElement, options: PinchOptions = {}): Pinchable {
+export function pinch(el: HTMLElement, options: PinchOptions): Pinchable {
   return new Pinch(el, options)
 }
 
@@ -114,7 +115,7 @@ class Pinch implements Pinchable {
     })
   }
 
-  private listen(signal?: AbortSignal): void {
+  private listen(signal: AbortSignal): void {
     const on: Listen = (target, name, run, passive = true) =>
       target.addEventListener(name, run, { signal, passive })
     on(this.el, 'pointerdown', (e: PointerEvent) => this.down(e))

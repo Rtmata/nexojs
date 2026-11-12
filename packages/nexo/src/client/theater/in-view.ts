@@ -13,10 +13,10 @@ export interface InViewOptions {
   margin?: string
   /** How much must show: `'some'` (any pixel), `'all'`, or 0 to 1. `'some'` by default. */
   amount?: 'some' | 'all' | number
-  /** Only the first visit. */
+  /** Only the first visit; it still ends when the element leaves. */
   once?: boolean
-  /** Aborting stops watching, and ends a visit in progress. */
-  signal?: AbortSignal
+  /** Required: aborting stops watching, and ends a visit in progress. */
+  signal: AbortSignal
 }
 
 function thresholdOf(amount: InViewOptions['amount'] = 'some'): number {
@@ -35,6 +35,8 @@ class Visits {
   constructor(
     private readonly enter: Visit,
     private readonly threshold: number,
+    /** Called when a visit ends: with `once`, stop watching the element. */
+    private readonly ended: () => void = () => {},
   ) {}
 
   /** Starts a visit when the entry is inside, ends it when outside. */
@@ -46,8 +48,10 @@ class Visits {
   }
 
   end(): void {
-    this.visit?.abort()
+    if (!this.visit) return
+    this.visit.abort()
     this.visit = null
+    this.ended()
   }
 
   /**
@@ -79,9 +83,9 @@ class Visits {
 export function inView(
   targets: Targets,
   enter: Visit,
-  options: InViewOptions = {},
+  options: InViewOptions,
 ): void {
-  if (options.signal?.aborted) return // stopped before it started: nothing to watch
+  if (options.signal.aborted) return // stopped before it started: nothing to watch
   new Watch(listOf(targets), enter, options)
 }
 
@@ -97,20 +101,17 @@ class Watch {
   ) {
     const threshold = thresholdOf(options.amount)
     const visits = (el: Element) =>
-      new Visits(this.enterOf(el, enter), threshold)
+      new Visits(enter, threshold, this.endedOf(el))
     this.visits = new Map(elements.map((el) => [el, visits(el)]))
     this.observer = this.observerOf(threshold)
     for (const el of elements) this.observer.observe(el)
-    options.signal?.addEventListener('abort', () => this.stop(), { once: true })
+    options.signal.addEventListener('abort', () => this.stop(), { once: true })
   }
 
-  /** With `once`, the first visit also stops watching the element (even if `enter` throws). */
-  private enterOf(el: Element, enter: Visit): Visit {
-    if (!this.options.once) return enter
-    return (entry, visit) => {
-      this.observer.unobserve(el)
-      enter(entry, visit)
-    }
+  /** With `once`, the end of the first visit (the element leaving) stops watching it. */
+  private endedOf(el: Element): (() => void) | undefined {
+    if (!this.options.once) return undefined
+    return () => this.observer.unobserve(el)
   }
 
   private observerOf(threshold: number): IntersectionObserver {

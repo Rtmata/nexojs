@@ -10,7 +10,8 @@ export interface ParallaxOptions {
   depth: number
   /** `block` by default. */
   axis?: ScrollAxis
-  signal?: AbortSignal
+  /** Required: as `scroll`'s, it unlinks the layer when it aborts. */
+  signal: AbortSignal
 }
 
 /** Half a viewport each way at depth 1. */

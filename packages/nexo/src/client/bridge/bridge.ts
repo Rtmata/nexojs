@@ -79,10 +79,7 @@ export const prefetch = (url: string | URL, options?: VisitOptions) =>
  *
  *   arrivals((segment, { signal }) => attach(segment, registry, { signal }), { signal })
  */
-export function arrivals(
-  fn: Arrival,
-  options?: { signal?: AbortSignal },
-): void {
+export function arrivals(fn: Arrival, options: { signal: AbortSignal }): void {
   started('arrivals')
   everyArrival(fn, options)
 }

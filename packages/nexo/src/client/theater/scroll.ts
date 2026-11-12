@@ -29,8 +29,8 @@ export interface ScrollOptions {
   rangeStart?: string
   /** `cover 100%` by default. */
   rangeEnd?: string
-  /** Aborting unlinks it; elements stay as they are. */
-  signal?: AbortSignal
+  /** Required: aborting unlinks it; elements stay as they are. */
+  signal: AbortSignal
 }
 
 /** `block` and `y` scroll vertically here; writing modes are not read. */
@@ -206,7 +206,7 @@ class Follower {
   constructor(
     private readonly seekers: ((p: number) => void)[],
     private readonly gauge: Gauge,
-    private readonly signal?: AbortSignal,
+    private readonly signal: AbortSignal,
   ) {}
 
   listen(): void {
@@ -228,18 +228,18 @@ class Follower {
 
   /** A frame already asked for when the signal aborts must not bring back what was let go. */
   private seek(progress: number): void {
-    if (this.signal?.aborted) return
+    if (this.signal.aborted) return
     for (const seek of this.seekers) seek(progress)
   }
 }
 
 /** On abort (or already aborted), element members are unlinked and kept where they are. */
-function unlinkOnAbort(target: Playback, signal?: AbortSignal): void {
+function unlinkOnAbort(target: Playback, signal: AbortSignal): void {
   const members = membersOf(target)
   const unlink = () =>
     members.forEach((m) => m instanceof Animation && unlinkFromScroll(m))
-  if (signal?.aborted) return unlink()
-  signal?.addEventListener('abort', unlink, { once: true })
+  if (signal.aborted) return unlink()
+  signal.addEventListener('abort', unlink, { once: true })
 }
 
 /**
@@ -255,7 +255,7 @@ function unlinkOnAbort(target: Playback, signal?: AbortSignal): void {
  */
 export function scroll(
   target: Playback | ((progress: number) => void),
-  options: ScrollOptions = {},
+  options: ScrollOptions,
 ): void {
   if (typeof target === 'function') return follow([target], options)
   const seekers = seekersOf(target, options)

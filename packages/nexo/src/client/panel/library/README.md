@@ -27,7 +27,7 @@ import { attach, dialog, registry, tabs } from '@nexoamigos/nexo/panel'
 import { arrivals } from '@nexoamigos/nexo/bridge/client'
 
 const panels = registry({ dialog, tabs })
-arrivals((segment, { signal }) => attach(segment, panels, { signal }))
+arrivals((segment, run) => attach(segment, panels, run), { signal })
 // with JS: APG tabs (one panel shown, arrows among the tabs) and a dialog named by its heading
 ```
 
@@ -44,7 +44,7 @@ import {
 } from '@nexoamigos/nexo/panel'
 
 const panels = registry({ dialog, feed, focusgroup, tabs })
-arrivals((segment, { signal }) => attach(segment, panels, { signal }))
+arrivals((segment, run) => attach(segment, panels, run), { signal })
 ```
 
 `arrivals` needs bridge started in the same script: through an import map that sends `@nexoamigos/nexo/bridge/client` to the served `/_nexo/bridge.js`, or by calling `start({ signal })` in your own entry (see bridge's README). Without bridge, attach once: `attach(document.body, panels, { signal })`.

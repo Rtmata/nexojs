@@ -89,11 +89,14 @@ async function open(): Promise<void> {
     w.signals = {}
     const label = (el: Element) =>
       el.getAttribute('data-bridge-segment') ?? el.id ?? el.localName
-    arrivals((el: Element, { signal }: { signal: AbortSignal }) => {
-      const name = el.localName === 'body' ? 'body' : label(el)
-      w.seen.push(`arrive ${name}`)
-      w.signals[name] = signal
-    })
+    arrivals(
+      (el: Element, { signal }: { signal: AbortSignal }) => {
+        const name = el.localName === 'body' ? 'body' : label(el)
+        w.seen.push(`arrive ${name}`)
+        w.signals[name] = signal
+      },
+      { signal: new AbortController().signal },
+    )
     document.querySelector('#radio')!.setAttribute('data-mark', 'first')
   })
 }

@@ -61,7 +61,7 @@ Importing `bridge/client` starts nothing. While bridge runs, `<html>` carries `d
 import { arrivals, start } from '@nexoamigos/nexo/bridge/client'
 
 start({ signal: new AbortController().signal })
-arrivals((segment, { signal }) => attach(segment, panels, { signal }))
+arrivals((segment, run) => attach(segment, panels, run), { signal })
 ```
 
 A `<Segment name="shelf">` is a region of the page that can be replaced on its own (`data-bridge-segment="shelf"` in the HTML). A link or form inside one is fetched with `?_segment=shelf` — a plain URL you can paste or `curl` — and `render`'s `only` answers with those segments alone. Names may not start with `_`.
@@ -114,7 +114,7 @@ Every segment has a lifetime, an `AbortSignal`, nested as segments are: an outer
 ```js
 import { arrivals } from '@nexoamigos/nexo/bridge/client'
 
-arrivals((segment, { signal }) => attach(segment, registry, { signal }))
+arrivals((segment, run) => attach(segment, registry, run), { signal })
 ```
 
 An element with `data-bridge-persist` and an `id` is carried over when the incoming content has its twin: the element itself, with its state and its own lifetime. Component styles a segment response brings (`<style data-scope-for>`) go into the head, once.

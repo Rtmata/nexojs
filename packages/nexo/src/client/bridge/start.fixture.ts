@@ -59,7 +59,9 @@ function caught(fn: () => unknown): string {
     clicked: click(),
   }
   const early = caught(() => visit('/elsewhere'))
-  const earlyArrivals = caught(() => arrivals(() => {}))
+  const earlyArrivals = caught(() =>
+    arrivals(() => {}, { signal: new AbortController().signal }),
+  )
   const controller = new AbortController()
   start({ signal: controller.signal })
   const startedState = {

@@ -11,11 +11,13 @@ import { tween } from './tween'
  * imports connector; `animate` and `tween` never do.
  *
  *   const smooth = follow(price, { spring: { duration: 300 }, signal })
+ *
+ * `signal` is required: the watch on `source` lives until it aborts.
  *   <span>{smooth}</span>
  */
 export function follow(
   source: Readable<number>,
-  options: AnimateOptions = {},
+  options: AnimateOptions & { readonly signal: AbortSignal },
 ): ReadonlyView<number> {
   const out = signal(source.get())
   const moving = tween(out, source.get(), options)
