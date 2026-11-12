@@ -50,9 +50,8 @@ export class Grammar {
   }
 
   /** A length, a percentage, `0`, or math that comes to a length. */
+  /** Its callers take a whole reference first. */
   private length(text: string): Issue | undefined {
-    if (this.references.is(text))
-      return this.references.check(text, 'dimension')
     if (MATH.test(text)) return lengthFrom(mathKind(text, this.references))
     const found = dimensionOf(text)
     return found && isLength(found) ? undefined : WRONG

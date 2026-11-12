@@ -1,3 +1,6 @@
+import { cssString } from '../css-string'
+import { round } from '../grammar/numbers'
+import { isRecord as isJson } from '../theme-values'
 import { CSS_NAME } from '../token-group'
 import { defineTokens, type Tokens } from '../tokens'
 import { GROUP_TYPES, typed, type TokenType } from '../typed'
@@ -112,6 +115,11 @@ class DtcgReader {
     const darkValues = new Map(
       [...this.found].map(([path, token]) => [path, token.value]),
     )
+    for (const path of darkValues.keys())
+      if (!withLight.has(path))
+        this.mistakes.add(
+          `${path}: only the dark context has it; glyph needs a light value too`,
+        )
     this.found = withLight
     return darkValues
   }
@@ -170,7 +178,7 @@ class DtcgReader {
         `${where}: names in glyph use letters, digits, - and _`,
       )
     const dtcgType = this.typeOf(token, new Set())
-    const type = GLYPH_TYPE[dtcgType ?? '']
+    const type = own(GLYPH_TYPE, dtcgType)
     if (!type)
       return this.mistakes.add(
         `${where}: glyph has no ${dtcgType ?? 'untyped'} tokens`,
@@ -280,14 +288,15 @@ class DtcgReader {
       return this.mistakes.add(
         `${where}: a colour's components are numbers or none; a $ref inside a value isn't read by glyph`,
       )
+    if (!COLOR_SPACES.has(colorSpace))
+      return this.mistakes.add(
+        `${where}: ${JSON.stringify(colorSpace)} is not one of DTCG's colour spaces`,
+      )
     const { alpha, hex } = value as Json
     const over = typeof alpha === 'number' && alpha !== 1 ? ` / ${alpha}` : ''
-    if (typeof hex === 'string' && !over) return hex
+    if (typeof hex === 'string' && HEX.test(hex) && !over) return hex
     const c = components.map((x) => (x === 'none' ? 'none' : round(Number(x))))
-    const written = COLOR_FUNCTIONS[colorSpace]
-    return written
-      ? written(c, over)
-      : `color(${colorSpace} ${c.join(' ')}${over})`
+    return colorText(colorSpace, c, over)
   }
 
   private measure(
@@ -313,7 +322,7 @@ class DtcgReader {
       return this.mistakes.add(
         `${where}: a font family is a name or a list of names`,
       )
-    const quoted = (n: string) => `"${n.replace(/["\\]/g, '\\$&')}"`
+    const quoted = (n: string) => `"${cssString(n)}"` // a file's text never leaves its string
     return names
       .map((n) => (GENERIC_FAMILIES.has(n) ? n : quoted(n)))
       .join(', ')
@@ -322,7 +331,7 @@ class DtcgReader {
   private weight(value: unknown, where: string): unknown {
     if (typeof value === 'number' && value >= 1 && value <= 1000) return value
     return (
-      WEIGHT_WORDS[String(value)] ??
+      own(WEIGHT_WORDS, String(value)) ??
       this.mistakes.add(
         `${where}: ${JSON.stringify(value)} is not a DTCG font weight`,
       )
@@ -368,31 +377,54 @@ class DtcgReader {
 /** DTCG's blur and spread are optional: a missing one is zero. */
 const ZERO = { value: 0, unit: 'px' }
 
-const COLOR_FUNCTIONS: Record<string, (c: unknown[], alpha: string) => string> =
-  {
-    srgb: (c, a) =>
-      `rgb(${c.map((x) => (x === 'none' ? x : round(Number(x) * 255))).join(' ')}${a})`,
-    hsl: ([h, s, l], a) => `hsl(${h} ${s}% ${l}%${a})`,
-    hwb: ([h, w, b], a) => `hwb(${h} ${w}% ${b}%${a})`,
-    lab: (c, a) => `lab(${c.join(' ')}${a})`,
-    lch: (c, a) => `lch(${c.join(' ')}${a})`,
-    oklab: (c, a) => `oklab(${c.join(' ')}${a})`,
-    oklch: (c, a) => `oklch(${c.join(' ')}${a})`,
+/** DTCG's 6-digit hex, the one form it allows. */
+const HEX = /^#[0-9a-f]{6}$/i
+
+/** DTCG 2025.10's colour spaces: anything else never reaches the CSS. */
+const COLOR_SPACES = new Set([
+  ...['srgb', 'srgb-linear', 'hsl', 'hwb', 'lab', 'lch', 'oklab', 'oklch'],
+  ...['display-p3', 'a98-rgb', 'prophoto-rgb', 'rec2020', 'xyz-d65', 'xyz-d50'],
+])
+
+/** A CSS function of its own for these spaces; the rest go through `color()`. */
+const OWN_FUNCTION = new Set(['lab', 'lch', 'oklab', 'oklch'])
+
+/** The colour as CSS: rgb() for sRGB, percentages where hsl and hwb take them, else the space's function. */
+function colorText(space: string, c: unknown[], alpha: string): string {
+  const percent = (x: unknown) => (x === 'none' ? x : `${x}%`)
+  if (space === 'srgb') {
+    const bytes = c.map((x) => (x === 'none' ? x : round(Number(x) * 255)))
+    return `rgb(${bytes.join(' ')}${alpha})`
   }
+  if (space === 'hsl' || space === 'hwb')
+    return `${space}(${c[0]} ${percent(c[1])} ${percent(c[2])}${alpha})`
+  if (OWN_FUNCTION.has(space)) return `${space}(${c.join(' ')}${alpha})`
+  return `color(${space} ${c.join(' ')}${alpha})`
+}
+
+/** A table's own entry, never one its prototype lends (`constructor`). */
+function own<T>(
+  table: Record<string, T>,
+  key: string | undefined,
+): T | undefined {
+  return key !== undefined && Object.hasOwn(table, key) ? table[key] : undefined
+}
 
 /** A `{ "$ref": "#/…" }` followed within `json`; anything else as it is. */
 function pointed(json: Json, item: unknown): unknown {
-  if (
-    !isJson(item) ||
-    typeof item.$ref !== 'string' ||
-    !item.$ref.startsWith('#/')
-  )
-    return item
-  const keys = item.$ref.slice(2).split('/').map(unescapePointer)
+  const keys = pointerKeys(item)
+  if (!keys) return item
   return keys.reduce<unknown>(
-    (at, key) => (isJson(at) ? at[key] : undefined),
+    (at, key) => (isJson(at) && Object.hasOwn(at, key) ? at[key] : undefined),
     json,
   )
+}
+
+/** `{ "$ref": "#/a/b" }` → `['a', 'b']`; `undefined` for anything else. */
+function pointerKeys(value: unknown): string[] | undefined {
+  if (!isJson(value) || typeof value.$ref !== 'string') return undefined
+  if (!value.$ref.startsWith('#/')) return undefined
+  return value.$ref.slice(2).split('/').map(unescapePointer)
 }
 
 /** `{a.b}`, or an object with a `$ref`: a reference, whole or not. */
@@ -410,11 +442,7 @@ function referencePath(value: unknown): string | undefined {
   const keys =
     typeof value === 'string'
       ? /^\{([^{}]+)\}$/.exec(value)?.[1]?.split('.')
-      : isJson(value) &&
-          typeof value.$ref === 'string' &&
-          value.$ref.startsWith('#/')
-        ? value.$ref.slice(2).split('/').map(unescapePointer)
-        : undefined
+      : pointerKeys(value)
   if (!keys) return undefined
   const whole = (keys.at(-1) === '$value' ? keys.slice(0, -1) : keys).filter(
     (k) => k !== '$root',
@@ -425,12 +453,4 @@ function referencePath(value: unknown): string | undefined {
 /** JSON Pointer's two escapes (RFC 6901). */
 function unescapePointer(key: string): string {
   return key.replace(/~1/g, '/').replace(/~0/g, '~')
-}
-
-function isJson(value: unknown): value is Json {
-  return typeof value === 'object' && value !== null && !Array.isArray(value)
-}
-
-function round(n: number): number {
-  return Math.round(n * 10000) / 10000
 }

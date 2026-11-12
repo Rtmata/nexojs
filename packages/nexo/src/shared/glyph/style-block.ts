@@ -19,7 +19,7 @@ export function isNested(key: string): boolean {
 const PROPERTY = /^-{0,2}[a-z][a-z0-9-]*$/
 
 /** What would end a declaration, the rule, or the `<style>` around it. */
-const BREAKS_OUT = /[;{}\n\r]|<\/style/i
+export const BREAKS_OUT = /[;{}\n\r]|<\/style/i
 
 /**
  * A block as lines, nested rules indented inside their own braces. `name`

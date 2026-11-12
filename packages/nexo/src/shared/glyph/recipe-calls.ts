@@ -22,5 +22,8 @@ export function onNeededSheet(
   if (signal.aborted) return
   for (const sheet of called) fn(sheet)
   listener = fn
-  signal.addEventListener('abort', () => (listener = undefined), { once: true })
+  const stop = () => {
+    if (listener === fn) listener = undefined // a later check may have taken over
+  }
+  signal.addEventListener('abort', stop, { once: true })
 }

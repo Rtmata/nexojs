@@ -41,3 +41,8 @@ export function numberOf(text: string): number | undefined {
 export function isLength({ value, unit }: Dimension): boolean {
   return LENGTH_UNITS.has(unit) || unit === '%' || (unit === '' && value === 0)
 }
+
+/** Four decimals: what glyph writes where a ratio or a channel comes out of maths. */
+export function round(n: number): number {
+  return Math.round(n * 10000) / 10000
+}

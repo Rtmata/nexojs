@@ -1,5 +1,6 @@
 import { cssString } from '../../shared/glyph/css-string'
 import type { Font, FontMetrics } from '../../shared/glyph/fonts'
+import { round } from '../../shared/glyph/grammar/numbers'
 
 /** A name no page uses, so the font measured is this file and nothing the page already has. */
 const PROBE = 'glyph measure probe'
@@ -60,10 +61,6 @@ function measured(local: string): FontMetrics {
     ascent: ratio(own.fontBoundingBoxAscent),
     descent: ratio(own.fontBoundingBoxDescent),
   }
-}
-
-function round(n: number): number {
-  return Math.round(n * 10000) / 10000
 }
 
 function shown({ local, sizeAdjust, ascent, descent }: FontMetrics): string {

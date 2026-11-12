@@ -1,4 +1,5 @@
 import { closest } from '../closest'
+import { referenceName } from '../reference'
 import type { TokenSet } from '../token-set'
 import type { TokenType } from '../typed'
 
@@ -21,21 +22,18 @@ export type Issue =
 
 export const WRONG: Issue = { kind: 'wrong' }
 
-/** `var(--name)`, the whole text: no fallback, which glyph can't follow. */
-const REFERENCE = /^var\(--([A-Za-z0-9_-]+)\)$/
-
 /** The tokens a value may point into: the theme's own and its palettes'. */
 export class References {
   constructor(private readonly set: TokenSet) {}
 
   /** Whether `text` is a reference at all. */
   is(text: string): boolean {
-    return REFERENCE.test(text)
+    return referenceName(text) !== undefined
   }
 
   /** The type of the token `text` points to, or why it points nowhere. */
   typeOf(text: string): TokenType | Issue {
-    const name = REFERENCE.exec(text)?.[1]
+    const name = referenceName(text)
     if (name === undefined) return WRONG
     const found = this.set.find(name)
     if (found) return found.type
@@ -48,6 +46,6 @@ export class References {
     const found = this.typeOf(text)
     if (typeof found !== 'string') return found
     if (found === type) return undefined
-    return { kind: 'mistyped', name: REFERENCE.exec(text)![1]!, type: found }
+    return { kind: 'mistyped', name: referenceName(text)!, type: found }
   }
 }

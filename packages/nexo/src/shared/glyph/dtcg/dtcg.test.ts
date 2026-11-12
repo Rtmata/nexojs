@@ -195,3 +195,71 @@ describe('readDtcg', () => {
     )
   })
 })
+
+describe("readDtcg keeps a file's text inside its CSS, and its mistakes named", () => {
+  test('a hex, a colour space or a family that would leave the CSS', () => {
+    const read = readDtcg({
+      color: {
+        $type: 'color',
+        a: {
+          $value: {
+            colorSpace: 'srgb',
+            components: [0, 0, 0],
+            hex: '#000;}</style><script>x</script>',
+          },
+        },
+      },
+      font: {
+        $type: 'fontFamily',
+        body: { $value: ['X</style><img onerror=alert(1)>'] },
+      },
+    })
+    expect(read.css).not.toContain('</style')
+    expect(read.css).toContain('--color-a: rgb(0 0 0);')
+    expect(() =>
+      readDtcg({
+        color: {
+          $type: 'color',
+          a: { $value: { colorSpace: 'x;}</style>', components: [0, 0, 0] } },
+        },
+      }),
+    ).toThrow(`"x;}</style>" is not one of DTCG's colour spaces`)
+  })
+
+  test("a prototype's key is no type, weight or colour space", () => {
+    expect(() =>
+      readDtcg({
+        g: { $type: 'constructor', a: { $value: 1 } },
+        weight: { $type: 'fontWeight', b: { $value: 'constructor' } },
+      }),
+    ).toThrow(
+      'g.a: glyph has no constructor tokens; weight.b: "constructor" is not a DTCG font weight',
+    )
+  })
+
+  test('a token only the dark context has is a mistake; hsl and hwb keep a bare none', () => {
+    const color = (c: unknown[]) => ({
+      $type: 'color',
+      $value: { colorSpace: 'hsl', components: c },
+    })
+    expect(() =>
+      readDtcg({
+        resolutionOrder: [
+          {
+            type: 'modifier',
+            name: 'scheme',
+            contexts: {
+              light: [{ color: { a: color([0, 0, 0]) } }],
+              dark: [{ color: { a: color([0, 0, 0]), b: color([0, 0, 0]) } }],
+            },
+          },
+        ],
+      }),
+    ).toThrow(
+      'color.b: only the dark context has it; glyph needs a light value too',
+    )
+    expect(readDtcg({ color: { a: color(['none', 50, 50]) } }).css).toContain(
+      '--color-a: hsl(none 50% 50%);',
+    )
+  })
+})

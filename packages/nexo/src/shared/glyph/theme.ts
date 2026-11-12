@@ -10,6 +10,7 @@ import {
 } from './token-set'
 import { cssString } from './css-string'
 import { referenceCycles } from './grammar/cycles'
+import { unreadableColors } from './grammar/readable'
 import type { ThemeError } from './theme-error'
 import { changeProblems, codeValue, type ValueCheck } from './theme-values'
 import type { NamesOf } from './tokens'
@@ -160,9 +161,16 @@ export class ThemeDraft<D> {
   errors(): ThemeError[] {
     const written = this.written()
     if (written.length > 0) return written
-    const cycles = referenceCycles(this.merged(), this.changedPaths())
+    const merged = this.merged()
+    const cycles = referenceCycles(merged, this.changedPaths())
     if (cycles.length > 0) return cycles
-    return contrastShortfalls(this.merged()).map(asError)
+    const changes = this.parts.changes as Record<
+      string,
+      Record<string, unknown>
+    >
+    const unreadable = unreadableColors(merged, changes)
+    if (unreadable.length > 0) return unreadable
+    return contrastShortfalls(merged).map(asError)
   }
 
   /** `color.surface`, … : each token the theme sets. */
@@ -262,9 +270,9 @@ function nameProblems(name: unknown): ThemeError[] {
 }
 
 /**
- * A person's JSON holds no references and only colours glyph reads, so
- * every pair can be measured; a line here means the tokens themselves are
- * wrong, a mistake in code.
+ * Every colour a person set was followed and read before this, so each
+ * pair can be measured; a line here means the tokens themselves are wrong
+ * (a pair of code colours glyph can't read), a mistake in code.
  */
 function asError(shortfall: ThemeError | string): ThemeError {
   if (typeof shortfall !== 'string') return shortfall

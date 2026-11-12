@@ -1,5 +1,6 @@
 import { describe, expect, test } from 'bun:test'
 import { recipe } from './recipe'
+import { noteCall, onNeededSheet } from './recipe-calls'
 import { LAYER_ORDER } from './sheet'
 
 const button = recipe('button', {
@@ -175,4 +176,16 @@ describe('recipe (D)', () => {
       recipe('x', { vars: {}, base, parts: { root: base } }),
     ).toThrow("a part can't be called root")
   })
+})
+
+test('two checks: ending the older one leaves the newer listening', () => {
+  const heard: string[] = []
+  const older = new AbortController()
+  const newer = new AbortController()
+  onNeededSheet(() => {}, older.signal)
+  onNeededSheet((sheet) => heard.push(sheet), newer.signal)
+  older.abort()
+  noteCall('glyph.recipes(two-checks)')
+  newer.abort()
+  expect(heard).toContain('glyph.recipes(two-checks)')
 })

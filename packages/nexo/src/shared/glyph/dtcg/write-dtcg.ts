@@ -1,11 +1,18 @@
 import { readColor } from '../color/read'
 import { splitTop } from '../grammar/split'
-import { dimensionOf, isLength, numberOf } from '../grammar/numbers'
+import { dimensionOf, isLength, numberOf, round } from '../grammar/numbers'
 import type { TokenGroup } from '../token-group'
+import { referenceName } from '../reference'
 import { DEFINITION, type Defined } from '../token-set'
 import { isLightDark } from '../token-group'
 import type { TokenType } from '../typed'
-import { DTCG_TYPE, EASING_CURVES, Mistakes, type Json } from './common'
+import {
+  DTCG_TYPE,
+  EASING_CURVES,
+  Mistakes,
+  WEIGHT_WORDS,
+  type Json,
+} from './common'
 
 /** What `writeDtcg` gives: the token file, and a resolver when colours change with the scheme. */
 export interface DtcgOutput {
@@ -134,7 +141,7 @@ class DtcgWriter {
   }
 
   private isReference(text: string): boolean {
-    return /^var\(--[A-Za-z0-9_-]+\)$/.test(text.trim())
+    return referenceName(text) !== undefined
   }
 
   private reference(text: string, where: string): string | undefined {
@@ -184,8 +191,10 @@ class DtcgWriter {
 
   private weight(value: unknown, where: string): unknown {
     if (typeof value === 'number') return value
-    const words: Record<string, number> = { normal: 400, bold: 700 }
-    const n = words[String(value)] ?? numberOf(String(value))
+    const word = String(value)
+    const n = Object.hasOwn(WEIGHT_WORDS, word)
+      ? WEIGHT_WORDS[word]
+      : numberOf(word)
     return (
       n ??
       this.mistakes.add(
@@ -195,7 +204,10 @@ class DtcgWriter {
   }
 
   private easing(text: string, where: string): unknown {
-    const curve = EASING_CURVES[text.trim().toLowerCase()]
+    const keyword = text.trim().toLowerCase()
+    const curve = Object.hasOwn(EASING_CURVES, keyword)
+      ? EASING_CURVES[keyword]
+      : undefined
     if (curve) return [...curve]
     const call = /^cubic-bezier\((.*)\)$/i.exec(text.trim())
     const numbers = call ? splitTop(call[1]!, ',')?.map(numberOf) : undefined
@@ -252,7 +264,7 @@ const ZERO = { value: 0, unit: 'px' }
 
 /** `var(--color-primary)` → `color-primary`. */
 function propertyOf(reference: string): string {
-  return reference.trim().slice(6, -1)
+  return referenceName(reference) ?? ''
 }
 
 /** A font-family list as DTCG's array of names, quotes taken off. */
@@ -260,8 +272,4 @@ function families(list: string): string[] {
   return (splitTop(list, ',') ?? [list]).map((name) =>
     name.trim().replace(/^(["'])(.*)\1$/, '$2'),
   )
-}
-
-function round(n: number): number {
-  return Math.round(n * 10000) / 10000
 }

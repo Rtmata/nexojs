@@ -2,6 +2,7 @@ import { describe, expect, test } from 'bun:test'
 import { defineTheme } from './theme'
 import { themeFrom } from './theme-from'
 import { defineTokens } from './tokens'
+import { typed } from './typed'
 
 const tokens = defineTokens(
   {
@@ -175,7 +176,7 @@ describe('themeFrom', () => {
           path: 'space.m',
           code: 'unsafeText',
           data: { value: '1rem } body { display: none' },
-          message: `space.m: "1rem } body { display: none" can't be a CSS value here: ; { } < > \\, line breaks and unclosed quotes aren't allowed`,
+          message: `space.m: "1rem } body { display: none" can't be a CSS value here: ; { } < > \\ and line breaks aren't allowed`,
         },
       ],
     })
@@ -286,5 +287,59 @@ describe('themeFrom', () => {
         },
       ],
     })
+  })
+})
+
+describe("themeFrom never throws for a person's JSON", () => {
+  test('a reference to a colour glyph cannot measure is an error at that path', () => {
+    const coded = defineTokens(
+      {
+        color: { text: '#000', surface: '#fff' },
+        brand: typed('color', { mix: 'color-mix(in oklch, red, blue)' }),
+      },
+      { contrastChecks: [['text', 'surface', 'text']] },
+    )
+    expect(
+      themeFrom(coded, { name: 'x', color: { text: 'var(--brand-mix)' } }),
+    ).toMatchObject({
+      ok: false,
+      errors: [
+        {
+          path: 'color.text',
+          code: 'notAColor',
+          data: { value: 'var(--brand-mix)' },
+        },
+      ],
+    })
+  })
+
+  test('a long chain of calc() references is checked for loops at once', () => {
+    const groups: Record<string, string> = { s0: '1px' }
+    for (let i = 1; i <= 30; i++)
+      groups[`s${i}`] = `calc(var(--space-s${i - 1}) + var(--space-s${i - 1}))`
+    const deep = defineTokens({ space: groups })
+    const started = performance.now()
+    const result = themeFrom(deep, {
+      name: 'x',
+      space: { s30: 'calc(var(--space-s29) * 2)' },
+    })
+    expect(performance.now() - started).toBeLessThan(1000)
+    expect(result.ok).toBe(true)
+  })
+
+  test('parentheses nested past any real value are a wrong length, not a crash', () => {
+    const deep = `calc(${'('.repeat(20_000)}1px${')'.repeat(20_000)})`
+    expect(themeFrom(tokens, { name: 'x', space: { m: deep } })).toMatchObject({
+      ok: false,
+      errors: [{ path: 'space.m', code: 'wrongKind' }],
+    })
+  })
+
+  test('an apostrophe inside a quoted family is a family, not unsafe text', () => {
+    const fonts = defineTokens({ font: { body: 'serif' } })
+    expect(
+      themeFrom(fonts, { name: 'x', font: { body: `"O'Reilly Sans", serif` } })
+        .ok,
+    ).toBe(true)
   })
 })

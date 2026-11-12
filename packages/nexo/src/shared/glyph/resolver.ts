@@ -1,8 +1,6 @@
+import { replaceReferences } from './reference'
 import { cssValue, isLightDark } from './token-group'
 import type { ColorScheme, Found, TokenSet } from './token-set'
-
-/** A reference to another token anywhere in a value: `var(--blue-500)`. */
-const REFERENCE = /var\(--([A-Za-z0-9_-]+)\)/g
 
 /**
  * Final values from the definitions, as the browser would compute
@@ -31,7 +29,7 @@ export class Resolver {
     const picked = isLightDark(value) ? value[this.scheme] : value
     // Checked when the tokens or the theme were made: it is a value of the type
     const css = cssValue(type, picked)!
-    return css.replace(REFERENCE, (_, name: string) => this.value(name, seen))
+    return replaceReferences(css, (name) => this.value(name, seen))
   }
 }
 

@@ -124,9 +124,9 @@ function textFault(
   value: string,
   grammar: Grammar,
 ): ValueFault | undefined {
-  const unclosed = ['"', "'"].some((q) => value.split(q).length % 2 === 0)
-  if (BREAKS_OUT.test(value) || unclosed) {
-    const text = `${JSON.stringify(value)} can't be a CSS value here: ; { } < > \\, line breaks and unclosed quotes aren't allowed`
+  // an open quote is each grammar's to refuse: a family may hold an apostrophe
+  if (BREAKS_OUT.test(value)) {
+    const text = `${JSON.stringify(value)} can't be a CSS value here: ; { } < > \\ and line breaks aren't allowed`
     return { code: 'unsafeText', data: { value }, text }
   }
   const issue = grammar.issue(type, value)

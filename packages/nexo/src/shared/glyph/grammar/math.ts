@@ -1,3 +1,4 @@
+import { REFERENCE_SOURCE } from '../reference'
 import { dimensionOf, isLength } from './numbers'
 import { WRONG, type Issue, type References } from './issue'
 
@@ -8,8 +9,10 @@ type Kind = 'length' | 'number'
 export const MATH = /^(calc|min|max|clamp)\(/i
 
 /** A number with its unit, `var(--x)`, a function's name with its `(`, or one sign. */
-const TOKEN =
-  /\s+|var\(--[A-Za-z0-9_-]+\)|(?:calc|min|max|clamp)\(|[+-]?(?:\d+\.?\d*|\.\d+)(?:[eE][+-]?\d+)?(?:%|[A-Za-z]+)?|[()*/,+-]/giy
+const TOKEN = new RegExp(
+  String.raw`\s+|${REFERENCE_SOURCE}|(?:calc|min|max|clamp)\(|[+-]?(?:\d+\.?\d*|\.\d+)(?:[eE][+-]?\d+)?(?:%|[A-Za-z]+)?|[()*/,+-]`,
+  'giy',
+)
 
 /**
  * The kind of a math expression (CSS Values 4 §10): `calc()`, `min()`,
@@ -42,6 +45,9 @@ function normalized(token: string): string {
   return token.startsWith('var(') ? token : token.toLowerCase()
 }
 
+/** How deep parentheses and functions may nest: far past any real value, far short of the stack. */
+const MAX_DEPTH = 32
+
 /** Thrown inside the reader, caught at the top: why the expression fails. */
 class Failed {
   constructor(readonly issue: Issue) {}
@@ -50,6 +56,7 @@ class Failed {
 /** A recursive-descent reader over the tokens, one rule per method. */
 class MathReader {
   private at = 0
+  private depth = 0
 
   constructor(
     private readonly tokens: string[],
@@ -71,8 +78,11 @@ class MathReader {
     const opening = this.take()
     if (!MATH.test(opening)) throw new Failed(WRONG)
     const name = opening.slice(0, -1)
-    const kinds = [this.sum()]
-    while (this.peek() === ',') kinds.push((this.take(), this.sum()))
+    const kinds = this.nested(() => {
+      const kinds = [this.sum()]
+      while (this.peek() === ',') kinds.push((this.take(), this.sum()))
+      return kinds
+    })
     this.expect(')')
     const counts: Record<string, boolean> = {
       calc: kinds.length === 1,
@@ -111,9 +121,22 @@ class MathReader {
 
   private parenthesis(): Kind {
     this.take()
-    const kind = this.sum()
+    const kind = this.nested(() => this.sum())
     this.expect(')')
     return kind
+  }
+
+  /**
+   * One level deeper; past `MAX_DEPTH` the text is not a value a person
+   * writes, and reading on would only spend the stack.
+   */
+  private nested<T>(read: () => T): T {
+    if (++this.depth > MAX_DEPTH) throw new Failed(WRONG)
+    try {
+      return read()
+    } finally {
+      this.depth--
+    }
   }
 
   private reference(token: string): Kind {

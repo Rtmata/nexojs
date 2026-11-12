@@ -1,5 +1,6 @@
 import { cssString } from './css-string'
 import type { Sheet } from './sheet'
+import { BREAKS_OUT } from './style-block'
 
 /** One file of a font: a weight (a range for a variable font) and a style. */
 export interface FontFile {
@@ -178,9 +179,6 @@ function htmlAttribute(text: string): string {
 
 /** What a weight may be: 1–1000, a range of two, or a keyword. */
 const WEIGHT = /^(?:normal|bold|\d+(?:\.\d+)?(?:\s+\d+(?:\.\d+)?)?)$/
-
-/** Text that would end a declaration, a rule or the `<style>`. */
-const BREAKS_OUT = /[;{}\n\r]|<\/style/i
 
 /** A mistake in a declaration is a mistake in code: it throws, saying which (CONTRIBUTING). */
 function checkDefinition(key: string, definition: FontDefinition): void {
