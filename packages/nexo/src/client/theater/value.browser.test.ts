@@ -191,6 +191,7 @@ describe.skipIf(!chrome)('a value animation in Chrome', () => {
       })
     })
     await clock.advance(50)
+    await page.waitForFunction(() => (window as any).value > 0) // the frame that writes it may come a moment later under load
     const stopped = await page.evaluate(() => {
       const w = window as any
       w.stop.abort()
