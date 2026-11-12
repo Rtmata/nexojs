@@ -7,8 +7,8 @@ import { isLightDark } from '../token-group'
 import type { TokenType } from '../typed'
 import { DTCG_TYPE, EASING_CURVES, Mistakes, type Json } from './common'
 
-/** What `toDtcg` gives: the token file, and a resolver when colours change with the scheme. */
-export interface DtcgFiles {
+/** What `writeDtcg` gives: the token file, and a resolver when colours change with the scheme. */
+export interface DtcgOutput {
   /** The tokens; a `{ light, dark }` colour holds its light value here. */
   readonly tokens: Json
   /** DTCG's Resolver Module: a `colorScheme` modifier with light and dark contexts. */
@@ -23,9 +23,9 @@ export interface DtcgFiles {
  * (`1em`, `steps()`, a colour glyph can't read) is a mistake: all of them
  * are thrown in one message.
  *
- *   const { tokens: json, resolver } = toDtcg(palette, tokens)
+ *   const { tokens: json, resolver } = writeDtcg(palette, tokens)
  */
-export function toDtcg(...sources: readonly Defined<unknown>[]): DtcgFiles {
+export function writeDtcg(...sources: readonly Defined<unknown>[]): DtcgOutput {
   const groups = sources.flatMap((source) => [...source[DEFINITION].groups])
   const writer = new DtcgWriter(groups)
   const files = writer.files()
@@ -34,7 +34,7 @@ export function toDtcg(...sources: readonly Defined<unknown>[]): DtcgFiles {
 }
 
 class DtcgWriter {
-  readonly mistakes = new Mistakes('toDtcg')
+  readonly mistakes = new Mistakes('writeDtcg')
   /** `color-primary` → its path and type: every property a reference may name. */
   private readonly targets: Map<string, { path: string; type: TokenType }>
 
@@ -51,7 +51,7 @@ class DtcgWriter {
     )
   }
 
-  files(): DtcgFiles {
+  files(): DtcgOutput {
     const tokens = this.document('light')
     const dual = this.groups.some((g) => g.hasLightDark())
     if (!dual) return { tokens }

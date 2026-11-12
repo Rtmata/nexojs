@@ -3,7 +3,7 @@ import { defineTokens, type Tokens } from '../tokens'
 import { GROUP_TYPES, typed, type TokenType } from '../typed'
 import { DTCG_TYPE, Mistakes, WEIGHT_WORDS, type Json } from './common'
 
-/** What `fromDtcg` gives: token objects whose groups are known only when the file is read. */
+/** What `readDtcg` gives: token objects whose groups are known only when the file is read. */
 export type DtcgTokens = Tokens<Record<string, Record<string, unknown>>>
 
 /** One token found in the file: where, the types it says or inherits, and its value as written. */
@@ -42,9 +42,9 @@ const GENERIC_FAMILIES = new Set([
  * (`$extends`, a `$ref` to part of a value, a gradient, a file a resolver
  * points to) is a mistake: all of them are thrown in one message.
  *
- *   const tokens = fromDtcg(JSON.parse(await Bun.file('tokens.json').text()))
+ *   const tokens = readDtcg(JSON.parse(await Bun.file('tokens.json').text()))
  */
-export function fromDtcg(json: unknown): DtcgTokens {
+export function readDtcg(json: unknown): DtcgTokens {
   const reader = new DtcgReader()
   const groups = reader.groups(json)
   reader.mistakes.throwIfAny()
@@ -52,7 +52,7 @@ export function fromDtcg(json: unknown): DtcgTokens {
 }
 
 class DtcgReader {
-  readonly mistakes = new Mistakes('fromDtcg')
+  readonly mistakes = new Mistakes('readDtcg')
   private found = new Map<string, Found>()
 
   /** The file's tokens grouped as glyph wants them, ready for `defineTokens`. */

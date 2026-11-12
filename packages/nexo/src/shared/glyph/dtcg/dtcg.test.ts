@@ -2,8 +2,8 @@ import { describe, expect, test } from 'bun:test'
 import { resolve } from '../resolve'
 import { defineTokens } from '../tokens'
 import { typed } from '../typed'
-import { fromDtcg } from './from-dtcg'
-import { toDtcg } from './to-dtcg'
+import { readDtcg } from './read-dtcg'
+import { writeDtcg } from './write-dtcg'
 
 const palette = defineTokens({ blue: typed('color', { 700: '#1d4ed8' }) })
 const tokens = defineTokens(
@@ -23,9 +23,9 @@ const tokens = defineTokens(
   { refersTo: [palette] },
 )
 
-describe('toDtcg (B.1)', () => {
+describe('writeDtcg (B.1)', () => {
   test('each group with its $type, references as {group.token}', () => {
-    const { tokens: json } = toDtcg(palette, tokens)
+    const { tokens: json } = writeDtcg(palette, tokens)
     expect(json.blue).toEqual({
       $type: 'color',
       700: {
@@ -89,7 +89,7 @@ describe('toDtcg (B.1)', () => {
   })
 
   test('{ light, dark } colours: the light value in the file, both in a resolver', () => {
-    const { tokens: json, resolver } = toDtcg(palette, tokens)
+    const { tokens: json, resolver } = writeDtcg(palette, tokens)
     expect((json.color as any).text.$value.hex).toBe('#222222')
     expect(resolver).toMatchObject({
       version: '2025-10-01',
@@ -110,7 +110,7 @@ describe('toDtcg (B.1)', () => {
         { $ref: '#/modifiers/colorScheme' },
       ],
     })
-    expect(toDtcg(palette).resolver).toBeUndefined()
+    expect(writeDtcg(palette).resolver).toBeUndefined()
   })
 
   test('what DTCG has no form for: every mistake in one message', () => {
@@ -119,16 +119,16 @@ describe('toDtcg (B.1)', () => {
       easing: { step: 'steps(4)' },
       color: { mix: 'color-mix(in oklch, red, blue)', lost: 'var(--nowhere)' },
     })
-    expect(() => toDtcg(odd)).toThrow(
-      'glyph: toDtcg: space.m: "1em" has no DTCG form; DTCG dimensions are px or rem; easing.step: "steps(4)" has no DTCG form; DTCG easings are cubic-bezier curves; color.mix: "color-mix(in oklch, red, blue)" is a colour glyph can\'t read, so it has no DTCG form; color.lost: var(--nowhere) points to a token none of these define; pass its token object too',
+    expect(() => writeDtcg(odd)).toThrow(
+      'glyph: writeDtcg: space.m: "1em" has no DTCG form; DTCG dimensions are px or rem; easing.step: "steps(4)" has no DTCG form; DTCG easings are cubic-bezier curves; color.mix: "color-mix(in oklch, red, blue)" is a colour glyph can\'t read, so it has no DTCG form; color.lost: var(--nowhere) points to a token none of these define; pass its token object too',
     )
   })
 })
 
-describe('fromDtcg (B.1)', () => {
+describe('readDtcg (B.1)', () => {
   test("glyph's own output reads back to the same values", () => {
-    const { resolver } = toDtcg(palette, tokens)
-    const back = fromDtcg(resolver)
+    const { resolver } = writeDtcg(palette, tokens)
+    const back = readDtcg(resolver)
     const original = resolve(tokens, { colorScheme: 'dark' }).values
     const again = resolve(back, { colorScheme: 'dark' }).values
     expect(again['color-text']).toBe('#eeeeee')
@@ -139,7 +139,7 @@ describe('fromDtcg (B.1)', () => {
   })
 
   test('a file as the spec writes it: nested groups, inherited $type, $root, $ref, s, weight words', () => {
-    const back = fromDtcg({
+    const back = readDtcg({
       color: {
         $type: 'color',
         blue: {
@@ -173,7 +173,7 @@ describe('fromDtcg (B.1)', () => {
 
   test('what glyph has no form for: every mistake in one message', () => {
     expect(() =>
-      fromDtcg({
+      readDtcg({
         color: {
           $type: 'color',
           base: { $value: { colorSpace: 'srgb', components: [0, 0, 0] } },
@@ -191,7 +191,7 @@ describe('fromDtcg (B.1)', () => {
         lonely: { $type: 'number', $value: 1 },
       }),
     ).toThrow(
-      "glyph: fromDtcg: theme: $extends isn't read by glyph; write the group's tokens out; color.part: a colour's components are numbers or none; a $ref inside a value isn't read by glyph; color.hue: a $ref to part of a value (#/color/base/$value/components/0) isn't read by glyph; point to a whole token; fade.a: glyph has no gradient tokens; lonely: a token sits in a group in glyph; put it in one; space: in glyph the group space holds dimension tokens, the file gives number",
+      "glyph: readDtcg: theme: $extends isn't read by glyph; write the group's tokens out; color.part: a colour's components are numbers or none; a $ref inside a value isn't read by glyph; color.hue: a $ref to part of a value (#/color/base/$value/components/0) isn't read by glyph; point to a whole token; fade.a: glyph has no gradient tokens; lonely: a token sits in a group in glyph; put it in one; space: in glyph the group space holds dimension tokens, the file gives number",
     )
   })
 })
