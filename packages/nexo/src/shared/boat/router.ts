@@ -413,11 +413,19 @@ function ensureSource(from: unknown): void {
 
 /** A path, a full URL, a route() or a function: a route's bare name is refused, its route() says the same and is checked. */
 function ensureTarget(to: unknown): void {
-  if (typeof to === 'function' || isRouteDef(to)) return
-  if (typeof to === 'string' && (to.startsWith('/') || isAbsolute(to))) return
+  if (isTarget(to)) return
+  const given =
+    to === undefined
+      ? 'nothing was given'
+      : `${JSON.stringify(to)} is none of them (a route's name: pass its route())`
   throw new Error(
-    `boat: router.redirect goes to a path, a full URL, a route() or a function; ${to === undefined ? 'nothing was given' : `${JSON.stringify(to)} is none of them (a route's name: pass its route())`}`,
+    `boat: router.redirect goes to a path, a full URL, a route() or a function; ${given}`,
   )
+}
+
+function isTarget(to: unknown): boolean {
+  if (typeof to === 'function' || isRouteDef(to)) return true
+  return typeof to === 'string' && (to.startsWith('/') || isAbsolute(to))
 }
 
 function readOptions(options: RedirectOptions<string> | null | undefined) {

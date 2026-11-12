@@ -30,31 +30,58 @@ export async function loadFont(
   { signal }: { readonly signal: AbortSignal },
 ): Promise<Sheet> {
   signal.throwIfAborted()
-  const display = font.display ?? 'swap'
-  const urls = font.files.map(({ src }) =>
-    typeof src === 'string'
-      ? src
-      : URL.createObjectURL(new Blob([src as BlobPart])),
-  )
-  const faces = font.files.map((file, i) =>
-    faceOf(font.family, file, urls[i]!, display),
-  )
-  const release = () => {
-    for (const face of faces) document.fonts.delete(face)
-    for (const [i, { src }] of font.files.entries())
-      if (typeof src !== 'string') URL.revokeObjectURL(urls[i]!)
+  const loading = new FontLoading(font)
+  await loaded(font.family, loading.faces, () => loading.release())
+  if (signal.aborted) throw (loading.release(), signal.reason)
+  loading.keep(signal)
+  return loading.sheet()
+}
+
+/** One font's files on their way into the page: their URLs, their faces, and how to take them back. */
+class FontLoading {
+  readonly faces: FontFace[]
+  private readonly urls: string[]
+  private readonly display: string
+
+  constructor(private readonly font: LoadableFont) {
+    this.display = font.display ?? 'swap'
+    this.urls = font.files.map(({ src }) => urlOf(src))
+    this.faces = font.files.map((file, i) =>
+      faceOf(font.family, file, this.urls[i]!, this.display),
+    )
   }
-  await loaded(font.family, faces, release)
-  if (signal.aborted) throw (release(), signal.reason)
-  for (const face of faces) document.fonts.add(face)
-  signal.addEventListener('abort', release, { once: true })
-  const css = font.files.map((file, i) =>
-    faceRule(font.family, file, urls[i]!, display),
-  )
-  return Object.freeze({
-    name: `glyph.fonts(loaded ${font.family})`,
-    css: css.join('\n'),
-  })
+
+  /** In `document.fonts` until `signal` aborts. */
+  keep(signal: AbortSignal): void {
+    for (const face of this.faces) document.fonts.add(face)
+    signal.addEventListener('abort', () => this.release(), { once: true })
+  }
+
+  /** Out of the page; the `blob:` URLs made for bytes freed. */
+  release(): void {
+    for (const face of this.faces) document.fonts.delete(face)
+    for (const [i, { src }] of this.font.files.entries())
+      if (typeof src !== 'string') URL.revokeObjectURL(this.urls[i]!)
+  }
+
+  /** Its `@font-face` text, for a document the page's fonts don't reach. */
+  sheet(): Sheet {
+    const { family, files } = this.font
+    const css = files.map((file, i) =>
+      faceRule(family, file, this.urls[i]!, this.display),
+    )
+    return Object.freeze({
+      name: `glyph.fonts(loaded ${family})`,
+      css: css.join('\n'),
+    })
+  }
+}
+
+/** A URL as given, or a `blob:` URL for bytes. */
+function urlOf(src: LoadableFontFile['src']): string {
+  return typeof src === 'string'
+    ? src
+    : URL.createObjectURL(new Blob([src as BlobPart]))
 }
 
 function faceOf(

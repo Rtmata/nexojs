@@ -24,16 +24,23 @@ export function resolve<D>(
   { colorScheme }: { readonly colorScheme: ColorScheme },
 ): ResolvedTokens<D> {
   const set = source[DEFINITION]
-  const fixed = set.fixedScheme()
-  if (fixed && fixed !== colorScheme)
-    throw new Error(
-      `glyph: resolve: this theme is always ${fixed}; ask for colorScheme: '${fixed}'`,
-    )
+  ensureScheme(set.fixedScheme(), colorScheme)
   const resolver = new Resolver(set, colorScheme)
   const values = set.properties().map((p) => [p, resolver.value(p)])
   return new ResolvedTokens(
     Object.freeze(Object.fromEntries(values)),
     colorScheme,
+  )
+}
+
+/** A theme that is always one scheme answers only for it. */
+function ensureScheme(
+  fixed: ColorScheme | undefined,
+  asked: ColorScheme,
+): void {
+  if (!fixed || fixed === asked) return
+  throw new Error(
+    `glyph: resolve: this theme is always ${fixed}; ask for colorScheme: '${fixed}'`,
   )
 }
 

@@ -172,11 +172,7 @@ class KeepServer implements Server {
     this.contexts = new Contexts(this.router)
     this.flow = new RequestFlow(this.router, this.folders, this.contexts)
     this.idleTimeout = bunSeconds(options.idleTimeout ?? 2 * 60 * 1000)
-    if (options.securityHeaders !== false)
-      this.middlewares.push(securityHeaders(options.securityHeaders))
-    if (options.csrf !== false) this.middlewares.push(csrf(options.csrf))
-    if (options.idempotency !== false)
-      this.middlewares.push(idempotency(options.idempotency))
+    this.middlewares.push(...safeguards(options))
   }
 
   get url(): URL | null {
@@ -351,4 +347,17 @@ function bunSeconds(ms: number): number {
   throw new RangeError(
     `keep: idleTimeout is in milliseconds, from 0 to ${BUN_IDLE_LIMIT * 1000} (Bun's limit), got ${ms}`,
   )
+}
+
+/** keep's own middlewares, outermost first, each unless turned off with `false`. */
+function safeguards(options: KeepOptions): Middleware[] {
+  return [
+    ...(options.securityHeaders === false
+      ? []
+      : [securityHeaders(options.securityHeaders)]),
+    ...(options.csrf === false ? [] : [csrf(options.csrf)]),
+    ...(options.idempotency === false
+      ? []
+      : [idempotency(options.idempotency)]),
+  ]
 }

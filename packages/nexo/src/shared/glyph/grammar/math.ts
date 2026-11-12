@@ -48,6 +48,9 @@ function normalized(token: string): string {
 /** How deep parentheses and functions may nest: far past any real value, far short of the stack. */
 const MAX_DEPTH = 32
 
+/** How many arguments a function takes; min and max take any. */
+const ARGUMENTS: Record<string, number> = { calc: 1, clamp: 3 }
+
 /** Thrown inside the reader, caught at the top: why the expression fails. */
 class Failed {
   constructor(readonly issue: Issue) {}
@@ -77,19 +80,18 @@ class MathReader {
   private call(): Kind {
     const opening = this.take()
     if (!MATH.test(opening)) throw new Failed(WRONG)
-    const name = opening.slice(0, -1)
-    const kinds = this.nested(() => {
-      const kinds = [this.sum()]
-      while (this.peek() === ',') kinds.push((this.take(), this.sum()))
-      return kinds
-    })
+    const kinds = this.nested(() => this.args())
     this.expect(')')
-    const counts: Record<string, boolean> = {
-      calc: kinds.length === 1,
-      clamp: kinds.length === 3,
-    }
-    if (counts[name] === false) throw new Failed(WRONG)
+    const wanted = ARGUMENTS[opening.slice(0, -1)]
+    if (wanted !== undefined && kinds.length !== wanted) throw new Failed(WRONG)
     return same(kinds)
+  }
+
+  /** Sums separated by commas. */
+  private args(): Kind[] {
+    const kinds = [this.sum()]
+    while (this.peek() === ',') kinds.push((this.take(), this.sum()))
+    return kinds
   }
 
   /** Products joined by ` + ` or ` - `, all of one kind. */

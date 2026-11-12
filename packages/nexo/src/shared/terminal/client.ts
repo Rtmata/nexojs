@@ -32,13 +32,7 @@ export class Client<T extends Table> {
       : [args: ArgsOf<T[K]>, options?: ExecOptions]
   ): Promise<ResultOf<T[K]>> {
     const spec = this.table[name]
-    if (!spec)
-      throw new CommandError(
-        'unknownCommand',
-        `terminal: no command "${name}"`,
-        undefined,
-        RESERVED.unknownCommand, // as the server answers it
-      )
+    if (!spec) throw unknownCommand(name)
     const sent = spec.args ? checked(spec.args, args, name) : undefined
     return (await this.transport.send(
       { name, args: sent, read: spec.read ?? false },
@@ -74,3 +68,13 @@ export function describe(issue: {
 }
 
 export type { CodeOf }
+
+/** A name the table doesn't have: the error the server would answer, with its status. */
+function unknownCommand(name: string): CommandError {
+  return new CommandError(
+    'unknownCommand',
+    `terminal: no command "${name}"`,
+    undefined,
+    RESERVED.unknownCommand, // as the server answers it
+  )
+}

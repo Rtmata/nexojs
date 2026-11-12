@@ -119,16 +119,19 @@ class PairMeasure {
     const measure = checkPair(foreground, background, this.check[2])
     if (measure.passes) return []
     const ratio = Math.floor(measure.ratio * 100) / 100 // never shown higher than it is
-    const { required } = measure
+    return [this.lowContrast(ratio, measure.required, scheme)]
+  }
+
+  private lowContrast(
+    ratio: number,
+    required: number,
+    scheme?: ColorScheme,
+  ): ThemeError {
     const label = scheme ? ` (${scheme})` : ''
     const message = `${this.pair()}${label}: ${ratio}:1, needs ${required}:1`
-    const data = {
-      background: pathOf(this.check[1]),
-      ratio,
-      required,
-      ...(scheme ? { scheme } : {}),
-    }
-    return [{ path: pathOf(this.check[0]), code: 'lowContrast', data, message }]
+    const background = pathOf(this.check[1])
+    const data = { background, ratio, required, ...(scheme ? { scheme } : {}) }
+    return { path: pathOf(this.check[0]), code: 'lowContrast', data, message }
   }
 
   /** The translucent side is where to fix it. */

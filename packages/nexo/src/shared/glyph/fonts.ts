@@ -180,46 +180,63 @@ function htmlAttribute(text: string): string {
 /** What a weight may be: 1–1000, a range of two, or a keyword. */
 const WEIGHT = /^(?:normal|bold|\d+(?:\.\d+)?(?:\s+\d+(?:\.\d+)?)?)$/
 
-/** A mistake in a declaration is a mistake in code: it throws, saying which (CONTRIBUTING). */
+/** A mistake in a declaration is a mistake in code: it throws, saying the first one (CONTRIBUTING). */
 function checkDefinition(key: string, definition: FontDefinition): void {
-  const where = `glyph: defineFonts ${key}`
-  const fail = (what: string) => {
-    throw new Error(`${where}: ${what}`)
+  for (const check of DEFINITION_CHECKS) {
+    const problem = check(key, definition)
+    if (problem) throw new Error(`glyph: defineFonts ${key}: ${problem}`)
   }
-  if (key === 'name' || key === 'css')
-    fail(
-      "a font can't be called name or css: the fonts keep them for their sheet",
-    )
-  if (typeof definition.family !== 'string' || definition.family.trim() === '')
-    fail('family is the font\'s name, such as "Inter"')
-  if (!Array.isArray(definition.files) || definition.files.length === 0)
-    fail('files lists at least one file: [{ src: "/fonts/inter.woff2" }]')
-  for (const file of definition.files) {
-    if (
-      typeof file.src !== 'string' ||
-      file.src === '' ||
-      /[\n\r]/.test(file.src)
-    )
-      fail(`${JSON.stringify(file.src)} can't be a file's src`)
-    if (file.weight !== undefined && !WEIGHT.test(String(file.weight)))
-      fail(
-        `weight ${JSON.stringify(file.weight)} is a number such as 400, a range such as "100 900", normal or bold`,
-      )
-  }
-  if (
-    typeof definition.fallback !== 'string' ||
-    definition.fallback.trim() === '' ||
-    BREAKS_OUT.test(definition.fallback)
+}
+
+type Check = (key: string, definition: FontDefinition) => string | undefined
+
+/** In order: each gives what is wrong, or nothing; a later one may rely on the earlier. */
+const DEFINITION_CHECKS: readonly Check[] = [
+  (key) =>
+    key === 'name' || key === 'css'
+      ? "a font can't be called name or css: the fonts keep them for their sheet"
+      : undefined,
+  (_, { family }) =>
+    isText(family) ? undefined : 'family is the font\'s name, such as "Inter"',
+  (_, { files }) =>
+    Array.isArray(files) && files.length > 0
+      ? undefined
+      : 'files lists at least one file: [{ src: "/fonts/inter.woff2" }]',
+  (_, { files }) => files.map(fileProblem).find(Boolean),
+  (_, { fallback }) =>
+    isText(fallback) && !BREAKS_OUT.test(fallback)
+      ? undefined
+      : 'fallback is what shows without the font, such as "sans-serif"',
+  (_, { metrics }) =>
+    metrics === undefined ? undefined : metricsProblem(metrics),
+]
+
+function fileProblem(file: FontFile): string | undefined {
+  const { src, weight } = file
+  if (typeof src !== 'string' || src === '' || /[\n\r]/.test(src))
+    return `${JSON.stringify(src)} can't be a file's src`
+  if (weight !== undefined && !WEIGHT.test(String(weight)))
+    return `weight ${JSON.stringify(weight)} is a number such as 400, a range such as "100 900", normal or bold`
+  return undefined
+}
+
+function metricsProblem(metrics: FontMetrics): string | undefined {
+  if (!isText(metrics.local))
+    return 'metrics.local names a font on the device, such as "Arial"'
+  const bad = RATIOS.find((k) => !isRatio(metrics[k], k === 'lineGap'))
+  return (
+    bad && `metrics.${bad} is a ratio such as 1.07, as measureFont prints it`
   )
-    fail('fallback is what shows without the font, such as "sans-serif"')
-  const { metrics } = definition
-  if (metrics === undefined) return
-  if (typeof metrics.local !== 'string' || metrics.local.trim() === '')
-    fail('metrics.local names a font on the device, such as "Arial"')
-  for (const k of ['sizeAdjust', 'ascent', 'descent', 'lineGap'] as const) {
-    const n = metrics[k]
-    const optional = k === 'lineGap' && n === undefined // the other three are required
-    if (!optional && !(typeof n === 'number' && Number.isFinite(n) && n >= 0))
-      fail(`metrics.${k} is a ratio such as 1.07, as measureFont prints it`)
-  }
+}
+
+const RATIOS = ['sizeAdjust', 'ascent', 'descent', 'lineGap'] as const
+
+/** A number from 0 up; `optional` lets it be left out (only lineGap is). */
+function isRatio(n: unknown, optional: boolean): boolean {
+  if (optional && n === undefined) return true
+  return typeof n === 'number' && Number.isFinite(n) && n >= 0
+}
+
+function isText(value: unknown): value is string {
+  return typeof value === 'string' && value.trim() !== ''
 }

@@ -98,17 +98,23 @@ type Role = 'inset' | 'length' | 'color'
 
 /** At most one inset and one colour; two to four lengths side by side, the blur not negative. */
 function shadowShape(roles: Role[], parts: string[]): Issue | undefined {
-  const count = (role: Role) => roles.filter((r) => r === role).length
-  const first = roles.indexOf('length')
-  const lengths = count('length')
-  const together = roles
-    .slice(first, first + lengths)
-    .every((r) => r === 'length')
-  const fits =
-    count('inset') <= 1 && count('color') <= 1 && lengths >= 2 && lengths <= 4
-  if (!fits || !together) return WRONG
-  const blur = dimensionOf(parts[first + 2] ?? '')
+  if (!fitsShadow(roles)) return WRONG
+  const blur = dimensionOf(parts[roles.indexOf('length') + 2] ?? '')
   return blur && blur.value < 0 ? WRONG : undefined
+}
+
+/** At most one inset and one colour; two to four lengths, side by side. */
+function fitsShadow(roles: Role[]): boolean {
+  const count = (role: Role) => roles.filter((r) => r === role).length
+  const lengths = count('length')
+  const few = count('inset') <= 1 && count('color') <= 1
+  return few && lengths >= 2 && lengths <= 4 && adjacent(roles, lengths)
+}
+
+/** The lengths come one after another, nothing between them. */
+function adjacent(roles: Role[], lengths: number): boolean {
+  const first = roles.indexOf('length')
+  return roles.slice(first, first + lengths).every((r) => r === 'length')
 }
 
 function lengthFrom(kind: ReturnType<typeof mathKind>): Issue | undefined {

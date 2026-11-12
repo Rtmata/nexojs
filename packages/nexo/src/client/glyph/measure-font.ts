@@ -23,37 +23,43 @@ export async function measureFont(
   font: Font,
   { local = font.metrics?.local }: { readonly local?: string } = {},
 ): Promise<FontMetrics> {
-  if (!local)
-    throw new Error(
-      `glyph: measureFont ${font.family}: say which device font it falls back to: { local: 'Arial' }`,
-    )
-  const { src, ...descriptors } = font.files[0]!
-  const face = new FontFace(
-    PROBE,
-    `url("${cssString(src)}")`,
-    descriptors as FontFaceDescriptors,
-  )
+  const against = required(font, local)
+  const face = probeFace(font)
   document.fonts.add(await face.load())
   try {
-    const metrics = measured(local)
-    console.log(
-      `glyph: ${font.family} over ${local} → metrics: ${shown(metrics)}`,
-    )
-    return metrics
+    return logged(font, measured(against))
   } finally {
     document.fonts.delete(face)
   }
 }
 
+/** The device font to measure against, or an error that says how to name one. */
+function required(font: Font, local: string | undefined): string {
+  if (local) return local
+  throw new Error(
+    `glyph: measureFont ${font.family}: say which device font it falls back to: { local: 'Arial' }`,
+  )
+}
+
+/** The font's first file under a name no page uses. */
+function probeFace(font: Font): FontFace {
+  const { src, ...descriptors } = font.files[0]!
+  const url = `url("${cssString(src)}")`
+  return new FontFace(PROBE, url, descriptors as FontFaceDescriptors)
+}
+
+/** The line to copy, printed; the same numbers returned. */
+function logged(font: Font, metrics: FontMetrics): FontMetrics {
+  console.log(
+    `glyph: ${font.family} over ${metrics.local} → metrics: ${shown(metrics)}`,
+  )
+  return metrics
+}
+
 /** size-adjust = the font's width over the device font's; the overrides are relative to the adjusted size (Chrome's formula). */
 function measured(local: string): FontMetrics {
-  const context = document.createElement('canvas').getContext('2d')!
-  const measure = (family: string) => {
-    context.font = `100px "${cssString(family)}"`
-    return context.measureText(SAMPLE)
-  }
-  const own = measure(PROBE)
-  const sizeAdjust = own.width / measure(local).width
+  const own = textAt100(PROBE)
+  const sizeAdjust = own.width / textAt100(local).width
   const ratio = (px: number) => round(px / 100 / sizeAdjust)
   return {
     local,
@@ -61,6 +67,13 @@ function measured(local: string): FontMetrics {
     ascent: ratio(own.fontBoundingBoxAscent),
     descent: ratio(own.fontBoundingBoxDescent),
   }
+}
+
+/** The sample text in `family` at 100px, measured by a canvas. */
+function textAt100(family: string): TextMetrics {
+  const context = document.createElement('canvas').getContext('2d')!
+  context.font = `100px "${cssString(family)}"`
+  return context.measureText(SAMPLE)
 }
 
 function shown({ local, sizeAdjust, ascent, descent }: FontMetrics): string {

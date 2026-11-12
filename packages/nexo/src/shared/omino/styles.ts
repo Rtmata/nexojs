@@ -62,16 +62,25 @@ interface StyledClass {
 export function stylesOf(type: unknown): ListedStyles | undefined {
   const { name, styles, encapsulation = 'scope' } = type as StyledClass
   if (styles === undefined) return undefined
-  const items = listOf(name, styles)
-  const texts = items.filter((item) => typeof item === 'string')
-  const sheets = items.filter((item) => typeof item !== 'string')
+  const { texts, sheets } = split(listOf(name, styles))
   if (sheets.length > 0 && encapsulation === 'shadow')
     throw sheetsInShadow(name)
   const css = texts.join('\n')
-  for (const item of [css, ...sheets.map((s) => s.css)])
-    ensureNoClosingTag(name, item)
+  ensureClosed(name, [css, ...sheets.map((s) => s.css)])
   const own = texts.length > 0 ? { name, css, encapsulation } : undefined
   return { own, sheets }
+}
+
+/** The component's own CSS texts, and the page-wide sheets, in their order. */
+function split(items: (string | PageSheet)[]) {
+  return {
+    texts: items.filter((item) => typeof item === 'string'),
+    sheets: items.filter((item) => typeof item !== 'string'),
+  }
+}
+
+function ensureClosed(name: string, texts: readonly string[]): void {
+  for (const text of texts) ensureNoClosingTag(name, text)
 }
 
 /** Every item a string or a `{ name, css }`, or an error that says what was given. */

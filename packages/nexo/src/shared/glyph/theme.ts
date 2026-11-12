@@ -164,19 +164,18 @@ export class ThemeDraft<D> {
     const merged = this.merged()
     const cycles = referenceCycles(merged, this.changedPaths())
     if (cycles.length > 0) return cycles
-    const changes = this.parts.changes as Record<
-      string,
-      Record<string, unknown>
-    >
-    const unreadable = unreadableColors(merged, changes)
+    const unreadable = unreadableColors(merged, this.changes())
     if (unreadable.length > 0) return unreadable
     return contrastShortfalls(merged).map(asError)
   }
 
+  private changes(): Record<string, Record<string, unknown>> {
+    return this.parts.changes as Record<string, Record<string, unknown>>
+  }
+
   /** `color.surface`, … : each token the theme sets. */
   private changedPaths(): string[] {
-    const groups = this.parts.changes as Record<string, Record<string, unknown>>
-    return Object.entries(groups).flatMap(([group, tokens]) =>
+    return Object.entries(this.changes()).flatMap(([group, tokens]) =>
       Object.keys(tokens).map((token) => `${group}.${token}`),
     )
   }

@@ -62,20 +62,30 @@ class DtcgReader {
   groups(json: unknown): Record<string, unknown> {
     if (!isJson(json))
       return this.mistakes.add('the file is not a JSON object') ?? {}
-    let dark: Map<string, unknown> | undefined
-    if ('resolutionOrder' in json) dark = this.resolver(json)
-    else this.walk(json, [], undefined)
+    const byGroup = this.byGroup(this.read(json))
+    const groups = [...byGroup].map(([name, tokens]) => [
+      name,
+      this.group(name, tokens),
+    ])
+    return Object.fromEntries(groups)
+  }
+
+  /** Every token found, in `found`; a resolver also gives each colour's dark side. */
+  private read(json: Json): Map<string, unknown> | undefined {
+    if ('resolutionOrder' in json) return this.resolver(json)
+    this.walk(json, [], undefined)
+    return undefined
+  }
+
+  /** The tokens glyph can hold, by their top-level group. */
+  private byGroup(dark: Map<string, unknown> | undefined) {
     const byGroup = new Map<string, Placed[]>()
     for (const token of this.found.values()) {
       const placed = this.placed(token, dark)
       const group = token.path[0]!
       if (placed) byGroup.set(group, [...(byGroup.get(group) ?? []), placed])
     }
-    const groups = [...byGroup].map(([name, tokens]) => [
-      name,
-      this.group(name, tokens),
-    ])
-    return Object.fromEntries(groups)
+    return byGroup
   }
 
   /** A resolver: its sets in order; a light/dark modifier gives each colour its dark side. */
@@ -84,18 +94,22 @@ class DtcgReader {
       ? json.resolutionOrder
       : []
     let dark: Map<string, unknown> | undefined
-    for (const item of order) {
-      const target = pointed(json, item)
-      if (isJson(target) && Array.isArray(target.sources))
-        for (const source of target.sources) this.source(json, source)
-      else if (isJson(target) && isJson(target.contexts))
-        dark = this.modifier(json, target.contexts)
-      else
-        this.mistakes.add(
-          `resolutionOrder: ${JSON.stringify(item)} is neither a set nor a modifier glyph can read`,
-        )
-    }
+    for (const item of order) dark = this.step(json, item) ?? dark
     return dark
+  }
+
+  /** One item of the order: a set's sources walked, or a modifier's dark side returned. */
+  private step(json: Json, item: unknown): Map<string, unknown> | undefined {
+    const target = pointed(json, item)
+    if (isJson(target) && Array.isArray(target.sources)) {
+      for (const source of target.sources) this.source(json, source)
+      return undefined
+    }
+    if (isJson(target) && isJson(target.contexts))
+      return this.modifier(json, target.contexts)
+    return this.mistakes.add(
+      `resolutionOrder: ${JSON.stringify(item)} is neither a set nor a modifier glyph can read`,
+    )
   }
 
   /** Light read as the tokens' values; dark read apart, kept by path. */
@@ -109,19 +123,28 @@ class DtcgReader {
         `a modifier with contexts ${Object.keys(contexts).join(', ')}: glyph reads one with light and dark`,
       )
     for (const source of light) this.source(json, source)
-    const withLight = this.found
-    this.found = new Map(withLight)
-    for (const source of dark) this.source(json, source)
-    const darkValues = new Map(
-      [...this.found].map(([path, token]) => [path, token.value]),
-    )
+    const darkValues = this.darkSide(json, dark)
+    this.checkLightToo(darkValues)
+    return darkValues
+  }
+
+  /** Every token the dark context has, the light one (now `found`) has too. */
+  private checkLightToo(darkValues: Map<string, unknown>): void {
     for (const path of darkValues.keys())
-      if (!withLight.has(path))
+      if (!this.found.has(path))
         this.mistakes.add(
           `${path}: only the dark context has it; glyph needs a light value too`,
         )
+  }
+
+  /** The dark context read over a copy of what's found, kept apart by path; `found` stays the light one. */
+  private darkSide(json: Json, sources: unknown[]): Map<string, unknown> {
+    const withLight = this.found
+    this.found = new Map(withLight)
+    for (const source of sources) this.source(json, source)
+    const values = new Map([...this.found].map(([path, t]) => [path, t.value]))
     this.found = withLight
-    return darkValues
+    return values
   }
 
   /** Inline tokens, or a pointer within the resolver; another file can't be read from here. */
@@ -142,22 +165,29 @@ class DtcgReader {
   ): void {
     const own = typeof node.$type === 'string' ? node.$type : undefined
     if ('$value' in node) {
-      this.found.set(path.join('.'), {
-        path,
-        own,
-        inherited,
-        value: node.$value,
-      })
+      const value = node.$value
+      this.found.set(path.join('.'), { path, own, inherited, value })
       return
     }
-    if ('$extends' in node)
-      this.mistakes.add(
-        `${path.join('.') || 'the file'}: $extends isn't read by glyph; write the group's tokens out`,
-      )
+    if ('$extends' in node) this.extendsNotRead(path)
+    this.walkChildren(node, path, own ?? inherited)
+  }
+
+  private extendsNotRead(path: string[]): void {
+    this.mistakes.add(
+      `${path.join('.') || 'the file'}: $extends isn't read by glyph; write the group's tokens out`,
+    )
+  }
+
+  private walkChildren(
+    node: Json,
+    path: string[],
+    type: string | undefined,
+  ): void {
     for (const [key, child] of Object.entries(node)) {
       if (key.startsWith('$') && key !== '$root') continue
       const next = key === '$root' ? path : [...path, key] // $root is its group's own token
-      if (isJson(child)) this.walk(child, next, own ?? inherited)
+      if (isJson(child)) this.walk(child, next, type)
     }
   }
 
@@ -167,32 +197,39 @@ class DtcgReader {
     dark: Map<string, unknown> | undefined,
   ): Placed | undefined {
     const where = token.path.join('.')
-    const [group, ...rest] = token.path
-    if (!group || rest.length === 0)
-      return this.mistakes.add(
-        `${where}: a token sits in a group in glyph; put it in one`,
-      )
-    const name = rest.join('-')
-    if (![group, name].every((n) => CSS_NAME.test(n)))
-      return this.mistakes.add(
-        `${where}: names in glyph use letters, digits, - and _`,
-      )
+    const name = this.nameOf(token.path, where)
+    if (name === undefined) return undefined
     const dtcgType = this.typeOf(token, new Set())
     const type = own(GLYPH_TYPE, dtcgType)
     if (!type)
       return this.mistakes.add(
         `${where}: glyph has no ${dtcgType ?? 'untyped'} tokens`,
       )
+    return { name, type, value: this.bothSides(type, token, dark?.get(where)) }
+  }
+
+  /** The token's name in its group: the path after the group, joined with `-`. */
+  private nameOf(path: string[], where: string): string | undefined {
+    const [group, ...rest] = path
+    if (!group || rest.length === 0)
+      return this.mistakes.add(
+        `${where}: a token sits in a group in glyph; put it in one`,
+      )
+    const name = rest.join('-')
+    if ([group, name].every((n) => CSS_NAME.test(n))) return name
+    return this.mistakes.add(
+      `${where}: names in glyph use letters, digits, - and _`,
+    )
+  }
+
+  /** The value read; when the dark context differs, `{ light, dark }`. */
+  private bothSides(type: TokenType, token: Found, other: unknown): unknown {
+    const where = token.path.join('.')
     const light = this.value(type, token.value, where)
-    const other = dark?.get(where)
     const same =
       other === undefined ||
       JSON.stringify(other) === JSON.stringify(token.value)
-    return {
-      name,
-      type,
-      value: same ? light : this.dual(type, light, other, where),
-    }
+    return same ? light : this.dual(type, light, other, where)
   }
 
   /** Its own `$type`, else the type of the token it points to (DTCG §5.2.2), else its group's. */
@@ -219,18 +256,22 @@ class DtcgReader {
 
   /** One glyph group: a known name with its own type, else `typed`. */
   private group(name: string, tokens: Placed[]): unknown {
-    const types = [...new Set(tokens.map((t) => t.type))]
-    if (types.length > 1)
-      return this.mistakes.add(
-        `${name}: a glyph group holds one type, this one has ${types.join(' and ')}`,
-      )
-    const type = types[0]!
+    const type = this.oneType(name, tokens)
+    if (type === undefined) return undefined
     const values = Object.fromEntries(tokens.map((t) => [t.name, t.value]))
     const known = (GROUP_TYPES as Record<string, TokenType>)[name]
     if (known === undefined) return typed(type, values as never) // a file's names: TS can't know them
     if (known === type) return values
     return this.mistakes.add(
       `${name}: in glyph the group ${name} holds ${known} tokens, the file gives ${type}`,
+    )
+  }
+
+  private oneType(name: string, tokens: Placed[]): TokenType | undefined {
+    const types = [...new Set(tokens.map((t) => t.type))]
+    if (types.length === 1) return types[0]
+    return this.mistakes.add(
+      `${name}: a glyph group holds one type, this one has ${types.join(' and ')}`,
     )
   }
 
@@ -276,27 +317,15 @@ class DtcgReader {
   /** DTCG's colour object as CSS: its hex when given and opaque, else its space's own function. */
   private color(value: unknown, where: string): unknown {
     const { colorSpace, components } = isJson(value) ? value : {}
-    if (
-      typeof colorSpace !== 'string' ||
-      !Array.isArray(components) ||
-      components.length !== 3
-    )
-      return this.mistakes.add(
-        `${where}: a colour is { colorSpace, components }`,
-      )
-    if (!components.every((x) => typeof x === 'number' || x === 'none'))
-      return this.mistakes.add(
-        `${where}: a colour's components are numbers or none; a $ref inside a value isn't read by glyph`,
-      )
-    if (!COLOR_SPACES.has(colorSpace))
-      return this.mistakes.add(
-        `${where}: ${JSON.stringify(colorSpace)} is not one of DTCG's colour spaces`,
-      )
+    const problem = colorProblem(colorSpace, components)
+    if (problem) return this.mistakes.add(`${where}: ${problem}`)
     const { alpha, hex } = value as Json
     const over = typeof alpha === 'number' && alpha !== 1 ? ` / ${alpha}` : ''
     if (typeof hex === 'string' && HEX.test(hex) && !over) return hex
-    const c = components.map((x) => (x === 'none' ? 'none' : round(Number(x))))
-    return colorText(colorSpace, c, over)
+    const c = (components as unknown[]).map((x) =>
+      x === 'none' ? 'none' : round(Number(x)),
+    )
+    return colorText(colorSpace as string, c, over)
   }
 
   private measure(
@@ -361,17 +390,35 @@ class DtcgReader {
       return this.mistakes.add(
         `${where}: a shadow is { color, offsetX, offsetY, blur, spread }`,
       )
+    const parts = this.layerParts(layer, where)
+    return parts.includes(undefined) ? undefined : parts.join(' ')
+  }
+
+  /** `inset` if it is, the four lengths (a missing one is zero), the colour: as CSS writes a layer. */
+  private layerParts(layer: Json, where: string): unknown[] {
     const length = (key: string) =>
       this.value('dimension', layer[key] ?? ZERO, `${where}.${key}`)
     const lengths = ['offsetX', 'offsetY', 'blur', 'spread'].map(length)
     const color = this.value('color', layer.color, `${where}.color`)
-    const parts = [
-      ...(layer.inset === true ? ['inset'] : []),
-      ...lengths,
-      color,
-    ]
-    return parts.includes(undefined) ? undefined : parts.join(' ')
+    return [...(layer.inset === true ? ['inset'] : []), ...lengths, color]
   }
+}
+
+/** What is wrong with a colour object's space and components, if anything; checked in this order. */
+function colorProblem(
+  colorSpace: unknown,
+  components: unknown,
+): string | undefined {
+  const shaped =
+    typeof colorSpace === 'string' &&
+    Array.isArray(components) &&
+    components.length === 3
+  if (!shaped) return 'a colour is { colorSpace, components }'
+  if (!components.every((x) => typeof x === 'number' || x === 'none'))
+    return "a colour's components are numbers or none; a $ref inside a value isn't read by glyph"
+  if (!COLOR_SPACES.has(colorSpace))
+    return `${JSON.stringify(colorSpace)} is not one of DTCG's colour spaces`
+  return undefined
 }
 
 /** DTCG's blur and spread are optional: a missing one is zero. */

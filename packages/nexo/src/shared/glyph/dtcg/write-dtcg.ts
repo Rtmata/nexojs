@@ -66,18 +66,7 @@ class DtcgWriter {
       light: [this.dualOnly('light')],
       dark: [this.dualOnly('dark')],
     }
-    return {
-      tokens,
-      resolver: {
-        version: '2025-10-01',
-        sets: { tokens: { sources: [tokens] } },
-        modifiers: { colorScheme: { contexts, default: 'light' } },
-        resolutionOrder: [
-          { $ref: '#/sets/tokens' },
-          { $ref: '#/modifiers/colorScheme' },
-        ],
-      },
-    }
+    return { tokens, resolver: resolverOf(tokens, contexts) }
   }
 
   /** Every group, its tokens with the scheme's side of each `{ light, dark }`. */
@@ -155,23 +144,7 @@ class DtcgWriter {
   /** sRGB components, alpha when not opaque, and the 6-digit hex DTCG asks for. */
   private color(value: unknown, where: string): unknown {
     try {
-      const { red, green, blue, alpha } = readColor(String(value))
-      const components = [red, green, blue].map((c) =>
-        round(Math.min(1, Math.max(0, c))),
-      )
-      const hex = `#${components
-        .map((c) =>
-          Math.round(c * 255)
-            .toString(16)
-            .padStart(2, '0'),
-        )
-        .join('')}`
-      return {
-        colorSpace: 'srgb',
-        components,
-        ...(alpha === 1 ? {} : { alpha: round(alpha) }),
-        hex,
-      }
+      return srgbColor(String(value))
     } catch {
       return this.mistakes.add(
         `${where}: ${JSON.stringify(value)} is a colour glyph can't read, so it has no DTCG form`,
@@ -191,12 +164,8 @@ class DtcgWriter {
 
   private weight(value: unknown, where: string): unknown {
     if (typeof value === 'number') return value
-    const word = String(value)
-    const n = Object.hasOwn(WEIGHT_WORDS, word)
-      ? WEIGHT_WORDS[word]
-      : numberOf(word)
     return (
-      n ??
+      weightNumber(String(value)) ??
       this.mistakes.add(
         `${where}: ${JSON.stringify(value)} has no DTCG form; write a number from 1 to 1000`,
       )
@@ -204,14 +173,8 @@ class DtcgWriter {
   }
 
   private easing(text: string, where: string): unknown {
-    const keyword = text.trim().toLowerCase()
-    const curve = Object.hasOwn(EASING_CURVES, keyword)
-      ? EASING_CURVES[keyword]
-      : undefined
-    if (curve) return [...curve]
-    const call = /^cubic-bezier\((.*)\)$/i.exec(text.trim())
-    const numbers = call ? splitTop(call[1]!, ',')?.map(numberOf) : undefined
-    if (numbers?.length === 4 && !numbers.includes(undefined)) return numbers
+    const curve = curveOf(text)
+    if (curve) return curve
     return this.mistakes.add(
       `${where}: ${JSON.stringify(text)} has no DTCG form; DTCG easings are cubic-bezier curves`,
     )
@@ -227,27 +190,29 @@ class DtcgWriter {
   }
 
   private layer(layer: string, where: string): Json | undefined {
-    const parts = splitTop(layer, ' ') ?? []
-    const inset = parts.some((p) => p.toLowerCase() === 'inset')
-    const rest = parts.filter((p) => p.toLowerCase() !== 'inset')
-    const lengths = rest.filter((p) => this.isLength(p))
-    const colors = rest.filter((p) => !this.isLength(p))
-    if (lengths.length < 2 || lengths.length > 4 || colors.length !== 1)
-      return this.mistakes.add(
-        `${where}: ${JSON.stringify(layer)} has no DTCG form; a shadow layer is two to four lengths and a colour`,
-      )
+    const { inset, lengths, colors } = this.partsOf(layer)
+    if (!fitsLayer(lengths, colors)) return this.notALayer(layer, where)
     const [offsetX, offsetY, blur = ZERO, spread = ZERO] = lengths.map((l) =>
       this.value('dimension', l, where),
     )
     const color = this.value('color', colors[0], where)
-    return {
-      color,
-      offsetX,
-      offsetY,
-      blur,
-      spread,
-      ...(inset ? { inset } : {}),
-    }
+    const shape = { color, offsetX, offsetY, blur, spread }
+    return inset ? { ...shape, inset } : shape
+  }
+
+  private notALayer(layer: string, where: string): undefined {
+    return this.mistakes.add(
+      `${where}: ${JSON.stringify(layer)} has no DTCG form; a shadow layer is two to four lengths and a colour`,
+    )
+  }
+
+  /** A shadow layer's parts by role: whether it is inset, its lengths, the rest (its colour). */
+  private partsOf(layer: string) {
+    const parts = splitTop(layer, ' ') ?? []
+    const inset = parts.some((p) => p.toLowerCase() === 'inset')
+    const rest = parts.filter((p) => p.toLowerCase() !== 'inset')
+    const lengths = rest.filter((p) => this.isLength(p))
+    return { inset, lengths, colors: rest.filter((p) => !this.isLength(p)) }
   }
 
   /** A length, or a reference to a dimension token; anything else in a layer is its colour. */
@@ -257,6 +222,57 @@ class DtcgWriter {
     const found = dimensionOf(part)
     return found !== undefined && isLength(found)
   }
+}
+
+/** Two to four lengths and one colour: what DTCG's shadow object can hold. */
+function fitsLayer(lengths: string[], colors: string[]): boolean {
+  return lengths.length >= 2 && lengths.length <= 4 && colors.length === 1
+}
+
+/** The resolver document: the token file as its set, light and dark as a `colorScheme` modifier. */
+function resolverOf(tokens: Json, contexts: Json): Json {
+  return {
+    version: '2025-10-01',
+    sets: { tokens: { sources: [tokens] } },
+    modifiers: { colorScheme: { contexts, default: 'light' } },
+    resolutionOrder: [
+      { $ref: '#/sets/tokens' },
+      { $ref: '#/modifiers/colorScheme' },
+    ],
+  }
+}
+
+/** A colour glyph reads as DTCG's sRGB object: components clipped to 0–1, alpha when not opaque, the 6-digit hex. */
+function srgbColor(text: string): Json {
+  const { red, green, blue, alpha } = readColor(text)
+  const components = [red, green, blue].map((c) =>
+    round(Math.min(1, Math.max(0, c))),
+  )
+  const hex = `#${components.map(hexByte).join('')}`
+  const opacity = alpha === 1 ? {} : { alpha: round(alpha) }
+  return { colorSpace: 'srgb', components, ...opacity, hex }
+}
+
+function hexByte(channel: number): string {
+  return Math.round(channel * 255)
+    .toString(16)
+    .padStart(2, '0')
+}
+
+/** A weight word (DTCG's or CSS's) or a number written as text. */
+function weightNumber(word: string): number | undefined {
+  return Object.hasOwn(WEIGHT_WORDS, word) ? WEIGHT_WORDS[word] : numberOf(word)
+}
+
+/** A keyword's curve, or a `cubic-bezier()`'s four numbers; else nothing. */
+function curveOf(text: string): number[] | undefined {
+  const keyword = text.trim().toLowerCase()
+  if (Object.hasOwn(EASING_CURVES, keyword)) return [...EASING_CURVES[keyword]!]
+  const call = /^cubic-bezier\((.*)\)$/i.exec(text.trim())
+  const numbers = call ? splitTop(call[1]!, ',')?.map(numberOf) : undefined
+  if (numbers?.length === 4 && !numbers.includes(undefined))
+    return numbers as number[]
+  return undefined
 }
 
 /** DTCG's zero: it wants a unit even then. */
