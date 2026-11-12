@@ -159,11 +159,11 @@ A listener that throws goes to `onError` and the others still run. A group of ev
 watch(search, debounce(load, 300, { maxWait: 1000 }))
 input.oninput = debounce(save, 500)
 
-const query = debounced(search, 300) // a value that follows `search` once it stops changing
+const query = debouncedValue(search, 300) // a value that follows `search` once it stops changing
 effect(() => list(query.get()))
 ```
 
-`debounce(fn, ms, { leading, maxWait, signal })` returns the function with `cancel()`, `flush()` and `pending` (a readable signal: "saving…"). `debounced(source, ms)` is that, writing a signal from a `watch`; it hears every change, through computeds too. Debouncing is not a scheduler: a scheduler hears once per dirty effect, so it couldn't restart its wait.
+`debounce(fn, ms, { leading, maxWait, signal })` returns the function with `cancel()`, `flush()` and `pending` (a readable signal: "saving…"). `debouncedValue(source, ms)` is that, writing a signal from a `watch`; it hears every change, through computeds too. Debouncing is not a scheduler: a scheduler hears once per dirty effect, so it couldn't restart its wait.
 
 ## Why it works this way
 

@@ -54,7 +54,7 @@ const FORMER = [
   'connector/batch',
   'connector/computed',
   'connector/debounce',
-  'connector/debounced',
+  'connector/debounced-value',
   'connector/effect',
   'connector/event',
   'connector/media-query',

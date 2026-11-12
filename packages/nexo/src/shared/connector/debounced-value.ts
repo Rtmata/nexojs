@@ -5,7 +5,7 @@ import { signal, type ReadonlyView, type Signal } from './signal'
 import { untrack, type Named } from './source'
 import { watch, type WatchSource } from './watch'
 
-export interface DebouncedOptions extends DebounceOptions, Named {}
+export interface DebouncedValueOptions extends DebounceOptions, Named {}
 
 /**
  * A value that follows its source once the source stops changing for `ms`.
@@ -20,7 +20,11 @@ export class DebouncedValue<T> implements ReadonlyView<T> {
   private readonly value: Signal<T>
   private readonly write: Debounced<[T]>
 
-  constructor(source: WatchSource<T>, ms: number, options: DebouncedOptions) {
+  constructor(
+    source: WatchSource<T>,
+    ms: number,
+    options: DebouncedValueOptions,
+  ) {
     this.value = signal(
       untrack(() => readNow(source)),
       { name: options.name },
@@ -47,7 +51,10 @@ export class DebouncedValue<T> implements ReadonlyView<T> {
     this.write.flush()
   }
 
-  private follow(source: WatchSource<T>, options: DebouncedOptions): Dispose {
+  private follow(
+    source: WatchSource<T>,
+    options: DebouncedValueOptions,
+  ): Dispose {
     const stop = watch(source, (now) => this.write(now), {
       scheduler: sync,
       signal: options.signal,
@@ -59,13 +66,13 @@ export class DebouncedValue<T> implements ReadonlyView<T> {
 /**
  * The source's value, `ms` after it stops changing:
  *
- *   const query = debounced(search, 300)
+ *   const query = debouncedValue(search, 300)
  *   effect(() => list(query.get()))
  */
-export function debounced<T>(
+export function debouncedValue<T>(
   source: WatchSource<T>,
   ms: number,
-  options: DebouncedOptions = {},
+  options: DebouncedValueOptions = {},
 ): DebouncedValue<T> {
   return new DebouncedValue(source, ms, options)
 }

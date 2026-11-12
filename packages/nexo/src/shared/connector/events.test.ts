@@ -3,7 +3,7 @@ import {
   changed,
   computed,
   debounce,
-  debounced,
+  debouncedValue,
   event,
   flush,
   signal,
@@ -80,11 +80,11 @@ describe('debounce', () => {
   })
 })
 
-describe('debounced', () => {
+describe('debouncedValue', () => {
   test('follows its source once it stops changing, through computeds', async () => {
     const search = signal('a')
     const upper = computed(() => search.get().toUpperCase())
-    const query = debounced(upper, 10)
+    const query = debouncedValue(upper, 10)
     expect(query.get()).toBe('A')
     search.set('ab')
     search.set('abc')
@@ -98,7 +98,7 @@ describe('debounced', () => {
 
   test('dispose stops it', async () => {
     const s = signal(1)
-    const value = debounced(s, 5)
+    const value = debouncedValue(s, 5)
     value.dispose()
     s.set(2)
     await Bun.sleep(15)
