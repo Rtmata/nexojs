@@ -111,6 +111,12 @@ describe('specificity, encoded URLs, links and redirects', () => {
     )
   })
 
+  test('a link to an unknown name says how to register it, the route() way', () => {
+    expect(() => boat().href('about')).toThrow(
+      `boat: there is no route named "about". Register it, e.g. router.get(route('about', '/path'), handler)`,
+    )
+  })
+
   test('a link in an unknown language fails, even to a single-path route', () => {
     const router = boat({ languages: ['en', 'es'] }).get(
       route('about', '/about'),

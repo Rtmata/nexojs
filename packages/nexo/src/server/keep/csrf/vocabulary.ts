@@ -14,6 +14,3 @@ export const FIELD = '_csrf'
 
 /** The header a `fetch` without a form puts the token in. */
 export const HEADER = 'x-csrf-token'
-
-/** Methods that change nothing, so nobody asks where they come from (RFC 9110 §9.2.1). */
-export const SAFE_METHODS = new Set(['GET', 'HEAD', 'OPTIONS'])

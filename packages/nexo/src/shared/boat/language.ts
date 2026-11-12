@@ -1,5 +1,6 @@
 import { findTag, matchTag } from '../lang/tag'
 import { quoted } from './quoted'
+import { cookieValue } from '../http/cookie'
 import { decodedSegments } from '../url/decode'
 
 /**
@@ -175,11 +176,7 @@ class CookieReader implements LanguageReader {
   }
 
   private valueIn(request: Request): string | undefined {
-    for (const pair of request.headers.get('cookie')?.split(';') ?? []) {
-      const [key, ...value] = pair.trim().split('=')
-      if (key === this.name) return cookieValue(value.join('='))
-    }
-    return undefined
+    return cookieValue(request, this.name)
   }
 }
 
@@ -256,15 +253,6 @@ function qualityOf(part: string): { tag: string; q: number } {
 }
 
 /** A cookie's value: unquoted, and percent-decoded when it was encoded. */
-function cookieValue(raw: string): string {
-  const value = raw.replace(/^"(.*)"$/, '$1')
-  try {
-    return decodeURIComponent(value)
-  } catch {
-    return value
-  }
-}
-
 /** The first candidate close to a declared language, as declared. */
 function closest(
   languages: readonly string[],

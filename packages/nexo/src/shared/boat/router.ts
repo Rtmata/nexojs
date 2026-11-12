@@ -368,43 +368,37 @@ class BoatRouter<L extends string> implements Router<L> {
   }
 }
 
-/**
- * One call to `router.redirect(...)`, read into its parts:
- *   (from, to, options?)                 from = '/path' or route()
- *   (name, paths per language, to, options?)
- */
+/** One call to `router.redirect(from, to, options?)`, from a path or a route(). */
 class RedirectDeclaration {
   private constructor(
-    private readonly source: readonly unknown[],
+    private readonly from: `/${string}` | RouteDef<string, any>,
     readonly to: RedirectTarget,
     readonly status: RedirectStatus,
     private readonly only: readonly string[] | undefined,
   ) {}
 
   static read(args: readonly unknown[]): RedirectDeclaration {
-    const [from, to, options] = args as [unknown, RedirectTarget, any]
+    const [from, to, options] = args as [any, RedirectTarget, any]
     ensureSource(from)
     ensureTarget(to)
-    const source = [from]
     const { status, only } = readOptions(options)
-    return new RedirectDeclaration(source, to, status, only)
+    return new RedirectDeclaration(from, to, status, only)
   }
 
   /** The source's name, or its path. */
   get label(): string {
-    const [first] = this.source
-    return isRouteDef(first) ? first.name : String(first)
+    const { from } = this
+    return typeof from === 'string' ? from : from.name
   }
 
   variants(): Variants {
-    const [first] = this.source
-    if (isRouteDef(first)) return Variants.of(first)
-    return new Variants(this.label, first as RoutePaths)
+    if (isRouteDef(this.from)) return Variants.of(this.from)
+    return new Variants(this.label, this.from as RoutePaths)
   }
 
   /** The route that answers the source URLs with this redirect. */
   registrationWith(handler: Handler): Registration {
-    return Registration.read([...this.source, handler, { only: this.only }])
+    return Registration.read([this.from, handler, { only: this.only }])
   }
 }
 

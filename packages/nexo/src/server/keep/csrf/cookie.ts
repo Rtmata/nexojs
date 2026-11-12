@@ -1,3 +1,4 @@
+import { cookieValue } from '../../../shared/http/cookie'
 import { PLAIN_COOKIE, SECURE_COOKIE } from './vocabulary'
 
 /**
@@ -19,12 +20,7 @@ export class TokenCookie {
 
   /** The token the request brought in this cookie, if any. */
   read(request: Request): string | null {
-    const header = request.headers.get('cookie') ?? ''
-    for (const part of header.split(';')) {
-      const [name, ...rest] = part.split('=')
-      if (name?.trim() === this.name) return rest.join('=').trim() || null
-    }
-    return null
+    return cookieValue(request, this.name) || null
   }
 
   /** A `Set-Cookie` value: for the whole site, this browser session, never readable by scripts, sent on same-site navigations. */

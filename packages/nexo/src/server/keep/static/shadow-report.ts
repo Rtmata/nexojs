@@ -1,6 +1,7 @@
 import { join } from 'node:path'
 import type { KeepRouter } from '../keep'
 import { FolderWalker } from './folder-index'
+import { isFile } from './safe-file'
 import type { Mount } from './static-folders'
 
 /**
@@ -59,7 +60,7 @@ export class ShadowReport {
   /** From the index, or, for an unindexed mount, from the disk itself. */
   private async has(mount: Mount, relative: string): Promise<boolean> {
     if (mount.index.watched) return this.filesOf.get(mount)!.has(relative)
-    return Bun.file(join(mount.dir, relative)).exists()
+    return isFile(join(mount.dir, relative))
   }
 }
 

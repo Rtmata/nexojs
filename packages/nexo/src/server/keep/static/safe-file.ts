@@ -75,7 +75,7 @@ function spellingsOf(path: string): Set<string> {
   return new Set([path, path.normalize('NFC'), path.normalize('NFD')])
 }
 
-async function isFile(target: string): Promise<boolean> {
+export async function isFile(target: string): Promise<boolean> {
   return (await stat(target).catch(() => null))?.isFile() ?? false
 }
 

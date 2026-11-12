@@ -1,10 +1,11 @@
+import { hex } from '../random'
 import type { RecordedResponse } from './store'
 import { BODY_CAP, REPLAYED_HEADER } from './vocabulary'
 
 /** The request as a short string: the same key with another request is a client's mistake. */
 export async function fingerprintOf(request: Request): Promise<string> {
   const body = await request.clone().arrayBuffer()
-  const head = new TextEncoder().encode(`${request.method} ${request.url}\\n`)
+  const head = new TextEncoder().encode(`${request.method} ${request.url}\n`)
   const bytes = new Uint8Array(head.length + body.byteLength)
   bytes.set(head)
   bytes.set(new Uint8Array(body), head.length)
@@ -34,10 +35,4 @@ export function replay(recorded: RecordedResponse): Response {
   headers.set(REPLAYED_HEADER, 'true')
   const body = recorded.body ? new Uint8Array(recorded.body) : null
   return new Response(body, { status: recorded.status, headers })
-}
-
-function hex(digest: ArrayBuffer): string {
-  return [...new Uint8Array(digest)]
-    .map((b) => b.toString(16).padStart(2, '0'))
-    .join('')
 }

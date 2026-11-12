@@ -18,7 +18,7 @@ export class NameBook {
     const variants = this.names.get(name)
     if (variants) return variants
     throw new Error(
-      `boat: there is no route named "${name}". Register it, e.g. router.get('${name}', '/path', handler)`,
+      `boat: there is no route named "${name}". Register it, e.g. router.get(route('${name}', '/path'), handler)`,
     )
   }
 
@@ -31,10 +31,6 @@ export class NameBook {
   addMethod(name: string, method: string): void {
     const methods = this.methods.get(name) ?? new Set<string>()
     this.methods.set(name, methods.add(method))
-  }
-
-  has(name: string): boolean {
-    return this.names.has(name)
   }
 
   /**

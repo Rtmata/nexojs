@@ -2,6 +2,7 @@ import type { Context, Handler } from '../../../shared/http/types'
 import type { Middleware } from '../middleware'
 import { fingerprintOf, recordingOf, replay } from './recording'
 import { MemoryStore, type IdempotencyStore, type Recorded } from './store'
+import { SAFE_METHODS } from '../safe-methods'
 import { KEY_HEADER } from './vocabulary'
 
 export interface IdempotencyOptions {
@@ -10,8 +11,6 @@ export interface IdempotencyOptions {
   /** Where recordings live; memory by default, which one process is enough for. */
   store?: IdempotencyStore
 }
-
-const SAFE = new Set(['GET', 'HEAD', 'OPTIONS'])
 
 /**
  * A request sent twice is answered once. A client that may have to send
@@ -42,7 +41,7 @@ class Chamber {
 
   async answer(ctx: Context, handler: Handler): Promise<Response> {
     const key = ctx.request.headers.get(KEY_HEADER)
-    if (!key || SAFE.has(ctx.request.method)) return handler(ctx)
+    if (!key || SAFE_METHODS.has(ctx.request.method)) return handler(ctx)
     const fingerprint = await fingerprintOf(ctx.request)
     const known = await this.store.get(key)
     if (known) return this.again(known, fingerprint)

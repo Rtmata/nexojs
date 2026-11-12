@@ -10,7 +10,7 @@ import {
   type Proof,
   type Verdict,
 } from './proofs'
-import { SAFE_METHODS } from './vocabulary'
+import { SAFE_METHODS } from '../safe-methods'
 
 export interface CsrfOptions {
   /** Origins whose requests count as this site's: `['https://admin.museo.mx']`. */

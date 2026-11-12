@@ -96,7 +96,7 @@ export class Redirects {
    * How a target finds its location for a request:
    *   https://… or //…    as is
    *   /path/:id?q#h       params filled from the request (query and hash kept)
-   *   name or route()     that route, same params, in the request's language
+   *   route()             that route, same params, in the request's language
    *                       (else the default one, else any it has)
    *   (ctx) => url        whatever it returns
    * Throws now when the target can't be reached from the source. Stores nothing.

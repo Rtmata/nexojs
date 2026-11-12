@@ -14,11 +14,11 @@ import { idempotency, type IdempotencyOptions } from './idempotency'
 import { FunctionRouter } from './function-router'
 import { csrf, type CsrfOptions } from './csrf'
 import { compose, hooks, type Hooks, type Middleware } from './middleware'
-
-type Startup = NonNullable<Hooks['onStart']>
 import { RequestFlow } from './request-flow'
 import { ShadowReport } from './static/shadow-report'
 import { StaticFolders, type StaticOption } from './static/static-folders'
+
+type Startup = NonNullable<Hooks['onStart']>
 
 export type { StaticMount, StaticOption } from './static/static-folders'
 
