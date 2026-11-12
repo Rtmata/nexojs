@@ -11,7 +11,7 @@
  * their own), or your client entry, which then uses `visit` and
  * `arrivals` from the same bridge.
  */
-import { TOP } from '../../shared/bridge/vocabulary'
+import { STARTED, TOP } from '../../shared/bridge/vocabulary'
 import { Api } from './api'
 import { ResponseCache } from './cache'
 import type { ReturnDirection } from './change'
@@ -19,7 +19,7 @@ import { isPlainNavigation, plainClickOn, type Click } from './click'
 import { BrowserFallback, RETURN } from './fallback'
 import { isPlainSubmission, submissionOf, wantedFrom } from './forms'
 import { HexTrail } from './hex'
-import { HistoryKeeper } from './history'
+import { HistoryKeeper, type Restore } from './history'
 import { Inflight } from './inflight'
 import { Lazy } from './lazy'
 import { arrivals as everyArrival, type Arrival } from './lives'
@@ -32,12 +32,10 @@ import { swapperFor, type Swapper } from './swapper'
 import { Prefetch } from './prefetch'
 
 export type { Arrival, VisitOptions }
+export { STARTED }
 
 /** How long a fetched page stays fresh for prefetch, twins and navigations ahead, unless its `Cache-Control` says otherwise. */
 const CACHE_TTL = 60_000
-
-/** On `<html>` while a bridge runs: a second one, from any script on the page, sees it. */
-export const STARTED = 'data-bridge-started'
 
 /** The bridge this script started, if it did. */
 let running: Running | undefined
@@ -50,21 +48,16 @@ let running: Running | undefined
  *   start({ signal: new AbortController().signal })
  */
 export function start({ signal }: { readonly signal: AbortSignal }): void {
-  const root = document.documentElement
-  if (root.hasAttribute(STARTED))
-    throw new Error(
-      `bridge: it already runs on this page (<html ${STARTED}>); start it once: the served /_nexo/bridge.js or your client entry, not both`,
-    )
+  ensureNotStarted()
   if (signal.aborted) return
-  root.setAttribute(STARTED, '')
   running = new Running(signal)
-  signal.addEventListener(
-    'abort',
-    () => {
-      running = undefined
-      root.removeAttribute(STARTED)
-    },
-    { once: true },
+  signal.addEventListener('abort', () => (running = undefined), { once: true })
+}
+
+function ensureNotStarted(): void {
+  if (!document.documentElement.hasAttribute(STARTED)) return
+  throw new Error(
+    `bridge: it already runs on this page (<html ${STARTED}>); start it once: the served /_nexo/bridge.js or your client entry, not both`,
   )
 }
 
@@ -108,29 +101,32 @@ interface Watcher {
   scan(root: ParentNode, from?: URL): void
 }
 
-/** One started bridge: its session, its watchers and its listeners, all ended by one signal. */
+/** One started bridge: its mark, session, watchers and listeners, all ended by one signal. */
 class Running {
   readonly api: Api
   private readonly session: Session
   private readonly watchers: Watcher[]
 
   constructor(private readonly signal: AbortSignal) {
-    this.session = {
-      loader: new Loader(new ResponseCache(CACHE_TTL)),
-      inflight: new Inflight(),
-      history: new HistoryKeeper(
-        (url, targets, direction) => this.restore(url, targets, direction),
-        signal,
-      ),
-    }
+    const restore: Restore = (url, targets, way) =>
+      this.restore(url, targets, way)
+    this.session = sessionFor(restore, signal)
     this.api = new Api(this.session)
-    this.watchers = [
-      new Lazy(this.session, signal),
-      new Prefetch(this.session.loader, signal),
-      new HexTrail(this.session.history, signal),
-    ]
+    this.watchers = watchersFor(this.session, signal)
+    this.mark()
     this.scan(document)
     this.listen()
+  }
+
+  /** `<html data-bridge-started>` while it runs; stopping it also stops the navigations under way. */
+  private mark(): void {
+    const root = document.documentElement
+    root.setAttribute(STARTED, '')
+    const stop = () => {
+      root.removeAttribute(STARTED)
+      this.session.inflight.abortAll()
+    }
+    this.signal.addEventListener('abort', stop, { once: true })
   }
 
   private scan(root: ParentNode, from?: URL): void {
@@ -139,19 +135,16 @@ class Running {
 
   /** What arrives is scanned; links and forms are followed when they are bridge's. */
   private listen(): void {
-    const { signal } = this
-    document.addEventListener(
-      'bridge:swapped',
-      (event) => {
-        const { url } = (event as CustomEvent<{ url: URL }>).detail
-        this.scan(event.target as Element, url)
-      },
-      { signal },
-    )
-    document.addEventListener('click', (event) => this.click(event), { signal })
-    document.addEventListener('submit', (event) => this.submit(event), {
-      signal,
-    })
+    const options = { signal: this.signal }
+    const swapped = (event: Event) =>
+      this.swapped(event as CustomEvent<{ url: URL }>)
+    document.addEventListener('bridge:swapped', swapped, options)
+    document.addEventListener('click', (event) => this.click(event), options)
+    document.addEventListener('submit', (event) => this.submit(event), options)
+  }
+
+  private swapped(event: CustomEvent<{ url: URL }>): void {
+    this.scan(event.target as Element, event.detail.url)
   }
 
   private click(event: MouseEvent): void {
@@ -184,15 +177,7 @@ class Running {
     if (!swapper) return
     event.preventDefault()
     const fallback = new BrowserFallback(trigger, wanted)
-    const { session } = this
-    void new Navigation(
-      trigger,
-      wanted,
-      swapper,
-      options,
-      session,
-      fallback,
-    ).run()
+    void this.navigation(trigger, wanted, swapper, options, fallback).run()
   }
 
   /** Back/forward: what changed to reach that entry is swapped again (a stale copy will do), nothing recorded; whatever fails rewrites the entry, never adds one. */
@@ -208,17 +193,48 @@ class Running {
       ? new WholePage()
       : new BySegments(targets, options)
     const fallback = new BrowserFallback(root, wanted, RETURN)
-    const { session } = this
-    const back = new Navigation(
-      root,
+    const back = this.navigation(root, wanted, swapper, options, fallback)
+    return back.run().then(() => {})
+  }
+
+  private navigation(
+    ...[trigger, wanted, swapper, options, fallback]: Steps
+  ): Navigation {
+    return new Navigation(
+      trigger,
       wanted,
       swapper,
       options,
-      session,
+      this.session,
       fallback,
     )
-    return back.run().then(() => {})
   }
+}
+
+/** What one navigation is made of, besides the session. */
+type Steps = [
+  Element,
+  Omit<Wanted, 'segments'>,
+  Swapper,
+  Options,
+  BrowserFallback,
+]
+
+/** The loader, the requests in flight and the history, shared by every navigation. */
+function sessionFor(restore: Restore, signal: AbortSignal): Session {
+  return {
+    loader: new Loader(new ResponseCache(CACHE_TTL)),
+    inflight: new Inflight(),
+    history: new HistoryKeeper(restore, signal),
+  }
+}
+
+function watchersFor(session: Session, signal: AbortSignal): Watcher[] {
+  return [
+    new Lazy(session, signal),
+    new Prefetch(session.loader, signal),
+    new HexTrail(session.history, signal),
+  ]
 }
 
 /** A return records nothing, keeps the scroll it will put back, and moves no focus. */

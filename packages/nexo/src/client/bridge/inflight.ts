@@ -39,6 +39,7 @@ export class Inflight {
     return [...targets, TOP].some((name) => this.flights.has(name))
   }
 
+  /** Every request in flight: a whole page asked for, or bridge stopped. */
   abortAll(): void {
     for (const flight of new Set(this.flights.values())) flight.cancel()
   }

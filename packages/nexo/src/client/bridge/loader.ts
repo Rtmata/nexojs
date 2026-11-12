@@ -68,9 +68,13 @@ export class Loader {
     this.declined.set(key, Date.now() + this.cache.ttl)
   }
 
+  /** An expired decline is dropped when looked at, so the map doesn't grow with every page seen. */
   private isDeclined(key: string): boolean {
     const until = this.declined.get(key)
-    return until !== undefined && until > Date.now()
+    if (until === undefined) return false
+    if (until > Date.now()) return true
+    this.declined.delete(key)
+    return false
   }
 
   /** A fresh entry, one on its way, or — when stale will do — a stale one asked again behind. */

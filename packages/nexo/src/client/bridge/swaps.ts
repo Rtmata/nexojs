@@ -51,7 +51,7 @@ function pair(name: string, page: Document, mode: Options['swap']): Swap {
   const current = segmentIn(document, name)
   const incoming = segmentIn(page, name)
   if (!current || !incoming)
-    throw new SegmentMissing(name, current ? 'in the response' : 'in this page')
+    throw missing(name, current ? 'in the response' : 'in this page')
   return { name, incoming, mode }
 }
 
@@ -61,13 +61,8 @@ function tryPair(name: string, page: Document): Swap | null {
   return current && incoming ? { name, incoming, mode: 'replace' } : null
 }
 
-export class SegmentMissing extends Error {
-  constructor(
-    readonly name: string,
-    where: string,
-  ) {
-    super(`bridge: no segment "${name}" ${where}`)
-  }
+function missing(name: string, where: string): Error {
+  return new Error(`bridge: no segment "${name}" ${where}`)
 }
 
 /**
@@ -121,7 +116,7 @@ function replace(current: Element, incoming: Element): Element {
  */
 export function errorSwap(name: string, page: Document): Swap {
   const current = segmentIn(document, name)
-  if (!current) throw new SegmentMissing(name, 'in this page')
+  if (!current) throw missing(name, 'in this page')
   const incoming = segmentIn(page, name) ?? wrapped(current, mainOf(page))
   return { name, incoming, mode: 'replace' }
 }

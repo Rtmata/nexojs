@@ -59,19 +59,16 @@ export class HistoryKeeper {
     history.scrollRestoration = 'manual'
     this.current = this.shown = this.kept() ?? this.fresh()
     this.write('replaceState', this.current)
-    addEventListener(
-      'popstate',
-      (event: PopStateEvent) => this.travel(event.state?.bridge),
-      { signal },
-    )
+    const travel = (event: PopStateEvent) => this.travel(event.state?.bridge)
+    addEventListener('popstate', travel, { signal })
     addEventListener('scroll', () => this.settle(), { passive: true, signal })
-    signal.addEventListener(
-      'abort',
-      () => (history.scrollRestoration = 'auto'),
-      {
-        once: true,
-      },
-    )
+    signal.addEventListener('abort', () => this.stop(), { once: true })
+  }
+
+  /** bridge stopped: the browser restores scroll again, and no pending write is left. */
+  private stop(): void {
+    history.scrollRestoration = 'auto'
+    clearTimeout(this.settling)
   }
 
   /** Called after a swap and its scroll, with the scroll as it was before them: `push` adds an entry, `replace` rewrites the current one; either starts where the page is now. */

@@ -7,10 +7,28 @@
 import { arrivals, start, STARTED, visit } from './bridge'
 
 const taken: string[] = []
+/** Off for the scenario that lets a fetch really go. */
+let cancelFetches = true
 document.addEventListener('bridge:fetch', (event) => {
+  if (!cancelFetches) return
   event.preventDefault()
   taken.push((event.target as HTMLAnchorElement).getAttribute('href')!)
 })
+
+/** A navigation whose response is held by the test; bridge stops before it arrives. */
+let hang: AbortController | undefined
+const swapped: string[] = []
+;(window as any).bridgeHang = {
+  begin: () => {
+    cancelFetches = false
+    hang = new AbortController()
+    start({ signal: hang.signal })
+    document.addEventListener('bridge:swapped', () => swapped.push('swapped'))
+    document.getElementById('hang')!.click()
+  },
+  stop: () => hang!.abort(),
+  swapped: () => [...swapped],
+}
 
 /** A click on the link, as a person's: whether bridge took it. */
 function click(): boolean {

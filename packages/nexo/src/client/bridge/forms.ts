@@ -95,12 +95,23 @@ function bodyOf(fields: FormData, enctype: string): FormData | URLSearchParams {
   return new URLSearchParams(fields as unknown as string[][])
 }
 
+/** The methods HTML sends; the browser reads any other value as GET. */
+const METHODS = new Set(['GET', 'POST', 'DIALOG'])
+
+/** The method as the browser would send it: another value is reported, and goes as GET, as it would without JS. */
 function methodOf(form: HTMLFormElement, submitter: HTMLElement | null) {
-  const method =
+  const written =
     submitter?.getAttribute('formmethod') ||
     form.getAttribute('method') ||
     'get'
-  return method.toUpperCase()
+  const method = written.trim().toUpperCase()
+  if (METHODS.has(method)) return method
+  reportError(new Error(wrongMethod(written)))
+  return 'GET'
+}
+
+function wrongMethod(written: string): string {
+  return `bridge: method "${written}" is not one HTML sends (get, post, dialog); it goes as GET, as it would without JS`
 }
 
 function actionOf(form: HTMLFormElement, submitter: HTMLElement | null) {

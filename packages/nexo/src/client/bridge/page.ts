@@ -1,4 +1,4 @@
-import { TOP } from '../../shared/bridge/vocabulary'
+import { STARTED, TOP } from '../../shared/bridge/vocabulary'
 import { HeadMerge } from './head'
 import type { Loaded } from './loader'
 import { lives } from './lives'
@@ -40,16 +40,22 @@ export class WholePage implements Swapper {
   }
 }
 
-/** The new document takes over: root attributes, head (merged) and body, which is the new element. */
+/** The new document takes over: root attributes (bridge's own mark stays), head (merged) and body, which is the new element. */
 function replace(page: Document, head: HeadMerge): Element {
-  const root = document.documentElement
-  for (const { name } of [...root.attributes]) root.removeAttribute(name)
-  for (const { name, value } of page.documentElement.attributes)
-    root.setAttribute(name, value)
+  takeRootAttributes(page.documentElement)
   head.apply()
   const body = document.adoptNode(page.body)
   carryPersisted(document.body, body)
   lives.end(document.body)
   document.body.replaceWith(body)
   return body
+}
+
+/** `<html>`'s attributes become the new page's, all but bridge's own mark: it still runs. */
+function takeRootAttributes(incoming: Element): void {
+  const root = document.documentElement
+  for (const { name } of [...root.attributes])
+    if (name !== STARTED) root.removeAttribute(name)
+  for (const { name, value } of incoming.attributes)
+    root.setAttribute(name, value)
 }

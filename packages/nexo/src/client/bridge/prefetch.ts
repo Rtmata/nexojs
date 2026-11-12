@@ -32,23 +32,26 @@ export class Prefetch {
   ) {
     const bring = (link: Element) => this.bring(link as HTMLAnchorElement)
     this.watch = new Watch('a[href]', 'prefetch', bring, signal)
+    this.listen(signal)
+    signal.addEventListener('abort', () => this.stop(), { once: true })
+  }
+
+  /** Taps bring at once; hovers and focus after a delay, dropped when they leave first. */
+  private listen(signal: AbortSignal): void {
     const capture = { capture: true, signal }
-    document.addEventListener('pointerdown', (e) => this.on(e, 'tap'), capture)
-    document.addEventListener(
-      'pointerover',
-      (e) => this.on(e, 'hover'),
-      capture,
-    )
-    document.addEventListener('focusin', (e) => this.on(e, 'hover'), capture)
-    document.addEventListener('pointerout', (e) => this.off(e), capture)
-    document.addEventListener('focusout', (e) => this.off(e), capture)
-    signal.addEventListener(
-      'abort',
-      () => (this.hovers.clear(), this.rules.clear()),
-      {
-        once: true,
-      },
-    )
+    const on = (type: string, fn: (event: Event) => void) =>
+      document.addEventListener(type, fn, capture)
+    on('pointerdown', (e) => this.on(e, 'tap'))
+    on('pointerover', (e) => this.on(e, 'hover'))
+    on('focusin', (e) => this.on(e, 'hover'))
+    on('pointerout', (e) => this.off(e))
+    on('focusout', (e) => this.off(e))
+  }
+
+  /** bridge stopped: no hover waits, and its rules leave the page. */
+  private stop(): void {
+    this.hovers.clear()
+    this.rules.clear()
   }
 
   scan(root: ParentNode): void {

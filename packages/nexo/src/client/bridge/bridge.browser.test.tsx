@@ -1432,6 +1432,31 @@ describe.if(chrome)('forms', () => {
     expect(await sameDocument()).toBe(true)
   })
 
+  test('a method HTML does not send is reported and goes as GET, as without JS', async () => {
+    await open('/shelf/1')
+    const reported = await page.evaluate(() => {
+      const w = window as unknown as { reported: string[] }
+      w.reported = []
+      addEventListener('error', (e) =>
+        w.reported.push((e as ErrorEvent).message),
+      )
+      document.getElementById('search')!.setAttribute('method', 'delete')
+      return w.reported
+    })
+    expect(reported).toEqual([])
+    requests.length = 0
+    await page.click('#search-go')
+    await page.waitForSelector('text=game 7')
+    expect(requests).toEqual(['/shelf/7?q=ryu&_segment=shelf,counter'])
+    const after = await page.evaluate(
+      () => (window as unknown as { reported: string[] }).reported,
+    )
+    expect(after).toHaveLength(1)
+    expect(after[0]).toContain(
+      'bridge: method "delete" is not one HTML sends (get, post, dialog); it goes as GET, as it would without JS',
+    )
+  })
+
   test('fields named action or method do not shadow the form', async () => {
     await open('/shelf/1')
     requests.length = 0
@@ -1982,6 +2007,7 @@ describe.if(chrome)('the whole page (_top)', () => {
     expect(
       await page.evaluate(() => (window as unknown as { ran: number }).ran),
     ).toBe(1)
+    expect(await page.getAttribute('html', 'data-bridge-started')).toBe('') // the new <html> keeps bridge's mark: it still runs
   })
 
   test('a new stylesheet is in and loaded before the swap; the old one goes', async () => {

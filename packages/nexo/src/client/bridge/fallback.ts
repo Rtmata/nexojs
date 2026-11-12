@@ -33,18 +33,18 @@ export type Again = (history?: 'push' | 'replace') => Promise<Outcome>
  * strategy): a visit adds an entry, a return by back/forward rewrites the
  * one the browser is already on, never adds to the stack it is travelling.
  */
-export interface Arrival {
+export interface BrowserLoad {
   go(url: URL): void
   /** How a landing makes its entry; undefined leaves it to the navigation. */
   history: 'replace' | undefined
 }
 
-export const VISIT: Arrival = {
+export const VISIT: BrowserLoad = {
   go: (url) => location.assign(url),
   history: undefined,
 }
 
-export const RETURN: Arrival = {
+export const RETURN: BrowserLoad = {
   go: (url) => location.replace(url),
   history: 'replace',
 }
@@ -66,7 +66,7 @@ export class BrowserFallback implements Fallback {
   constructor(
     private readonly trigger: Element,
     private readonly wanted: Omit<Wanted, 'segments'>,
-    private readonly arrival: Arrival = VISIT,
+    private readonly load: BrowserLoad = VISIT,
   ) {}
 
   /** A keyed request goes once more, quietly; otherwise the page hears of it, and a GET is loaded by the browser. */
@@ -74,7 +74,7 @@ export class BrowserFallback implements Fallback {
     if (again) return again()
     if (!failed(this.trigger, this.wanted, { error })) return 'cancelled'
     if (this.wanted.method !== 'GET') return 'left'
-    this.arrival.go(this.wanted.url)
+    this.load.go(this.wanted.url)
     return 'left'
   }
 
@@ -85,18 +85,18 @@ export class BrowserFallback implements Fallback {
   ): Promise<Outcome> {
     if (!failed(this.trigger, this.wanted, { error, ...loaded }))
       return 'cancelled'
-    if (again) return again(this.arrival.history)
-    this.arrival.go(loaded.url)
+    if (again) return again(this.load.history)
+    this.load.go(loaded.url)
     return 'left'
   }
 
   landing(wanted: Omit<Wanted, 'segments'>): Fallback {
-    return new BrowserFallback(this.trigger, wanted, this.arrival)
+    return new BrowserFallback(this.trigger, wanted, this.load)
   }
 
   /** The browser loads it the way the visitor arrived: a visit adds an entry, a return rewrites the one it is on. */
   outdated(url: URL): void {
-    this.arrival.go(url)
+    this.load.go(url)
   }
 }
 
