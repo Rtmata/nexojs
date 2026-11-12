@@ -68,8 +68,9 @@ class Chamber {
   ) {
     try {
       const response = await handler(ctx)
-      if (response.status >= 500) return this.unrecorded(key, response)
-      return this.record(key, fingerprint, response)
+      // awaited here, so a failure while recording frees the key in the catch
+      if (response.status >= 500) return await this.unrecorded(key, response)
+      return await this.record(key, fingerprint, response)
     } catch (error) {
       await this.store.delete(key)
       throw error

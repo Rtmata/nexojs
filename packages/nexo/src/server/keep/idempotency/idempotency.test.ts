@@ -56,6 +56,24 @@ describe('idempotency', () => {
     expect(orders()).toBe(2)
   })
 
+  test('a store that fails while recording frees the key: a retry runs again', async () => {
+    const store = new MemoryStore()
+    let failing = true
+    const set = store.set.bind(store)
+    store.set = (key, recorded, ttl) => {
+      if (failing && recorded.response) throw new Error('store down')
+      return set(key, recorded, ttl)
+    }
+    const { s, orders } = server({ idempotency: { store } })
+    const quiet = spyOn(console, 'error').mockImplementation(() => {})
+    expect((await post(s, '/order', 'k1')).status).toBe(500)
+    quiet.mockRestore()
+    failing = false
+    const again = await post(s, '/order', 'k1')
+    expect(again.status).toBe(200)
+    expect(orders()).toBe(2)
+  })
+
   test('another key, or no key, is another order', async () => {
     const { s, orders } = server()
     await post(s, '/order', 'k1')
