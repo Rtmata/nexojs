@@ -7,8 +7,10 @@
  */
 export * from './pieces/base'
 export * from './pieces/color-mix'
+export * from './pieces/define-fonts'
 export * from './pieces/define-theme'
 export * from './pieces/define-tokens'
+export * from './pieces/preload-font'
 export * from './pieces/readable-on'
 export * from './pieces/recipe'
 export * from './pieces/reset'

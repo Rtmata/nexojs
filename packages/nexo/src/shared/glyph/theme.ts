@@ -8,6 +8,7 @@ import {
   type ThemeScheme,
   type TokenSet,
 } from './token-set'
+import { cssString } from './css-string'
 import { referenceCycles } from './grammar/cycles'
 import type { ThemeError } from './theme-error'
 import { changeProblems, codeValue, type ValueCheck } from './theme-values'
@@ -271,19 +272,6 @@ function asError(shortfall: ThemeError | string): ThemeError {
 }
 
 const SCHEMES: readonly ThemeScheme[] = ['light', 'dark', 'inherit']
-
-/**
- * `text` inside a CSS string: each character that could end the string, the
- * rule or the `<style>` around it — quote, backslash, `<`, `>`, a control
- * character — written as its hex escape, which CSS reads back as itself.
- * A name from a person's JSON can't step outside its selector.
- */
-function cssString(text: string): string {
-  return text.replace(
-    /[\\"<>\u0000-\u001f\u007f]/g,
-    (c) => `\\${c.codePointAt(0)!.toString(16)} `,
-  )
-}
 
 function schemeProblems(scheme: unknown): ThemeError[] {
   if (scheme === undefined || SCHEMES.includes(scheme as ThemeScheme)) return []

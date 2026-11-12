@@ -5,3 +5,5 @@
  */
 export * from './pieces/adopt-theme'
 export * from './pieces/check-recipes'
+export * from './pieces/load-font'
+export * from './pieces/measure-font'
