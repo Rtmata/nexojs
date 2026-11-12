@@ -37,7 +37,7 @@ attach(document.body, panels, { signal })
 `panel({ params, events, connect })` returns a function with the same shape as omino's `ref`, so one panel works on server markup and in JSX:
 
 - **`params`:** a schema of parsers. Each param is read from `data-<panel>-<key>` (`autoPlay` → `data-gallery-auto-play`).
-- **`events`:** a map from `'<type> <selector>'` to a handler `(event, ctx, matched)`. One listener per event type sits on the panel's own element and matches the selector from the event's target, so children added later are heard too. A key without a selector (`'keydown'`) listens on the element itself. Events that don't bubble use their bubbling twin (`focus` → `focusin`) or the capture phase. A handler that throws is reported, and the next one still runs.
+- **`events`:** a map from `'<type> <selector>'` to a handler `(event, ctx, matched)`. One listener per event type sits on the panel's own element and matches the selector from the event's target, so children added later are heard too. A key without a selector (`'keydown'`) listens on the element itself. A key names the event that is listened to, as written. An event that doesn't bubble (`focus`, `toggle`, `mouseenter`…) can be heard on the panel's element itself, but not with a selector, since it never reaches the element from below: such a key throws where the panel is written, saying the fix (`focusin` for `focus`, or a listener in `connect`). A handler that throws is reported, and the next one still runs.
 - **`connect(el, params, { signal })`:** free code when it connects. What it returns is `ctx` for the handlers. Everything it adds should end with `signal`.
 
 Three ways to connect it:

@@ -64,6 +64,7 @@ class Definition<S extends Schema, C> {
 
   constructor(private readonly options: PanelOptions<S, C>) {
     this.schema = (options.params ?? {}) as S
+    byType(options.events ?? {}) // a key that can't work throws now, where the panel is written
   }
 
   connect(el: Element, params: ParamsOf<S>, signal: AbortSignal): void {
@@ -99,9 +100,16 @@ function readDefaults<S extends Schema>(schema: S): ParamsOf<S> {
   return params as ParamsOf<S>
 }
 
-/** Events that don't bubble: their bubbling twin, or listened to in the capture phase. */
+/**
+ * Events that don't bubble. On the panel's element itself they are heard
+ * as any other; with a selector they would never reach it from below, so
+ * that key is a mistake. The list is only for saying so: nothing is
+ * rewritten or listened to in another phase.
+ */
 const TWIN: Record<string, string> = { focus: 'focusin', blur: 'focusout' }
 const NON_BUBBLING = new Set([
+  'focus',
+  'blur',
   'mouseenter',
   'mouseleave',
   'pointerenter',
@@ -163,39 +171,29 @@ class Connection<S extends Schema, C> {
       this.listen(type, entries)
   }
 
-  /** One listener for the type; each entry matches its own selector (no selector: `el` itself). */
+  /** One listener for the type, as written; each entry matches its own selector (no selector: `el` itself). */
   private listen(type: string, entries: Entry<C>[]): void {
-    const capture = NON_BUBBLING.has(type)
     const listener = (event: Event) => {
-      for (const entry of entries) this.dispatchSafely(event, type, entry)
+      for (const entry of entries) this.dispatchSafely(event, entry)
     }
-    this.el.addEventListener(TWIN[type] ?? type, listener, {
-      capture,
-      signal: this.signal,
-    })
+    this.el.addEventListener(type, listener, { signal: this.signal })
   }
 
   /** One handler's error never silences the next entry for the same event. */
-  private dispatchSafely(event: Event, type: string, entry: Entry<C>): void {
+  private dispatchSafely(event: Event, entry: Entry<C>): void {
     try {
-      this.dispatch(event, type, entry)
+      this.dispatch(event, entry)
     } catch (error) {
       reportError(error)
     }
   }
 
-  /**
-   * Bubbling events delegate: the closest match from the target. An event
-   * that doesn't bubble is heard in capture, so a descendant's own copy
-   * passes by too; only the one whose target is the match counts.
-   */
-  private dispatch(event: Event, type: string, entry: Entry<C>): void {
+  /** Delegation: the closest match from the target, never past `el`. */
+  private dispatch(event: Event, entry: Entry<C>): void {
     const matched = entry.selector
       ? closestInside(event.target, entry.selector, this.el)
       : this.el
-    if (!matched) return
-    if (NON_BUBBLING.has(type) && event.target !== matched) return
-    entry.handler(event, this.ctx, matched)
+    if (matched) entry.handler(event, this.ctx, matched)
   }
 }
 
@@ -205,10 +203,23 @@ function byType<C>(
   const types = new Map<string, Entry<C>[]>()
   for (const [key, handler] of Object.entries(events)) {
     const [type, ...rest] = key.trim().split(/\s+/)
+    const selector = rest.join(' ')
+    if (selector && NON_BUBBLING.has(type!)) throw unheard(key, type!)
     const entries = types.get(type!) ?? []
-    types.set(type!, [...entries, { selector: rest.join(' '), handler }])
+    types.set(type!, [...entries, { selector, handler }])
   }
   return types
+}
+
+/** A key whose event can't bubble up to the panel's element from its selector. */
+function unheard(key: string, type: string): Error {
+  const twin = TWIN[type]
+  const fix = twin
+    ? `write '${key.trim().replace(type, twin)}'`
+    : 'listen to it in connect, on the element itself'
+  return new Error(
+    `panel: '${key.trim()}': ${type} doesn't bubble, so a selector can't catch it from below; ${fix}`,
+  )
 }
 
 /** The closest match from the event's target up to `root`, never past it. */

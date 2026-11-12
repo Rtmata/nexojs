@@ -56,6 +56,14 @@ for (const [name, engine] of engines) {
       ])
     })
 
+    test("a key whose event doesn't bubble, with a selector, is an error that says the fix", async () => {
+      expect(await play('unheardKeys')).toEqual([
+        "panel: 'focus input': focus doesn't bubble, so a selector can't catch it from below; write 'focusin input'",
+        "panel: 'toggle details': toggle doesn't bubble, so a selector can't catch it from below; listen to it in connect, on the element itself",
+        'ok',
+      ])
+    })
+
     test('the events map sees children added later', async () => {
       expect(await play('laterChildren')).toEqual([
         'connect 0 false 0',

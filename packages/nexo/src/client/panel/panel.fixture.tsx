@@ -22,8 +22,8 @@ const gallery = panel({
     'click .next': (_e, ctx, matched) =>
       log.push(`next ${++ctx.index} ${matched.className}`),
     click: (_e, ctx) => log.push(`click on el ${ctx.index}`),
-    'focus input': () => log.push('focus input'),
-    'mouseenter .tile': () => log.push('enter tile'),
+    'focusin input': () => log.push('focus input'),
+    'pointerover .tile': () => log.push('enter tile'),
   },
 })
 
@@ -49,7 +49,9 @@ export function fromMarkup() {
     .querySelector('span')!
     .dispatchEvent(new MouseEvent('click', { bubbles: true }))
   host.querySelector('input')!.focus()
-  host.querySelector('.tile')!.dispatchEvent(new MouseEvent('mouseenter'))
+  host
+    .querySelector('.tile')!
+    .dispatchEvent(new PointerEvent('pointerover', { bubbles: true }))
   controller.abort()
   host
     .querySelector('span')!
@@ -134,4 +136,21 @@ export function roundTrip() {
   document.body.replaceChildren(section)
   attach(document.body, panels, { signal: new AbortController().signal })
   return [...log]
+}
+
+/** Keys whose event can't reach the panel's element from below: an error where the panel is written. */
+export function unheardKeys() {
+  const tried = (events: Record<string, () => void>) => {
+    try {
+      panel({ events })
+      return 'ok'
+    } catch (error) {
+      return (error as Error).message
+    }
+  }
+  return [
+    tried({ 'focus input': () => {} }),
+    tried({ 'toggle details': () => {} }),
+    tried({ toggle: () => {}, focus: () => {} }),
+  ]
 }
