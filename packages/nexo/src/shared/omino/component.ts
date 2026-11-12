@@ -22,8 +22,12 @@ export type ComponentProps<P> = P extends unknown
  *     }
  *   }
  *
- * It runs on the server, once per render: there is no lifecycle and no state.
- * `template()` may be `async` to load its own data.
+ * On the server it renders once: `template()` runs, and may be `async` to
+ * load its own data. In the browser (`omino/client`) `template()` still
+ * runs once and can't wait (load data with `resource()`); what changes
+ * later are its holes. `mounted()` runs when its
+ * nodes are in the document, and `run.signal` is its lifetime: it ends
+ * when the component leaves.
  */
 export abstract class Component<P extends object = {}> {
   /**
