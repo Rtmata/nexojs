@@ -104,6 +104,33 @@ async function open(): Promise<void> {
 const evaluate = <T,>(fn: () => T) => page.evaluate(fn)
 
 describe.if(chrome)('segment lifetimes', () => {
+  test('a second arrivals call gets every segment too; an aborted one gets nothing, and its abort ends what it gave', async () => {
+    await open()
+    const result = await evaluate(async () => {
+      const { arrivals } = await import('/_nexo/bridge.js' as string)
+      const second: string[] = []
+      const stop = new AbortController()
+      const given: AbortSignal[] = []
+      arrivals(
+        (el: Element, { signal }: { signal: AbortSignal }) => {
+          second.push(el.getAttribute('data-bridge-segment') ?? el.localName)
+          given.push(signal)
+        },
+        { signal: stop.signal },
+      )
+      const dead = new AbortController()
+      dead.abort()
+      let late = 0
+      arrivals(() => late++, { signal: dead.signal })
+      stop.abort()
+      return { second, late, ended: given.every((s) => s.aborted) }
+    })
+    expect(result.second).toContain('body')
+    expect(result.second.length).toBeGreaterThan(1)
+    expect(result.late).toBe(0)
+    expect(result.ended).toBe(true)
+  })
+
   test('arrivals: at load, innermost first, the page root last', async () => {
     await open()
     expect(await evaluate(() => (window as any).seen)).toEqual([
@@ -173,7 +200,7 @@ describe.if(chrome)('segment lifetimes', () => {
     expect(result).toEqual({ sheets: 1, color: 'rgb(255, 0, 0)' })
   })
 
-  test('bridge:swapped carries the arrived segment its signal', async () => {
+  test("bridge:swapped carries the arrived segment's life, and arrivals' signal ends with it", async () => {
     await open()
     await page.evaluate(() => {
       const w = window as any
@@ -184,10 +211,21 @@ describe.if(chrome)('segment lifetimes', () => {
     })
     await page.click('#next')
     await page.waitForSelector('text=outer 2')
+    await page.evaluate(() => {
+      const w = window as any
+      w.pair = [w.swapped, w.signals.outer] // the life, and what arrivals gave for it
+    })
     expect(
-      await evaluate(
-        () => (window as any).swapped === (window as any).signals.outer,
+      await evaluate(() =>
+        (window as any).pair.some((s: AbortSignal) => s.aborted),
       ),
-    ).toBe(true)
+    ).toBe(false)
+    await page.click('#next')
+    await page.waitForSelector('text=outer 3')
+    expect(
+      await evaluate(() =>
+        (window as any).pair.every((s: AbortSignal) => s.aborted),
+      ),
+    ).toBe(true) // the segment replaced: both ended together
   })
 })
