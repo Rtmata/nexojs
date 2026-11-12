@@ -152,12 +152,14 @@ keep({
 A client that may have to send a request again (bridge, when no response came back) puts the same `Idempotency-Key` on every try. keep records the first answer under the key and plays it again (`Idempotent-Replayed: true`) for the rest; the same key with another request is refused (422), and while the first is still being answered so is a second (409). Server errors (5xx) and answers over 1 MB are not recorded: a retry runs again. Requests without the header pass as they are.
 
 ```ts
-keep({ router, idempotency: { ttl: 24 * 60 * 60 * 1000, store: myRedisStore } }) // ms, as every Nexo time; any { get, set, delete }
+keep({ router, idempotency: { ttl: 24 * 60 * 60 * 1000, store: myRedisStore } }) // ms, as every Nexo time; any { claim, get, set, delete }
 ```
+
+A store shared by several servers must make `claim` one atomic step — Redis `SET key value NX PX ttl` — so two tries arriving at once can't both run the request. The memory store is atomic by being synchronous.
 
 ## In production
 
-keep sends bytes as they are: no gzip, no brotli. Put a reverse proxy in front (Caddy compresses by default; nginx with `gzip on`); it also terminates TLS. Behind it, keep sees plain HTTP: the csrf cookie then goes without `__Host-` and HSTS is not sent — a "behind a proxy" option is a later item.
+keep sends bytes as they are: no gzip, no brotli. Put a reverse proxy in front (Caddy compresses by default; nginx with `gzip on`); it also terminates TLS. Behind it, keep sees plain HTTP: the csrf cookie then goes without `__Host-` and HSTS is not sent — a "behind a proxy" option is a later item. The csrf check itself still works there: it compares the `Origin`'s host, so `https://site` from the browser matches the `http://site` keep sees.
 
 ## Why it works this way
 

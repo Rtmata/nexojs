@@ -34,8 +34,10 @@ export class FetchSite implements Proof {
 
 /**
  * The `Origin` header, for browsers that send it without Fetch Metadata:
- * this site's own origin or a trusted one is here; another, or `null`
- * (a sandboxed page, a redirect), is outside.
+ * this site's host or a trusted origin is here; another, or `null` (a
+ * sandboxed page, a redirect), is outside. The host, not the whole
+ * origin: behind a TLS proxy the browser says `https://site` while keep
+ * sees `http://site`, the same site.
  */
 export class OriginHeader implements Proof {
   constructor(private readonly trusted: ReadonlySet<string>) {}
@@ -43,8 +45,17 @@ export class OriginHeader implements Proof {
   judge(request: Request): Verdict | null {
     const origin = request.headers.get('origin')
     if (origin === null) return null
-    const own = new URL(request.url).origin
-    return origin === own || this.trusted.has(origin) ? 'here' : 'outside'
+    if (this.trusted.has(origin)) return 'here'
+    return hostOf(origin) === new URL(request.url).host ? 'here' : 'outside'
+  }
+}
+
+/** `https://site:8443` → `site:8443`; `null`, or anything not a URL, has none. */
+function hostOf(origin: string): string | undefined {
+  try {
+    return new URL(origin).host
+  } catch {
+    return undefined
   }
 }
 

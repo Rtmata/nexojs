@@ -79,6 +79,20 @@ describe('csrf: where a request comes from', () => {
     expect((await post(s, '/order', { origin: 'null' })).status).toBe(403)
   })
 
+  test('behind a TLS proxy the same host is here: Origin https, request http', async () => {
+    const s = server()
+    const behind = (origin: string) =>
+      s.fetch(
+        new Request('http://museo.test/order', {
+          method: 'POST',
+          headers: { origin },
+        }),
+      )
+    expect((await behind('https://museo.test')).status).toBe(200)
+    expect((await behind('https://evil.test')).status).toBe(403)
+    expect((await behind('https://museo.test:8443')).status).toBe(403) // another port is another host
+  })
+
   test('nobody speaking passes by default, and is refused when strict', async () => {
     expect((await post(server(), '/order')).status).toBe(200)
     expect(
