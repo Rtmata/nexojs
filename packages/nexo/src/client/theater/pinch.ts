@@ -96,6 +96,7 @@ class Pinch implements Pinchable {
     private readonly el: HTMLElement,
     private readonly options: PinchOptions,
   ) {
+    checkScale(options.scale)
     this.elastic = elasticOf(options.elastic, 'pinch')
     this.motion = new GestureMotion(options.signal)
     el.style.touchAction = options.pan ? 'none' : 'pan-x pan-y'
@@ -260,4 +261,13 @@ class Pinch implements Pinchable {
 /** `offset` plus how far the middle point went. */
 function moved(offset: Point, from: Point, to: Point): Point {
   return { x: offset.x + to.x - from.x, y: offset.y + to.y - from.y }
+}
+
+/** A minimum above the maximum would lock the zoom in silence: said at once, as drag's bounds. */
+function checkScale(scale: PinchOptions['scale'] = {}): void {
+  const { min = 1, max = 4 } = scale
+  if (min <= max) return
+  throw new RangeError(
+    `theater: pinch's scale needs numbers with min ≤ max, got ${min} and ${max}`,
+  )
 }

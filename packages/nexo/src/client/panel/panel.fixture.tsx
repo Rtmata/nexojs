@@ -156,3 +156,68 @@ export function unheardKeys() {
     tried({ toggle: () => {}, focus: () => {} }),
   ]
 }
+
+/** observe given a signal already aborted: nothing connects, now or later. */
+export async function observeAborted() {
+  log.length = 0
+  const host = html('<main></main>')
+  const controller = new AbortController()
+  controller.abort()
+  observe(host, registry({ gallery }), { signal: controller.signal })
+  const added = document.createElement('section')
+  added.setAttribute('data-panel', 'gallery')
+  host.firstElementChild!.append(added)
+  await new Promise((done) => setTimeout(done, 20))
+  return [...log]
+}
+
+/** A handler that throws is reported; the next one for the same event still runs. */
+export function throwingHandler() {
+  const caught: string[] = []
+  const ran: string[] = []
+  const onError = (e: ErrorEvent) => {
+    caught.push(e.error?.message ?? e.message)
+    e.preventDefault()
+  }
+  window.addEventListener('error', onError)
+  const twice = panel({
+    events: {
+      'click .a': () => {
+        throw new Error('first broke')
+      },
+      click: () => void ran.push('second ran'),
+    },
+  })
+  const root = html(
+    '<div data-panel="twice"><button class="a">a</button></div>',
+  )
+  attach(root, registry({ twice }), { signal: new AbortController().signal })
+  root.querySelector('button')!.click()
+  window.removeEventListener('error', onError)
+  return [...caught, ...ran]
+}
+
+/** A connect that throws after adding a listener: that listener ends, and the next panel still connects. */
+export function throwingConnect() {
+  const heard: string[] = []
+  const onError = (e: ErrorEvent) => e.preventDefault()
+  window.addEventListener('error', onError)
+  const broken = panel({
+    connect: (el, _params, { signal }) => {
+      el.addEventListener('click', () => heard.push('broken heard'), { signal })
+      throw new Error('broke after listening')
+    },
+  })
+  const root = html(
+    '<div id="b" data-panel="broken">b</div><div data-panel="gallery" data-gallery-start="1"></div>',
+  )
+  attach(root, registry({ broken, gallery }), {
+    signal: new AbortController().signal,
+  })
+  root.querySelector<HTMLElement>('#b')!.click()
+  window.removeEventListener('error', onError)
+  return [
+    ...heard,
+    `connected ${root.querySelectorAll('[data-connected]').length}`,
+  ]
+}

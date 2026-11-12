@@ -65,6 +65,22 @@ describe.skipIf(!chrome)('pinch in Chrome', () => {
     await browser?.close()
   })
 
+  test('a scale whose min is above its max is refused at once, as drag refuses its bounds', async () => {
+    const { page } = await clockedPage(browser, code, PAGE)
+    const thrown = await page.evaluate(() => {
+      try {
+        ;(window as any).theater.pinch(document.getElementById('screen'), {
+          scale: { min: 4, max: 1 },
+        })
+      } catch (error) {
+        return `${(error as Error).name}: ${(error as Error).message}`
+      }
+    })
+    expect(thrown).toBe(
+      "RangeError: theater: pinch's scale needs numbers with min ≤ max, got 4 and 1",
+    )
+  })
+
   test('two fingers twice as far apart: twice the size', async () => {
     const { page } = await clockedPage(browser, code, PAGE)
     await page.evaluate(

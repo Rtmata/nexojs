@@ -75,11 +75,9 @@ class Toasts {
   }
 
   private observe(signal: AbortSignal): void {
-    const observer = new MutationObserver((records) => {
-      for (const record of records)
-        for (const node of record.addedNodes)
-          if (node instanceof HTMLElement) this.arrived(node)
-    })
+    const observer = new MutationObserver((records) =>
+      records.forEach((record) => this.changed(record)),
+    )
     observer.observe(this.el, { childList: true })
     signal.addEventListener('abort', () => observer.disconnect(), {
       once: true,
@@ -115,6 +113,18 @@ class Toasts {
     )
     this.timers.set(message, countdown)
     if (!this.isPaused()) countdown.run()
+  }
+
+  private changed(record: MutationRecord): void {
+    for (const node of record.addedNodes)
+      if (node instanceof HTMLElement) this.arrived(node)
+    for (const node of record.removedNodes) this.forget(node)
+  }
+
+  /** A message taken away by the app or by bridge: its countdown ends with it, no timeout is told. */
+  private forget(node: Node): void {
+    this.timers.get(node as HTMLElement)?.stop()
+    this.timers.delete(node as HTMLElement)
   }
 
   private closeButton(): HTMLButtonElement {
@@ -193,6 +203,7 @@ class Toasts {
     for (const countdown of this.timers.values()) countdown.stop()
     const focused = this.made.some((b) => b.contains(document.activeElement))
     for (const button of this.made) button.remove()
+    // Directly, not through marks: restoring it would drop the focus just moved here
     if (focused) ((this.el.tabIndex = -1), this.el.focus())
     this.marks.restore()
   }

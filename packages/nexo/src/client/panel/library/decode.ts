@@ -1,4 +1,5 @@
 import { reducedMotion } from '../../theater/reduce'
+import { speedOf } from '../../theater/speed'
 import { panel } from '../panel'
 import { number, string } from '../params'
 import { emit } from './hold'
@@ -17,7 +18,8 @@ export const decode = panel({
   },
   connect(el, params, { signal }) {
     if (reducedMotion()) return emit(el, 'decode:done')
-    new Decode(el as HTMLElement, params, signal)
+    const duration = params.duration / speedOf(el) // the page speed, as every animation below it
+    new Decode(el as HTMLElement, { ...params, duration }, signal)
   },
 })
 

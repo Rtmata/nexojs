@@ -1,5 +1,7 @@
 import { uniqueId } from './ids'
 import type { Marks } from './marks'
+import { after } from './after'
+import { VISUALLY_HIDDEN } from './visually-hidden'
 
 /**
  * The filterable select (GOV.UK accessible-autocomplete's
@@ -27,7 +29,7 @@ export class SelectSource {
     this.input = inputFor(select, marks)
     this.list = listFor(select)
     select.after(this.input, this.list)
-    hideVisually(select, marks) // not `hidden`: a `required` select hidden that way blocks the submit with no message (Chromium)
+    hideSelect(select, marks) // not `hidden`: a `required` select hidden that way blocks the submit with no message (Chromium)
     signal.addEventListener('abort', () => this.remove(), { once: true })
   }
 
@@ -54,7 +56,7 @@ export class SelectSource {
   onChanged(fn: () => void, signal: AbortSignal): void {
     const theirs = () => this.ours || fn()
     this.select.addEventListener('change', theirs, { signal })
-    const reset = () => afterTask(fn, signal)
+    const reset = () => after(fn, signal)
     this.select.form?.addEventListener('reset', reset, { signal })
     const options = new MutationObserver(fn)
     options.observe(this.select, OPTION_CHANGES)
@@ -105,26 +107,17 @@ function itemFor(option: HTMLOptionElement): HTMLLIElement {
   return item
 }
 
-/** A task later (the reset has applied by then), unless the panel ended meanwhile. */
-function afterTask(fn: () => void, signal: AbortSignal): void {
-  const timer = setTimeout(fn)
-  signal.addEventListener('abort', () => clearTimeout(timer), { once: true })
-}
-
 /** Out of sight and out of the accessibility tree, still in the form and focusable by the browser's validation. */
-function hideVisually(select: HTMLSelectElement, marks: Marks): void {
-  for (const [name, value] of Object.entries(SR_ONLY))
+function hideSelect(select: HTMLSelectElement, marks: Marks): void {
+  for (const [name, value] of Object.entries(HIDDEN_SELECT))
     marks.style(select, name, value)
   marks.set(select, 'aria-hidden', 'true')
   marks.set(select, 'tabindex', '-1')
 }
 
-const SR_ONLY: Record<string, string> = {
-  position: 'absolute',
-  width: '1px',
-  height: '1px',
-  overflow: 'hidden',
-  'clip-path': 'inset(50%)',
+/** Visually hidden, and never in a pointer's way (it stays in the form). */
+const HIDDEN_SELECT: Record<string, string> = {
+  ...VISUALLY_HIDDEN,
   opacity: '0',
   'pointer-events': 'none',
 }

@@ -3,6 +3,7 @@ import { number } from '../params'
 import { Expansion, Leveled } from './expand'
 import { emit } from './hold'
 import { Marks } from './marks'
+import { takesKeys } from './typing'
 
 /**
  * Grid (WAI-ARIA APG Grid and Treegrid) on a native `<table>`:
@@ -39,10 +40,6 @@ export const grid = panel({
 })
 
 const WIDGET = 'a[href], button, input, select, textarea, summary, [tabindex]'
-
-/** Widgets that take the arrow keys themselves: the cell stays the stop and Enter goes in. */
-const TYPING =
-  'input:not([type=button],[type=submit],[type=reset],[type=checkbox],[type=radio]), select, textarea, [contenteditable="true"]'
 
 class Grid {
   private readonly marks = new Marks()
@@ -95,7 +92,7 @@ class Grid {
   /** What takes focus for a cell: its one simple widget (a link, a button, a checkbox), else the cell. */
   private stopOf(cell: HTMLTableCellElement): HTMLElement {
     const widgets = widgetsOf(cell)
-    const simple = widgets.length === 1 && !widgets[0]!.matches(TYPING)
+    const simple = widgets.length === 1 && !takesKeys(widgets[0]!) // a widget that takes the keys: the cell stays the stop and Enter goes in
     return simple ? widgets[0]! : cell
   }
 

@@ -95,5 +95,20 @@ for (const [name, engine] of engines) {
     test('observe: added connects, removed ends', async () => {
       expect(await play('observing')).toEqual(['connect 0 false 0', 'ended'])
     })
+
+    test('observe with a signal already aborted connects nothing, now or later', async () => {
+      expect(await play('observeAborted')).toEqual([])
+    })
+
+    test('a handler that throws is reported, and the next one still runs', async () => {
+      expect(await play('throwingHandler')).toEqual([
+        'first broke',
+        'second ran',
+      ])
+    })
+
+    test("a connect that throws ends what it added, and the page's other panels connect", async () => {
+      expect(await play('throwingConnect')).toEqual(['connected 1'])
+    })
   })
 }

@@ -112,8 +112,14 @@ export class ValueAnimation implements Playback {
 
   /** The whole animation, delay and every iteration included. */
   get end(): number {
-    const { delay, iterations, endDelay = 0 } = this.timing
-    return delay + this.track.duration * iterations + endDelay
+    const { delay, endDelay = 0 } = this.timing
+    return delay + this.activeDuration + endDelay
+  }
+
+  /** Every iteration's time; 0 when one lasts 0, as WAAPI's, even endless (0 × Infinity is no number). */
+  private get activeDuration(): number {
+    const { duration } = this.track
+    return duration === 0 ? 0 : duration * this.timing.iterations
   }
 
   play(): void {
@@ -146,7 +152,9 @@ export class ValueAnimation implements Playback {
     this.complete()
   }
 
+  /** Back to the start value; an animation already idle (cancelled, or its signal ended) stays where it is. */
   cancel(): void {
+    if (this.state === 'idle') return
     this.stop()
     this.write(this.track.valueAt(0))
   }
@@ -309,7 +317,7 @@ export class ValueAnimation implements Playback {
   private iterationTime(local: number): number {
     const { duration } = this.track
     if (duration === 0) return 0
-    const clamped = Math.min(local, duration * this.timing.iterations)
+    const clamped = Math.min(local, this.activeDuration)
     const iteration = this.iterationOf(local)
     const within = clamped - iteration * duration
     return this.backwards(iteration) ? duration - within : within
@@ -324,8 +332,9 @@ export class ValueAnimation implements Playback {
    */
   private iterationOf(local: number): number {
     const { duration } = this.track
+    if (duration === 0) return 0
     const { iterations } = this.timing
-    const passed = Math.floor(Math.min(local, duration * iterations) / duration)
+    const passed = Math.floor(Math.min(local, this.activeDuration) / duration)
     return Math.max(Math.min(passed, Math.ceil(iterations) - 1), 0)
   }
 

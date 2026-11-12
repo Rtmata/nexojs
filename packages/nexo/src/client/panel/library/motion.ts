@@ -5,6 +5,7 @@
  */
 import { finished } from '../../theater/finished'
 import { FIXED_WAIT } from '../../settle/settle'
+import { hideVisually } from './visually-hidden'
 
 /** At most this long for a promise that never ends (omino's fallback wait). */
 export function atMost<T>(promise: Promise<T>): Promise<T | void> {
@@ -42,8 +43,7 @@ export function speakingText(el: HTMLElement): {
 /** The original nodes, moved into a visually hidden span: read, not seen. */
 function spokenCopy(nodes: ChildNode[]): HTMLElement {
   const spoken = document.createElement('span')
-  spoken.style.cssText =
-    'position:absolute;width:1px;height:1px;overflow:hidden;clip-path:inset(50%);white-space:nowrap'
+  hideVisually(spoken)
   spoken.append(...nodes)
   return spoken
 }

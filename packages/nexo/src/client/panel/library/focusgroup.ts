@@ -1,5 +1,6 @@
 import { panel } from '../panel'
 import { Marks } from './marks'
+import { typing } from './typing'
 
 /**
  * `focusgroup` (Open UI scoped-focusgroup explainer; shipped in Chrome 150):
@@ -37,16 +38,6 @@ const BEHAVIORS = new Set([
   'menubar',
 ])
 
-/** The minimum role each behavior implies: never over native or explicit roles. */
-const ROLES: Record<string, string> = {
-  toolbar: 'toolbar',
-  tablist: 'tablist',
-  radiogroup: 'radiogroup',
-  listbox: 'listbox',
-  menu: 'menu',
-  menubar: 'menubar',
-}
-
 export function readSpec(el: Element): FocusSpec {
   const words = (el.getAttribute('focusgroup') ?? '').split(/\s+/)
   const behavior = words.find((w) => BEHAVIORS.has(w)) ?? 'toolbar'
@@ -73,11 +64,7 @@ const BLOCK: Record<string, number> = { ArrowUp: -1, ArrowDown: 1 }
 const EDGES: Record<string, number> = { Home: -Infinity, End: Infinity }
 
 const FOCUSABLE =
-  'a[href], button, input, select, textarea, [tabindex], summary, [contenteditable="true"]'
-
-/** Where arrows and Home / End move the caret, not the focus. */
-const TYPING =
-  'input:not([type=button],[type=submit],[type=reset],[type=checkbox],[type=radio],[type=range],[type=color],[type=file]), textarea, select, [contenteditable="true"]'
+  'a[href], button, input, select, textarea, [tabindex], summary, [contenteditable]:not([contenteditable="false"])'
 
 /**
  * One group: its items, one tab stop among them, arrow keys between them.
@@ -92,7 +79,7 @@ export class FocusGroup {
     private readonly spec: FocusSpec,
     signal: AbortSignal,
   ) {
-    this.marks.default(el, 'role', ROLES[spec.behavior]!)
+    this.marks.default(el, 'role', spec.behavior) // each behavior's minimum role is its own name; never over native or explicit roles
     this.settle(this.start())
     el.addEventListener('keydown', (e) => this.key(e), { signal })
     el.addEventListener('focusin', (e) => this.focused(e), { signal })
@@ -193,10 +180,6 @@ export class FocusGroup {
       ? items[(at + items.length) % items.length]
       : undefined
   }
-}
-
-function typing(target: Element): boolean {
-  return target.matches(TYPING)
 }
 
 export function isRendered(el: HTMLElement): boolean {

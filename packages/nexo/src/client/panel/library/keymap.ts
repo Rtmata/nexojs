@@ -1,6 +1,7 @@
 import { panel } from '../panel'
 import { json } from '../params'
 import { emit } from './hold'
+import { typing } from './typing'
 
 /**
  * A key map (Archive): keys → action names, declared, emitted as
@@ -27,7 +28,7 @@ function press(
   if (typeof event.key !== 'string') return // autofill keydowns have none
   const key = keysOf(event).find((k) => keys.has(k))
   const action = key && keys.get(key)
-  if (!action || (typing(event) && !hasCommandModifier(event))) return
+  if (!action || (typing(event.target) && !hasCommandModifier(event))) return
   event.preventDefault()
   emit(el, 'keymap:action', { action, key })
 }
@@ -40,7 +41,7 @@ function normalize(keys: Record<string, string>): Map<string, string> {
 
 /** `Shift+Ctrl+K` and `ctrl+shift+k` are the same key: modifiers sorted, all lower case. */
 function canonical(key: string): string {
-  const parts = key.toLowerCase().split('+')
+  const parts = key.toLowerCase().split(/\+(?!$)/) // a last '+' is the key itself: 'ctrl++'
   const main = parts.pop()!
   return [...parts.sort(), main].join('+')
 }
@@ -62,28 +63,4 @@ function keysOf(event: KeyboardEvent): string[] {
 
 function hasCommandModifier(event: KeyboardEvent): boolean {
   return event.ctrlKey || event.altKey || event.metaKey
-}
-
-/** Input types that take typing; the rest (checkbox, range…) don't. */
-const NOT_TYPED = new Set([
-  'checkbox',
-  'radio',
-  'button',
-  'submit',
-  'reset',
-  'range',
-  'color',
-  'file',
-])
-
-function typing(event: KeyboardEvent): boolean {
-  const target = event.target as HTMLElement | null
-  if (!target) return false
-  if (target.isContentEditable) return true
-  if (
-    target instanceof HTMLTextAreaElement ||
-    target instanceof HTMLSelectElement
-  )
-    return true
-  return target instanceof HTMLInputElement && !NOT_TYPED.has(target.type)
 }

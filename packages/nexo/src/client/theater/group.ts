@@ -2,8 +2,9 @@ import type { Playback } from './playback'
 
 /**
  * Several animations as one: a list of elements answers with the
- * same `Animation` shape. Commands go to every member; queries read the
- * first (they all started together, with the same timing).
+ * same `Animation` shape. Commands go to every member. Queries ask them
+ * all, since a `stagger` ends some before others: the group runs while
+ * any member runs, and its time is the furthest a member got.
  *
  *   const all = animate(document.querySelectorAll('.cover'), …)
  *   all.pause()
@@ -38,7 +39,10 @@ export class AnimationGroup implements Playback {
   }
 
   get currentTime(): CSSNumberish | null {
-    return this.members[0]?.currentTime ?? null
+    const times = this.members
+      .map((m) => m.currentTime)
+      .filter((t) => t !== null)
+    return times.length === 0 ? null : Math.max(...times.map(Number))
   }
 
   set currentTime(ms: CSSNumberish | null) {
@@ -53,7 +57,16 @@ export class AnimationGroup implements Playback {
     for (const member of this.members) member.playbackRate = rate
   }
 
+  /** The liveliest member's: running, else paused, else finished, else idle. */
   get playState(): AnimationPlayState {
-    return this.members[0]?.playState ?? 'finished'
+    const states = new Set(this.members.map((m) => m.playState))
+    return LIVELIEST.find((state) => states.has(state)) ?? 'finished'
   }
 }
+
+const LIVELIEST: readonly AnimationPlayState[] = [
+  'running',
+  'paused',
+  'finished',
+  'idle',
+]

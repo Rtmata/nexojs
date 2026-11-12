@@ -13,6 +13,7 @@ export function observe(
   registry: Panels,
   { signal }: { signal: AbortSignal },
 ): void {
+  if (signal.aborted) return // its abort already happened: nothing would ever disconnect the observer
   attach(root, registry, { signal })
   const observer = new MutationObserver((records) =>
     changed(records, registry, signal),

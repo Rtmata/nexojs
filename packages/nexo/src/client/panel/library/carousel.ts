@@ -192,11 +192,11 @@ class Carousel {
   }
 }
 
-/** Without `data-carousel-slides`: the first list, else the element with the most children. */
+/** Without `data-carousel-slides`: the first list, else an error that says to mark them. */
 function slidesIn(el: HTMLElement): HTMLElement {
   const list = el.querySelector<HTMLElement>('ul, ol')
   if (list) return list
   throw new Error(
-    'carousel: no slides; mark their container with data-carousel-slides',
+    'panel: carousel: no slides; mark their container with data-carousel-slides',
   )
 }

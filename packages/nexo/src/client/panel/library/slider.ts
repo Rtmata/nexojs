@@ -1,6 +1,7 @@
 import { panel } from '../panel'
 import { string } from '../params'
 import { Marks } from './marks'
+import { after } from './after'
 
 /**
  * Slider (WAI-ARIA APG Slider, Multi-Thumb Slider) on the native
@@ -36,7 +37,7 @@ class Slider {
     this.thumbs = thumbsOf(el)
     this.repaint()
     const form = this.thumbs[0]!.form
-    form?.addEventListener('reset', () => later(() => this.repaint(), signal), {
+    form?.addEventListener('reset', () => after(() => this.repaint(), signal), {
       signal,
     })
     signal.addEventListener('abort', () => this.marks.restore(), { once: true })
@@ -99,7 +100,7 @@ function thumbsOf(el: HTMLElement): HTMLInputElement[] {
       : [...el.querySelectorAll<HTMLInputElement>('input[type=range]')]
   if (thumbs.length === 0)
     throw new Error(
-      'slider: data-panel="slider" goes on <input type="range"> or around some',
+      'panel: slider: data-panel="slider" goes on <input type="range"> or around some',
     )
   return thumbs
 }
@@ -111,7 +112,3 @@ function fraction(thumb: HTMLInputElement): number {
 }
 
 /** After the reset has applied (a task later), unless the panel ended meanwhile. */
-function later(fn: () => void, signal: AbortSignal): void {
-  const timer = setTimeout(fn)
-  signal.addEventListener('abort', () => clearTimeout(timer), { once: true })
-}

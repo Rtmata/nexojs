@@ -1,6 +1,7 @@
 import { panel } from '../panel'
 import { number } from '../params'
 import { Marks } from './marks'
+import { typing } from './typing'
 
 /**
  * Feed (WAI-ARIA APG Feed): a list of articles that grows as the visitor
@@ -113,12 +114,3 @@ function isShown(e: HTMLElement): boolean {
 
 const FOCUSABLE =
   'a[href], button:not([disabled]), input:not([disabled]), select, textarea, [tabindex]:not([tabindex="-1"])'
-
-function typing(target: EventTarget | null): boolean {
-  return (
-    target instanceof Element &&
-    target.matches(
-      'input:not([type=button],[type=submit],[type=reset],[type=checkbox],[type=radio],[type=range]), textarea, select, [contenteditable="true"]',
-    )
-  )
-}

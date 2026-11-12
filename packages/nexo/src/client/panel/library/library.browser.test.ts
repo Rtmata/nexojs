@@ -79,6 +79,17 @@ for (const [name, engine] of engines) {
       expect(await keys('Tab')).toBe('after')
     })
 
+    test('arrows stay with a bare contenteditable item: typing there moves the caret, not the focus', async () => {
+      await setup(
+        toolbar(
+          'toolbar inline',
+          '<div id="ed" contenteditable tabindex="-1">edit</div>',
+        ),
+      )
+      await page.focus('#ed')
+      expect(await keys('ArrowRight')).toBe('ed')
+    })
+
     test('wrap, nowrap, Home and End', async () => {
       await setup(toolbar('toolbar inline wrap'))
       await enter()
@@ -597,6 +608,30 @@ for (const [name, engine] of engines) {
       expect(events).toEqual(['hover-intent:enter', 'hover-intent:leave'])
     })
 
+    test('keymap: a bare contenteditable is typing too; ctrl++ binds the plus key', async () => {
+      await call(
+        'setup',
+        `<div data-panel="keymap" data-keymap-keys='{"j":"next","ctrl++":"zoom"}'><div id="ed" contenteditable>x</div><button id="b">b</button></div>`,
+      )
+      await call('record')
+      await page.focus('#ed')
+      await page.keyboard.press('j')
+      await page.evaluate(() =>
+        document.getElementById('b')!.dispatchEvent(
+          new KeyboardEvent('keydown', {
+            key: '+',
+            ctrlKey: true,
+            bubbles: true,
+            cancelable: true,
+          }),
+        ),
+      )
+      const events = (await call('events')) as string[]
+      expect(events.filter((e) => e.startsWith('keymap'))).toEqual([
+        'keymap:action zoom',
+      ])
+    })
+
     test('keymap: keys to actions; typing in a field only counts with Ctrl', async () => {
       await call(
         'setup',
@@ -844,6 +879,17 @@ for (const [name, engine] of engines) {
         shown: null,
       })
       expect(await call('events')).toEqual(['decode:done', 'decode:done'])
+    })
+
+    test('decode follows the page speed, as typewriter does', async () => {
+      await page.emulateMedia({ reducedMotion: 'no-preference' })
+      await call('record')
+      await call(
+        'setup',
+        '<div style="--theater-speed: 4"><p data-panel="decode" data-decode-duration="800">ab</p></div>',
+      )
+      await page.waitForTimeout(400) // 800 ms at four times the speed: done at 200
+      expect(await call('events')).toEqual(['decode:done'])
     })
 
     test('sequence: each phase waits for its animation and for waitUntil', async () => {
@@ -1488,6 +1534,17 @@ for (const [name, engine] of engines) {
       await page.mouse.move(10, 300)
       await later(450)
       expect(await call('messages')).toEqual(['Borrado Deshacer [Cerrar]'])
+    })
+
+    test('a message the app takes away itself tells no timeout later', async () => {
+      await page.mouse.move(10, 300)
+      await call('setup', region('data-toast-duration="200"'))
+      await call('record')
+      await call('say', 'Copiado')
+      await page.evaluate(() => document.querySelector('#page > *')!.remove())
+      await later(400)
+      const events = (await call('events')) as string[]
+      expect(events.filter((e) => e.startsWith('toast:dismiss'))).toEqual([])
     })
 
     test('closing keeps focus in the region; F8 reaches the region', async () => {

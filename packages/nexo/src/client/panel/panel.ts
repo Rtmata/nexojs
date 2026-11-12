@@ -65,11 +65,7 @@ export function panel<S extends Schema = {}, C = void>(
   const definition = new Definition(options)
   const connect = (el: Element, run: { signal: AbortSignal }) =>
     definition.connect(el, definition.defaults(), run.signal)
-  insides.set(connect, {
-    fromMarkup: (el, name, run) =>
-      definition.connect(el, definition.read(name, el), run.signal),
-    params: options.params ?? {},
-  })
+  insides.set(connect, definition.inside())
   return Object.assign(connect, {
     with: (given: Partial<ParamsOf<S>>) => definition.withParams(given),
   })
@@ -78,14 +74,25 @@ export function panel<S extends Schema = {}, C = void>(
 /** A panel's options and the three ways its params come: defaults, given, markup. */
 class Definition<S extends Schema, C> {
   private readonly schema: S
+  /** Read once, where the panel is written: a key that can't work throws there. */
+  private readonly events: Map<string, Entry<C>[]>
 
   constructor(private readonly options: PanelOptions<S, C>) {
     this.schema = (options.params ?? {}) as S
-    byType(options.events ?? {}) // a key that can't work throws now, where the panel is written
+    this.events = byType(options.events ?? {})
   }
 
   connect(el: Element, params: ParamsOf<S>, signal: AbortSignal): void {
-    new Connection(this.options, el, params, signal)
+    new Connection(this.options, this.events, el, params, signal)
+  }
+
+  /** What `attach` and `registry` read: params from markup, and the schema. */
+  inside(): PanelInside {
+    return {
+      fromMarkup: (el, name, run) =>
+        this.connect(el, this.read(name, el), run.signal),
+      params: this.schema,
+    }
   }
 
   defaults(): ParamsOf<S> {
@@ -174,7 +181,8 @@ class Connection<S extends Schema, C> {
   private readonly ctx: C
 
   constructor(
-    private readonly options: PanelOptions<S, C>,
+    options: PanelOptions<S, C>,
+    events: Map<string, Entry<C>[]>,
     private readonly el: Element,
     params: ParamsOf<S>,
     private readonly signal: AbortSignal,
@@ -184,8 +192,7 @@ class Connection<S extends Schema, C> {
     this.ctx = options.connect
       ? options.connect(el, params, { signal })
       : (undefined as C)
-    for (const [type, entries] of byType(options.events ?? {}))
-      this.listen(type, entries)
+    for (const [type, entries] of events) this.listen(type, entries)
   }
 
   /** One listener for the type, as written; each entry matches its own selector (no selector: `el` itself). */

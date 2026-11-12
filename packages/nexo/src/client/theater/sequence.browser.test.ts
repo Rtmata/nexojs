@@ -229,6 +229,34 @@ describe.skipIf(!chrome)('sequences in Chrome', () => {
     expect(opacities[2]).toBe(1)
   })
 
+  test('a staggered group runs while any member runs, at the furthest time', async () => {
+    const { page, clock } = await clockedPage(
+      browser,
+      code,
+      '<p class="c">1</p><p class="c">2</p><p class="c">3</p>',
+    )
+    await page.evaluate(() => {
+      const w = window as any
+      w.group = w.theater.animate(
+        document.querySelectorAll('.c'),
+        { opacity: [0, 1] },
+        { duration: 200, easing: 'linear', delay: w.theater.stagger(100) },
+      )
+    })
+    await clock.advance(250) // the first ended at 200, the last runs until 400
+    const now = await page.evaluate(() => {
+      const w = window as any
+      return {
+        state: w.group.playState,
+        time: w.group.currentTime,
+        first: w.group.members[0].playState,
+      }
+    })
+    expect(now.first).not.toBe('running') // done: what it showed stays inline
+    expect(now.state).toBe('paused') // the test clock holds the members it moves; not the first one's idle
+    expect(now.time).toBeGreaterThanOrEqual(250)
+  })
+
   test('a value segment is checked as animate checks a value', async () => {
     const { page } = await clockedPage(browser, code, '')
     const errors = await page.evaluate(() =>

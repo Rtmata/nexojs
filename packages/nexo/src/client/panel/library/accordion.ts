@@ -46,7 +46,7 @@ function storageKey(el: Element, key: string): string {
   const own = key || el.id
   if (own) return `accordion:${own}`
   throw new Error(
-    'accordion: data-accordion-remember needs an id on the panel (or data-accordion-key)',
+    'panel: accordion: data-accordion-remember needs an id on the panel (or data-accordion-key)',
   )
 }
 

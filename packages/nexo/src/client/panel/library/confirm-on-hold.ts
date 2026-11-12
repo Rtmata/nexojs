@@ -2,6 +2,7 @@ import { panel } from '../panel'
 import { number, string } from '../params'
 import { emit, followPointer, Hold, swallowNextClick } from './hold'
 import { Marks } from './marks'
+import { hideVisually } from './visually-hidden'
 
 /**
  * Hold to confirm (Archive). Pointer: hold for `duration` ms; let go
@@ -128,8 +129,7 @@ function isActivation(event: KeyboardEvent): boolean {
 function liveRegion(el: HTMLElement, signal: AbortSignal): HTMLElement {
   const live = document.createElement('span')
   live.setAttribute('aria-live', 'polite')
-  live.style.cssText =
-    'position:absolute;width:1px;height:1px;overflow:hidden;clip-path:inset(50%)'
+  hideVisually(live)
   el.after(live)
   signal.addEventListener('abort', () => live.remove(), { once: true })
   return live

@@ -128,7 +128,7 @@ function pairsIn(el: HTMLElement): Tab[] {
   const first = el.querySelector<HTMLAnchorElement>('a[href^="#"]')
   if (!first)
     throw new Error(
-      'tabs: no links to sections inside this panel (<a href="#id"> → <section id>)',
+      'panel: tabs: no links to sections inside this panel (<a href="#id"> → <section id>)',
     )
   const links = tabLinks(el, first)
   return links.map((tab) => ({ tab, panel: sectionOf(el, tab) }))

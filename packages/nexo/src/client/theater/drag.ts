@@ -180,7 +180,9 @@ class Drag implements Draggable, TrackEvents {
   }
 
   move(track: PointerTrack): void {
-    this.el.setAttribute('data-dragging', '')
+    // marked once it is a drag, past the slop: a plain click never shows it, not even for a frame
+    if (Math.hypot(track.offset.x, track.offset.y) >= SLOP)
+      this.el.setAttribute('data-dragging', '')
     for (const axis of this.axes)
       axis.value = axis.constrain(
         this.start[axis.name] + track.offset[axis.name],

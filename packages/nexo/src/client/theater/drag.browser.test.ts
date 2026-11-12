@@ -147,6 +147,25 @@ describe.skipIf(!chrome)('drag in Chrome', () => {
     expect(errors).toEqual(['TypeError', 'TypeError', 'RangeError'])
   })
 
+  test('a press that hardly moves is not marked as dragging', async () => {
+    const { page, clock } = await clockedPage(browser, code, PAGE)
+    await page.evaluate(() =>
+      (window as any).theater.drag(document.getElementById('shelf'), {
+        axis: 'x',
+        signal: new AbortController().signal,
+      }),
+    )
+    await page.mouse.move(150, 50)
+    await page.mouse.down()
+    await clock.advance(16)
+    await page.mouse.move(154, 50) // 4 px: under the slop
+    const marked = await page.evaluate(() =>
+      document.getElementById('shelf')!.hasAttribute('data-dragging'),
+    )
+    expect(marked).toBe(false)
+    await page.mouse.up()
+  })
+
   test('aborted mid-drag, it is no longer marked as dragging', async () => {
     const { page, clock } = await clockedPage(browser, code, PAGE)
     await page.evaluate(() => {

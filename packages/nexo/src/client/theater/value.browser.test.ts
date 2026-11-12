@@ -171,6 +171,37 @@ describe.skipIf(!chrome)('a value animation in Chrome', () => {
     expect(await finishedState(page)).toBe('resolved')
   })
 
+  test('duration 0, endless: finished at once, as WAAPI counts it (no NaN end)', async () => {
+    const { page, clock } = await clockedPage(browser, code, '')
+    await start(page, { duration: 0, iterations: Infinity })
+    await clock.advance(16)
+    expect(await read(page)).toMatchObject({ state: 'finished', value: 100 })
+    expect(await finishedState(page)).toBe('resolved')
+  })
+
+  test('cancel() on one its signal already stopped leaves the value where it stopped', async () => {
+    const { page, clock } = await clockedPage(browser, code, '')
+    await page.evaluate(() => ((window as any).stop = new AbortController()))
+    await page.evaluate(() => {
+      const w = window as any
+      w.anim = w.theater.animate([0, 100], (v: number) => (w.value = v), {
+        duration: 100,
+        easing: 'linear',
+        signal: w.stop.signal,
+      })
+    })
+    await clock.advance(50)
+    const stopped = await page.evaluate(() => {
+      const w = window as any
+      w.stop.abort()
+      const at = w.value
+      w.anim.cancel()
+      return { at, after: w.value }
+    })
+    expect(stopped.after).toBe(stopped.at)
+    expect(stopped.at).toBeGreaterThan(0)
+  })
+
   test('a paused one still stops when its signal aborts', async () => {
     const { page, clock } = await clockedPage(browser, code, '')
     await page.evaluate(() => ((window as any).stop = new AbortController()))

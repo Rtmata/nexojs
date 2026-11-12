@@ -1,3 +1,5 @@
+import { after } from './after'
+
 /**
  * A press that must last: a timer started on press, ended early by a
  * release, a move past `slop`, the browser taking the pointer over
@@ -51,22 +53,18 @@ export class Hold {
  * long the press went on.
  */
 export function swallowNextClick(el: Element, signal: AbortSignal): void {
-  const swallow = (event: Event) => {
-    event.preventDefault()
-    event.stopImmediatePropagation()
-  }
-  el.addEventListener('click', swallow, { capture: true, once: true, signal })
-  const forget = () =>
-    el.removeEventListener('click', swallow, { capture: true })
-  const released = () => soon(forget, signal)
-  document.addEventListener('pointerup', released, { once: true, signal })
-  document.addEventListener('pointercancel', released, { once: true, signal })
+  const own = new AbortController() // ends every listener of this one swallow, whichever comes first
+  const done = AbortSignal.any([signal, own.signal])
+  const swallow = (event: Event) => (stopped(event), own.abort())
+  el.addEventListener('click', swallow, { capture: true, signal: done })
+  const released = () => after(() => own.abort(), done, 300) // the click has come by then
+  for (const type of ['pointerup', 'pointercancel'])
+    document.addEventListener(type, released, { once: true, signal: done })
 }
 
-/** A moment after the release (the click has come by then), unless the panel ended. */
-function soon(fn: () => void, signal: AbortSignal): void {
-  const timer = setTimeout(fn, 300)
-  signal.addEventListener('abort', () => clearTimeout(timer), { once: true })
+function stopped(event: Event): void {
+  event.preventDefault()
+  event.stopImmediatePropagation()
 }
 
 /**
