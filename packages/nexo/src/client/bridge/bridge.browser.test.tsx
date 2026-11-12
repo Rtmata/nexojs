@@ -1673,7 +1673,9 @@ describe.if(chrome)('from a script: visit, reload, prefetch', () => {
     const message = await call(
       `bridge.visit('/shelf/2', { history: 'pushh' }).then(() => 'went', (error) => error.message)`,
     )
-    expect(message).toBe('bridge: history "pushh" is not one of push, replace')
+    expect(message).toBe(
+      'bridge: history "pushh" is not one of push, replace, none',
+    )
   })
 
   test("reload brings this page's segments again", async () => {

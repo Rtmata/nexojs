@@ -75,13 +75,13 @@ Every attribute is inherited: its own value, else the closest ancestor's. `data-
 | `data-bridge-segment`        | a name                                                | A region that can be replaced on its own (`<Segment>` writes it).                                                                |
 | `data-bridge-target`         | names (`"shelf, counter"`), `_top`, `_none`           | What a link or form replaces. Unset: the segment it sits in; outside every segment, the browser.                                 |
 | `data-bridge-twin`           | —                                                     | On a segment: refreshed by every response that carries it (a counter).                                                           |
-| `data-bridge-history`        | `push`, `replace`                                     | Record the URL. A whole page pushes by default; segments record nothing.                                                         |
+| `data-bridge-history`        | `push`, `replace`, `none`                             | Record the URL. A whole page pushes by default; segments record nothing; `none` records nothing.                                 |
 | `data-bridge-scroll`         | `top`, `keep`, `target`                               | After the swap. A whole page starts at the top; a segment keeps the scroll. A `#hash` in the link wins.                          |
 | `data-bridge-swap`           | `replace`, `append`, `prepend`                        | The new content in place of the segment, or inside it after or before the old (infinite lists).                                  |
 | `data-bridge-focus`          | `auto`, `keep`, `autofocus`, `target`, `none`, a name | Where the focus goes. `auto`: the hash's element, else kept by id, else `autofocus`, else the new segment if the old one had it. |
 | `data-bridge-transition`     | bare, types (`zoom slide`), `false`                   | Snapshots: wrap the swap in a View Transition with these types (and the direction). `false` keeps the change live.               |
-| `data-bridge-fail`           | a name                                                | The segment that shows error responses instead of the target.                                                                    |
-| `data-bridge-busy`           | a name                                                | Another segment marked `aria-busy` while loading: a global indicator.                                                            |
+| `data-bridge-fail`           | a name, `_none`                                       | The segment that shows error responses instead of the target; `_none`: none, whatever an ancestor says.                          |
+| `data-bridge-busy`           | a name, `_none`                                       | Another segment marked `aria-busy` while loading: a global indicator; `_none`: none.                                             |
 | `data-bridge-src`            | a URL                                                 | On a segment: fills itself from there, when `data-bridge-load` says.                                                             |
 | `data-bridge-load`           | `viewport`, `eager`                                   | A link followed, or a segment filled, when it comes into view or at once.                                                        |
 | `data-bridge-prefetch`       | `tap`, `hover`, `viewport`, `eager`                   | The page brought ahead of the click. Links left to the browser get Speculation Rules instead.                                    |
@@ -135,7 +135,7 @@ await reload('counter') // this page again, that segment
 await prefetch('/es/arcade', { target: '_top' })
 ```
 
-`visit` resolves once the content is in and rejects when bridge stopped (a cancelled event, a later request) or left the page to the browser. Without `target`, a visit is the whole page; with `from: element`, it behaves like a link placed there. An import map lets the page write the package name TypeScript knows:
+`visit` resolves once the content is in and rejects when bridge stopped (a cancelled event, a later request) or left the page to the browser. Without `target`, a visit is the whole page; with `from: element`, it behaves like a link placed there. What you leave out is read from the markup around `from` (the body by default), as a link there would read it, so site-wide attributes on `<html>` count; `null` says none on purpose (`history: null` records nothing, `fail: null` shows errors in the target), whatever the markup says. An import map lets the page write the package name TypeScript knows:
 
 ```html
 <script type="importmap">
