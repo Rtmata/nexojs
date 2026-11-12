@@ -176,8 +176,7 @@ class Drag implements Draggable, TrackEvents {
     this.motion.restart()
     this.tracking = true
     this.start = { x: this.x, y: this.y }
-    const signal = this.options.signal ?? new AbortController().signal
-    new PointerTrack(event, this, signal)
+    new PointerTrack(event, this, this.options.signal)
   }
 
   move(track: PointerTrack): void {

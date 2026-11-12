@@ -22,18 +22,26 @@ export function ensureSheet(styles: ComponentStyles): void {
   document.head.append(style)
 }
 
+/** The `<style>` each page-wide sheet went into: while it's still in the page, a render after the first costs nothing. */
+const placed = new WeakMap<PageSheet, Element>()
+
 /** A page-wide sheet (glyph's), once per document by name, as the server writes it. */
 export function ensurePageSheet(sheet: PageSheet): void {
+  if (placed.get(sheet)?.isConnected) return
   const selector = `style[${PAGE_SHEET}="${CSS.escape(sheet.name)}"]`
   const existing = document.head.querySelector(selector)
-  if (existing) {
-    if ((existing.textContent ?? '').trim() === sheet.css.trim()) return
-    throw samePageSheet(sheet.name)
-  }
+  if (existing) return keep(sheet, existing)
   const style = document.createElement('style')
   style.setAttribute(PAGE_SHEET, sheet.name)
   style.textContent = sheet.css
-  document.head.append(style)
+  placed.set(sheet, document.head.appendChild(style))
+}
+
+/** The page has a sheet of this name: the same CSS is kept, another is a mistake. */
+function keep(sheet: PageSheet, existing: Element): void {
+  if ((existing.textContent ?? '').trim() !== sheet.css.trim())
+    throw samePageSheet(sheet.name)
+  placed.set(sheet, existing)
 }
 
 const shared = new Map<string, { sheet: CSSStyleSheet; css: string }>()

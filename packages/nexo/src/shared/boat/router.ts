@@ -51,8 +51,9 @@ export interface RouteOptions<L extends string> {
  * is not one: its `route()` is, and the editor checks it.
  */
 export type RedirectTarget =
-  | `/${string}`
-  | `${string}:${string}`
+  | `/${string}` // a path, or `//host/…`
+  | `${string}://${string}`
+  | `${'mailto' | 'tel' | 'sms' | 'geo' | 'data' | 'urn'}:${string}`
   | RouteDef<string, any>
   | ((ctx: Context) => string)
 

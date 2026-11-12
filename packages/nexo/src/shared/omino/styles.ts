@@ -60,6 +60,17 @@ interface StyledClass {
  *   static styles = [tokens, button, css`:scope { display: grid }`]
  */
 export function stylesOf(type: unknown): ListedStyles | undefined {
+  const cached = read.get(type as object)
+  if (cached) return cached.listed
+  const listed = readStyles(type)
+  read.set(type as object, { listed })
+  return listed
+}
+
+/** Each class's list, read and checked once: the result depends only on the class. */
+const read = new WeakMap<object, { listed: ListedStyles | undefined }>()
+
+function readStyles(type: unknown): ListedStyles | undefined {
   const { name, styles, encapsulation = 'scope' } = type as StyledClass
   if (styles === undefined) return undefined
   const { texts, sheets } = split(listOf(name, styles))
