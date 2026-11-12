@@ -12,7 +12,7 @@ import {
 } from './proofs'
 import { SAFE_METHODS } from './vocabulary'
 
-export interface HedgeOptions {
+export interface CsrfOptions {
   /** Origins whose requests count as this site's: `['https://admin.museo.mx']`. */
   trusted?: readonly string[]
   /** Paths that are never judged: a path as written, or a prefix ending in `/` (`'/api/'`). */
@@ -27,14 +27,14 @@ export interface HedgeOptions {
  * can speak: the browser's `Sec-Fetch-Site`, then its `Origin`, then a
  * token this site issued. One verdict: a request from outside gets a 403
  * before any handler runs. Every request, safe or not, gets a token in
- * `ctx.hedge.token` for its forms; a browser without one is given it in a
+ * `ctx.csrf.token` for its forms; a browser without one is given it in a
  * cookie with the response. keep turns this on by itself:
  *
  *   keep({ router })                                      // on
- *   keep({ router, hedge: false })                        // off
- *   keep({ router, hedge: { except: ['/api/'], strict: true } })
+ *   keep({ router, csrf: false })                        // off
+ *   keep({ router, csrf: { except: ['/api/'], strict: true } })
  */
-export function hedge(options: HedgeOptions = {}): Middleware {
+export function csrf(options: CsrfOptions = {}): Middleware {
   const judge = new Judge(options)
   return (handler) => (ctx) => judge.guard(ctx, handler)
 }
@@ -45,7 +45,7 @@ class Judge {
   private readonly except: readonly string[]
   private readonly whenSilent: Verdict
 
-  constructor(options: HedgeOptions) {
+  constructor(options: CsrfOptions) {
     const trusted = new Set((options.trusted ?? []).map(originOf))
     this.proofs = [
       new FetchSite(trusted),
@@ -59,7 +59,7 @@ class Judge {
   async guard(ctx: Context, handler: Handler): Promise<Response> {
     const issued = Issued.for(ctx.request)
     if (await this.refuses(ctx, issued.token)) return refused()
-    const response = await handler({ ...ctx, hedge: { token: issued.token } })
+    const response = await handler({ ...ctx, csrf: { token: issued.token } })
     return issued.stamp(response)
   }
 
@@ -109,7 +109,7 @@ class Issued {
 }
 
 function refused(): Response {
-  return new Response('hedge: this request did not come from this site', {
+  return new Response('csrf: this request did not come from this site', {
     status: 403,
   })
 }
@@ -119,6 +119,6 @@ function originOf(given: string): string {
   try {
     return new URL(given).origin
   } catch {
-    throw new Error(`hedge: trusted origin "${given}" is not a URL`)
+    throw new Error(`csrf: trusted origin "${given}" is not a URL`)
   }
 }

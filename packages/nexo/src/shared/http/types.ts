@@ -26,17 +26,17 @@ export interface Context<P extends Params = Params, L extends string = string> {
   /** Build a link to a named route, in this request's language by default. */
   link: Link<L>
   /**
-   * What keep's `hedge` gives every request: the token a form puts in its
-   * `_hedge` field so the server knows the submission came from here.
-   * Absent only when hedge is off (`keep({ hedge: false })`).
+   * What keep's `csrf` gives every request: the token a form puts in its
+   * `_csrf` field so the server knows the submission came from here.
+   * Absent only when it is off (`keep({ csrf: false })`).
    */
-  hedge?: { token: string }
+  csrf?: { token: string }
   /**
-   * What keep's `bunker` gives every request: a nonce for the page's own
+   * What keep's `securityHeaders` gives every request: a nonce for the page's own
    * inline scripts under its Content Security Policy
-   * (`<script nonce={ctx.bunker.nonce}>`). Absent only when bunker is off.
+   * (`<script nonce={ctx.nonce}>`). Absent only when they are off.
    */
-  bunker?: { nonce: string }
+  nonce?: string
 }
 
 /** The context of a route declared per language: `lang` is always there. */

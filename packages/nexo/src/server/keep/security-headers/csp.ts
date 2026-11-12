@@ -39,7 +39,7 @@ function sourceOf(source: string, nonce: string): string {
 function ensureDirective(name: string): void {
   if (DIRECTIVES.has(name)) return
   throw new Error(
-    `bunker: "${name}" is not a Content-Security-Policy directive (write it as in the header: 'script-src')`,
+    `securityHeaders: "${name}" is not a Content-Security-Policy directive (write it as in the header: 'script-src')`,
   )
 }
 

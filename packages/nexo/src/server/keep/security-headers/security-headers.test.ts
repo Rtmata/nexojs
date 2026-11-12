@@ -7,14 +7,14 @@ import { keep, type KeepOptions } from '../keep'
 
 let folder: string
 beforeAll(async () => {
-  folder = await mkdtemp(join(tmpdir(), 'bunker-'))
+  folder = await mkdtemp(join(tmpdir(), 'security-headers-'))
   await writeFile(join(folder, 'logo.svg'), '<svg/>')
 })
 afterAll(() => rm(folder, { recursive: true }))
 
 function server(options: Omit<KeepOptions, 'router'> = {}) {
   const router = boat()
-    .get('/', (ctx) => new Response(`nonce ${ctx.bunker?.nonce ?? 'none'}`))
+    .get('/', (ctx) => new Response(`nonce ${ctx.nonce ?? 'none'}`))
     .get(
       '/own',
       () =>
@@ -41,7 +41,7 @@ const DEFAULTS = {
 const headersOf = (r: Response, names: string[]) =>
   Object.fromEntries(names.map((n) => [n, r.headers.get(n)]))
 
-describe('bunker: the fixed headers', () => {
+describe('securityHeaders: the fixed headers', () => {
   test('the full set on a page, a file, a 404 and a redirect', async () => {
     const s = server()
     const names = Object.keys(DEFAULTS)
@@ -63,7 +63,7 @@ describe('bunker: the fixed headers', () => {
 
   test('a knob replaces the default or leaves the header out', async () => {
     const s = server({
-      bunker: { frameOptions: false, resourcePolicy: 'cross-origin' },
+      securityHeaders: { frameOptions: false, resourcePolicy: 'cross-origin' },
     })
     const r = await get(s, 'https://museo.test/')
     expect(r.headers.get('x-frame-options')).toBeNull()
@@ -77,16 +77,19 @@ describe('bunker: the fixed headers', () => {
   })
 
   test('off: no headers, no nonce', async () => {
-    const r = await get(server({ bunker: false }), 'https://museo.test/')
+    const r = await get(
+      server({ securityHeaders: false }),
+      'https://museo.test/',
+    )
     expect(r.headers.get('x-content-type-options')).toBeNull()
     expect(await r.text()).toBe('nonce none')
   })
 })
 
-describe('bunker: the policy', () => {
+describe('securityHeaders: the policy', () => {
   test('written as given, with the nonce of the request', async () => {
     const s = server({
-      bunker: {
+      securityHeaders: {
         csp: {
           'default-src': ["'self'"],
           'script-src': ["'self'", 'nonce', "'inline-speculation-rules'"],
@@ -104,7 +107,7 @@ describe('bunker: the policy', () => {
   })
 
   test('each request gets its own nonce', async () => {
-    const s = server({ bunker: { csp: { 'script-src': ['nonce'] } } })
+    const s = server({ securityHeaders: { csp: { 'script-src': ['nonce'] } } })
     const a = await (await get(s, 'https://museo.test/')).text()
     const b = await (await get(s, 'https://museo.test/')).text()
     expect(a).not.toBe(b)
@@ -112,7 +115,7 @@ describe('bunker: the policy', () => {
 
   test('report only: reported, not enforced', async () => {
     const s = server({
-      bunker: { csp: { 'default-src': ["'self'"] }, reportOnly: true },
+      securityHeaders: { csp: { 'default-src': ["'self'"] }, reportOnly: true },
     })
     const r = await get(s, 'https://museo.test/')
     expect(r.headers.get('content-security-policy')).toBeNull()
@@ -123,9 +126,9 @@ describe('bunker: the policy', () => {
 
   test('an unknown directive is a setup mistake', () => {
     expect(() =>
-      server({ bunker: { csp: { scriptSrc: ["'self'"] } } }),
+      server({ securityHeaders: { csp: { scriptSrc: ["'self'"] } } }),
     ).toThrow(
-      `bunker: "scriptSrc" is not a Content-Security-Policy directive (write it as in the header: 'script-src')`,
+      `securityHeaders: "scriptSrc" is not a Content-Security-Policy directive (write it as in the header: 'script-src')`,
     )
   })
 

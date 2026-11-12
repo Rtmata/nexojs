@@ -4,7 +4,7 @@ import { withHeaders } from '../response'
 import { Policy, type Directives } from './csp'
 
 /** Each knob names a header: its value replaces the default, `false` leaves the header out. */
-export interface BunkerOptions {
+export interface SecurityHeadersOptions {
   /** `X-Content-Type-Options`, `nosniff` by default: a file is what its type says, never guessed. */
   contentTypeOptions?: string | false
   /** `Referrer-Policy`, `strict-origin-when-cross-origin` by default (the browsers' own): other sites see the origin only. */
@@ -25,7 +25,7 @@ export interface BunkerOptions {
   strictTransportSecurity?: string | false
   /**
    * `Content-Security-Policy`, none by default; see `Directives`. The nonce
-   * is `ctx.bunker.nonce`. With bridge, `script-src` needs
+   * is `ctx.nonce`. With bridge, `script-src` needs
    * `'inline-speculation-rules'` for the prefetch rules it writes inline.
    */
   csp?: Directives
@@ -41,18 +41,20 @@ export interface BunkerOptions {
  * is left as it is.
  *
  *   keep({ router })                                   // the full set
- *   keep({ router, bunker: false })                    // none
- *   keep({ router, bunker: { frameOptions: false, resourcePolicy: 'cross-origin' } })
- *   keep({ router, bunker: { csp: { 'script-src': ["'self'", 'nonce', "'inline-speculation-rules'"] } } })
- *   <script nonce={ctx.bunker.nonce}>…</script>
+ *   keep({ router, securityHeaders: false })                    // none
+ *   keep({ router, securityHeaders: { frameOptions: false, resourcePolicy: 'cross-origin' } })
+ *   keep({ router, securityHeaders: { csp: { 'script-src': ["'self'", 'nonce', "'inline-speculation-rules'"] } } })
+ *   <script nonce={ctx.nonce}>…</script>
  */
-export function bunker(options: BunkerOptions = {}): Middleware {
+export function securityHeaders(
+  options: SecurityHeadersOptions = {},
+): Middleware {
   const walls = new Walls(options)
   const policy =
     options.csp && new Policy(options.csp, options.reportOnly ?? false)
   return (handler) => async (ctx) => {
     const nonce = mint()
-    const response = await handler({ ...ctx, bunker: { nonce } })
+    const response = await handler({ ...ctx, nonce })
     const headers = walls.for(ctx.url)
     if (policy) headers.push([policy.header, policy.value(nonce)])
     return withHeaders(response, headers)
@@ -64,7 +66,7 @@ class Walls {
   private readonly always: [string, string][]
   private readonly https: [string, string][]
 
-  constructor(options: BunkerOptions) {
+  constructor(options: SecurityHeadersOptions) {
     const chosen = (knob: Knob) => options[knob] ?? DEFAULTS[knob]
     const entries = (knobs: Knob[]) =>
       knobs.flatMap((knob): [string, string][] => {
@@ -81,7 +83,7 @@ class Walls {
   }
 }
 
-type Knob = Exclude<keyof BunkerOptions, 'csp' | 'reportOnly'>
+type Knob = Exclude<keyof SecurityHeadersOptions, 'csp' | 'reportOnly'>
 
 const HEADERS: Record<Knob, string> = {
   contentTypeOptions: 'x-content-type-options',

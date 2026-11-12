@@ -1,14 +1,14 @@
 import type { Context, Handler } from '../../../shared/http/types'
 import type { Middleware } from '../middleware'
 import { fingerprintOf, recordingOf, replay } from './recording'
-import { MemoryStore, type EchoStore, type Recorded } from './store'
+import { MemoryStore, type IdempotencyStore, type Recorded } from './store'
 import { KEY_HEADER } from './vocabulary'
 
-export interface EchoOptions {
+export interface IdempotencyOptions {
   /** Milliseconds a recording is kept; an hour (`60 * 60 * 1000`) by default: a retry comes within seconds, a reload within minutes. */
   ttl?: number
   /** Where recordings live; memory by default, which one process is enough for. */
-  store?: EchoStore
+  store?: IdempotencyStore
 }
 
 const SAFE = new Set(['GET', 'HEAD', 'OPTIONS'])
@@ -23,19 +23,19 @@ const SAFE = new Set(['GET', 'HEAD', 'OPTIONS'])
  * without the header pass as they are: nothing to turn off.
  *
  *   keep({ router })                               // memory, an hour
- *   keep({ router, echo: { ttl: 24 * 60 * 60 * 1000, store: redisStore } })
+ *   keep({ router, idempotency: { ttl: 24 * 60 * 60 * 1000, store: redisStore } })
  */
-export function echo(options: EchoOptions = {}): Middleware {
+export function idempotency(options: IdempotencyOptions = {}): Middleware {
   const chamber = new Chamber(options)
   return (handler) => (ctx) => chamber.answer(ctx, handler)
 }
 
 /** One key at a time: looked up, refused, replayed or recorded. */
 class Chamber {
-  private readonly store: EchoStore
+  private readonly store: IdempotencyStore
   private readonly ttl: number
 
-  constructor(options: EchoOptions) {
+  constructor(options: IdempotencyOptions) {
     this.store = options.store ?? new MemoryStore()
     this.ttl = options.ttl ?? 60 * 60 * 1000
   }
@@ -86,7 +86,7 @@ class Chamber {
 
   private async tooBig(key: string): Promise<void> {
     console.warn(
-      `echo: the answer to key "${key}" is too big to keep; a retry would run again`,
+      `idempotency: the answer to key "${key}" is too big to keep; a retry would run again`,
     )
     await this.store.delete(key)
   }
@@ -99,7 +99,7 @@ class Chamber {
 
 function refused(status: number, why: string): Response {
   return new Response(
-    `echo: this Idempotency-Key was already used for ${why}`,
+    `idempotency: this Idempotency-Key was already used for ${why}`,
     { status },
   )
 }

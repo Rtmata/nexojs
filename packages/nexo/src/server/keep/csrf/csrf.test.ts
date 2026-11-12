@@ -6,7 +6,7 @@ import { FIELD, HEADER, PLAIN_COOKIE, SECURE_COOKIE } from './vocabulary'
 /** A server that tells what came through: the method and the token of its context. */
 function server(options: Omit<KeepOptions, 'router'> = {}) {
   const router = boat()
-    .get('/', (ctx) => new Response(`token ${ctx.hedge?.token ?? 'none'}`))
+    .get('/', (ctx) => new Response(`token ${ctx.csrf?.token ?? 'none'}`))
     .post('/order', () => new Response('ordered'))
     .post('/api/orders', () => new Response('api'))
     .post('/go', () => Response.redirect('http://museo.test/', 303))
@@ -26,9 +26,9 @@ const post = (
 const text = async (response: Response) =>
   `${response.status} ${await response.text()}`
 
-describe('hedge: where a request comes from', () => {
+describe('csrf: where a request comes from', () => {
   test('a safe method is never judged', async () => {
-    const s = server({ hedge: { strict: true } })
+    const s = server({ csrf: { strict: true } })
     const r = await s.fetch(new Request('https://museo.test/'))
     expect(r.status).toBe(200)
   })
@@ -47,7 +47,7 @@ describe('hedge: where a request comes from', () => {
     })
     expect(cross.status).toBe(403)
     expect(await cross.text()).toBe(
-      'hedge: this request did not come from this site',
+      'csrf: this request did not come from this site',
     )
     const sibling = await post(s, '/order', {
       'sec-fetch-site': 'same-site',
@@ -57,7 +57,7 @@ describe('hedge: where a request comes from', () => {
   })
 
   test('another site is fine when its origin is trusted', async () => {
-    const s = server({ hedge: { trusted: ['https://admin.museo.test/'] } })
+    const s = server({ csrf: { trusted: ['https://admin.museo.test/'] } })
     const headers = {
       'sec-fetch-site': 'cross-site',
       origin: 'https://admin.museo.test',
@@ -82,18 +82,18 @@ describe('hedge: where a request comes from', () => {
   test('nobody speaking passes by default, and is refused when strict', async () => {
     expect((await post(server(), '/order')).status).toBe(200)
     expect(
-      (await post(server({ hedge: { strict: true } }), '/order')).status,
+      (await post(server({ csrf: { strict: true } }), '/order')).status,
     ).toBe(403)
   })
 
   test('a trusted origin that is not a URL is a setup mistake', () => {
-    expect(() => server({ hedge: { trusted: ['museo'] } })).toThrow(
-      'hedge: trusted origin "museo" is not a URL',
+    expect(() => server({ csrf: { trusted: ['museo'] } })).toThrow(
+      'csrf: trusted origin "museo" is not a URL',
     )
   })
 })
 
-describe('hedge: the token', () => {
+describe('csrf: the token', () => {
   test('a first visit gets a token in the context and the same one in a cookie', async () => {
     const s = server()
     const r = await s.fetch(new Request('https://museo.test/'))
@@ -128,7 +128,7 @@ describe('hedge: the token', () => {
   })
 
   test('the token in the form field, matching the cookie, vouches when nothing else does', async () => {
-    const s = server({ hedge: { strict: true } })
+    const s = server({ csrf: { strict: true } })
     const cookie = `${SECURE_COOKIE}=abc`
     const form = (token: string) =>
       new URLSearchParams({ n: '1', [FIELD]: token })
@@ -156,7 +156,7 @@ describe('hedge: the token', () => {
       '/echo',
       async (ctx) => new Response(await ctx.request.text()),
     )
-    const s = keep({ router, hedge: { strict: true } })
+    const s = keep({ router, csrf: { strict: true } })
     const r = await s.fetch(
       new Request('https://museo.test/echo', {
         method: 'POST',
@@ -187,9 +187,9 @@ describe('hedge: the token', () => {
   })
 })
 
-describe('hedge: the knobs', () => {
+describe('csrf: the knobs', () => {
   test('except: a path as written, or a prefix ending in /', async () => {
-    const s = server({ hedge: { except: ['/api/', '/go'] } })
+    const s = server({ csrf: { except: ['/api/', '/go'] } })
     const cross = {
       'sec-fetch-site': 'cross-site',
       origin: 'https://evil.test',
@@ -200,7 +200,7 @@ describe('hedge: the knobs', () => {
   })
 
   test('off: no judgement, no token, no cookie', async () => {
-    const s = server({ hedge: false })
+    const s = server({ csrf: false })
     const cross = {
       'sec-fetch-site': 'cross-site',
       origin: 'https://evil.test',

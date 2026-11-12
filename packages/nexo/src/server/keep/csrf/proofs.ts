@@ -49,8 +49,8 @@ export class OriginHeader implements Proof {
 }
 
 /**
- * A token this site issued (see `ctx.hedge.token`), brought back in the
- * `hedge` header or the `_hedge` form field: the one in the cookie is here,
+ * A token this site issued (see `ctx.csrf.token`), brought back in the
+ * `x-csrf-token` header or the `_csrf` form field: the one in the cookie is here,
  * any other is outside. The body is read only when a form could carry it,
  * and only on a copy, so the handler still gets it whole.
  */

@@ -18,7 +18,7 @@ export interface Wanted {
   url: URL
   method: string
   body?: FormData | URLSearchParams
-  /** One per attempt of a request that changes something, the same on a retry: the server answers it once (keep's `echo`). */
+  /** One per attempt of a request that changes something, the same on a retry: the server answers it once (keep's `idempotency`). */
   key?: string
   segments: string[]
   /** A stale entry will do (going back): shown at once, asked again behind. */

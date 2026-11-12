@@ -1,7 +1,7 @@
 import { describe, expect, spyOn, test } from 'bun:test'
 import { boat, redirect } from '../../../shared/boat'
 import { keep, type KeepOptions } from '../keep'
-import { MemoryStore, type EchoStore } from './store'
+import { MemoryStore, type IdempotencyStore } from './store'
 import { KEY_HEADER, REPLAYED_HEADER } from './vocabulary'
 
 function server(options: Omit<KeepOptions, 'router'> = {}) {
@@ -17,7 +17,7 @@ function server(options: Omit<KeepOptions, 'router'> = {}) {
     })
     .post('/huge', () => new Response('x'.repeat(1_000_001)))
     .get('/order', () => new Response('list'))
-  const s = keep({ router, hedge: false, ...options })
+  const s = keep({ router, csrf: false, ...options })
   return { s, orders: () => orders }
 }
 
@@ -35,7 +35,7 @@ const post = (
     }),
   )
 
-describe('echo', () => {
+describe('idempotency', () => {
   test('the same key again gets the first answer, and the handler ran once', async () => {
     const { s, orders } = server()
     const first = await post(s, '/order', 'k1')
@@ -63,7 +63,7 @@ describe('echo', () => {
     const other = await post(s, '/order', 'k1', 'n=2')
     expect(other.status).toBe(422)
     expect(await other.text()).toBe(
-      'echo: this Idempotency-Key was already used for another request',
+      'idempotency: this Idempotency-Key was already used for another request',
     )
   })
 
@@ -74,7 +74,7 @@ describe('echo', () => {
       await held
       return new Response('done')
     })
-    const s = keep({ router, hedge: false })
+    const s = keep({ router, csrf: false })
     const first = post(s, '/slow', 'k1')
     await new Promise((r) => setTimeout(r, 20))
     const second = await post(s, '/slow', 'k1')
@@ -95,7 +95,7 @@ describe('echo', () => {
   test('a recording expires', async () => {
     let clock = 0
     const store = new MemoryStore(() => clock)
-    const { s, orders } = server({ echo: { ttl: 60_000, store } })
+    const { s, orders } = server({ idempotency: { ttl: 60_000, store } })
     await post(s, '/order', 'k1')
     clock = 59_000
     await post(s, '/order', 'k1')
@@ -122,7 +122,7 @@ describe('echo', () => {
     const r = await post(s, '/huge', 'k1')
     expect((await r.text()).length).toBe(1_000_001)
     expect(warns).toHaveBeenCalledWith(
-      'echo: the answer to key "k1" is too big to keep; a retry would run again',
+      'idempotency: the answer to key "k1" is too big to keep; a retry would run again',
     )
     expect(
       (await post(s, '/huge', 'k1')).headers.get(REPLAYED_HEADER),
@@ -149,7 +149,7 @@ describe('echo', () => {
   test('a store of your own is used as it is', async () => {
     const seen: string[] = []
     const inner = new MemoryStore()
-    const store: EchoStore = {
+    const store: IdempotencyStore = {
       get: (key) => (seen.push(`get ${key}`), inner.get(key)),
       set: (key, recorded, ttl) => (
         seen.push(`set ${key} ${ttl}`),
@@ -157,7 +157,7 @@ describe('echo', () => {
       ),
       delete: (key) => (seen.push(`delete ${key}`), inner.delete(key)),
     }
-    const { s } = server({ echo: { store, ttl: 5000 } })
+    const { s } = server({ idempotency: { store, ttl: 5000 } })
     await post(s, '/order', 'k1')
     await post(s, '/order', 'k1')
     expect(seen).toEqual(['get k1', 'set k1 5000', 'set k1 5000', 'get k1'])

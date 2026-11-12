@@ -13,18 +13,18 @@ export interface RecordedResponse {
 }
 
 /**
- * Where echo keeps its recordings. One process needs nothing but memory;
+ * Where keep's idempotency keeps its recordings. One process needs nothing but memory;
  * several share one through anything with these three methods (a Redis
  * client behind a small adapter). `ttl` is milliseconds from now.
  */
-export interface EchoStore {
+export interface IdempotencyStore {
   get(key: string): Recorded | undefined | Promise<Recorded | undefined>
   set(key: string, recorded: Recorded, ttl: number): void | Promise<void>
   delete(key: string): void | Promise<void>
 }
 
 /** Recordings in memory, each gone once its time is over; the dead are swept on every write. */
-export class MemoryStore implements EchoStore {
+export class MemoryStore implements IdempotencyStore {
   private readonly entries = new Map<
     string,
     { recorded: Recorded; until: number }

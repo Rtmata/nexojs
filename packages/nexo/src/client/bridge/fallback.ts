@@ -56,7 +56,7 @@ export const RETURN: Arrival = {
  * GET (a link, a search form, a landing) by loading its URL, the fields
  * are in it. A POST may have reached the server before the connection
  * broke, so it is sent again only under its `Idempotency-Key`, which keep
- * answers once (`echo`) — once, and quietly; after that `bridge:fail`
+ * answers once (keep's `idempotency`) — once, and quietly; after that `bridge:fail`
  * tells the page and the form stays as it is, like the browser's error
  * page lets the visitor decide. A response that couldn't be swapped: the page
  * it points at is brought another way (as the whole page); when there is

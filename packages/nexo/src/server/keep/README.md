@@ -43,14 +43,14 @@ The router may also be a plain `(request) => Response` function. Every option be
 
 ## Options
 
-| Option        | Default         | What it does                                                                                                                                      |
-| ------------- | --------------- | ------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `router`      | required        | A `boat()` router, anything meeting `KeepRouter`, or a plain `(request) => Response` function.                                                    |
-| `static`      | none            | Folders served when no route matches: `'./public'`, `{ dir, at, cache, watch }`, or a list of both. Routes always win.                            |
-| `idleTimeout` | `2 * 60 * 1000` | Milliseconds a silent connection stays open (0: forever; at most 255 s, Bun's limit). A stream sending heartbeats more often stays open.          |
-| `hedge`       | on              | Requests that change something must come from this site. `false` turns it off; `{ trusted, except, strict }` tunes it.                            |
-| `bunker`      | on              | The headers every response carries. `false` turns them off; an object tunes each one or adds a Content Security Policy.                           |
-| `echo`        | always on       | A request sent twice with the same `Idempotency-Key` is answered once. `{ ttl, store }` tunes how long (an hour by default) and where it is kept. |
+| Option            | Default         | What it does                                                                                                                                      |
+| ----------------- | --------------- | ------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `router`          | required        | A `boat()` router, anything meeting `KeepRouter`, or a plain `(request) => Response` function.                                                    |
+| `static`          | none            | Folders served when no route matches: `'./public'`, `{ dir, at, cache, watch }`, or a list of both. Routes always win.                            |
+| `idleTimeout`     | `2 * 60 * 1000` | Milliseconds a silent connection stays open (0: forever; at most 255 s, Bun's limit). A stream sending heartbeats more often stays open.          |
+| `csrf`            | on              | Requests that change something must come from this site. `false` turns it off; `{ trusted, except, strict }` tunes it.                            |
+| `securityHeaders` | on              | The headers every response carries. `false` turns them off; an object tunes each one or adds a Content Security Policy.                           |
+| `idempotency`     | always on       | A request sent twice with the same `Idempotency-Key` is answered once. `{ ttl, store }` tunes how long (an hour by default) and where it is kept. |
 
 ## The server
 
@@ -62,7 +62,7 @@ The router may also be a plain `(request) => Response` function. Every option be
 | `url`                             | Where it listens, once it does; `null` before and after.                                                                                             |
 | `stop({ grace })`                 | No new requests; the ones running get `grace` ms (5000) to finish, then their connections are closed.                                                |
 
-A middleware wraps the whole flow; the first one added is the outermost. The order keep itself uses: `bunker` (every answer gets its headers, even a refusal), `hedge`, `echo`, then yours, then the request flow.
+A middleware wraps the whole flow; the first one added is the outermost. The order keep itself uses: `securityHeaders` (every answer gets its headers, even a refusal), `csrf`, `idempotency`, then yours, then the request flow.
 
 ```ts
 server.use({
@@ -104,7 +104,7 @@ While listening, the files of each folder are known from memory and the folder i
 
 The same files on a route of your own: `router.get('/covers/*', files('./data/covers', { cache: 'immutable' }))`.
 
-## hedge — requests that change something must come from here
+## csrf — requests that change something must come from here
 
 One question for every request that is not GET, HEAD or OPTIONS, answered by the first proof that can speak: the browser's `Sec-Fetch-Site`, then its `Origin`, then a token this site issued. A request from outside gets a 403 before any handler runs.
 
@@ -114,17 +114,17 @@ One question for every request that is not GET, HEAD or OPTIONS, answered by the
 | `except`  | Paths never judged: as written, or a prefix ending in `/` (`'/api/'`).                  |
 | `strict`  | A request nobody can vouch for is refused. By default it passes (curl, tests, servers). |
 
-The token: every request gets one in `ctx.hedge.token`; a browser without it is given it in a cookie (`__Host-hedge` over HTTPS and on localhost, `hedge` elsewhere). A form puts it in a hidden field, a `fetch` in a header:
+The token: every request gets one in `ctx.csrf.token`; a browser without it is given it in a cookie (`__Host-csrf` over HTTPS and on localhost, `csrf` elsewhere). A form puts it in a hidden field, a `fetch` in a header:
 
 ```tsx
-;<input type="hidden" name="_hedge" value={ctx.hedge.token} />
+;<input type="hidden" name="_csrf" value={ctx.csrf.token} />
 // or
-fetch('/order', { method: 'POST', headers: { hedge: token } })
+fetch('/order', { method: 'POST', headers: { 'x-csrf-token': token } })
 ```
 
 Only `strict` mode needs the token; with the browser's headers it is never asked for.
 
-## bunker — the headers every response carries
+## securityHeaders — the headers every response carries
 
 On by default: `X-Content-Type-Options: nosniff`, `Referrer-Policy: strict-origin-when-cross-origin`, `X-Frame-Options: SAMEORIGIN`, `Cross-Origin-Opener-Policy: same-origin`, `Cross-Origin-Resource-Policy: same-origin`, `X-Permitted-Cross-Domain-Policies: none`, `X-DNS-Prefetch-Control: off`, `X-XSS-Protection: 0`, and over HTTPS `Strict-Transport-Security: max-age=15552000; includeSubDomains`. Each is a knob (`frameOptions`, `resourcePolicy`, `strictTransportSecurity`…) taking its own value or `false`. A header a handler set itself stays.
 
@@ -133,7 +133,7 @@ A Content Security Policy is written as it is sent, with `'nonce'` standing for 
 ```ts
 keep({
   router,
-  bunker: {
+  securityHeaders: {
     csp: {
       'default-src': ["'self'"],
       'script-src': ["'self'", 'nonce', "'inline-speculation-rules'"],
@@ -142,27 +142,27 @@ keep({
   },
 })
 // in a page:
-<script nonce={ctx.bunker.nonce}>…</script>
+<script nonce={ctx.nonce}>…</script>
 ```
 
 `'inline-speculation-rules'` lets bridge's prefetch rules through. An unknown directive name throws at setup.
 
-## echo — a request sent twice is answered once
+## idempotency — a request sent twice is answered once
 
 A client that may have to send a request again (bridge, when no response came back) puts the same `Idempotency-Key` on every try. keep records the first answer under the key and plays it again (`Idempotent-Replayed: true`) for the rest; the same key with another request is refused (422), and while the first is still being answered so is a second (409). Server errors (5xx) and answers over 1 MB are not recorded: a retry runs again. Requests without the header pass as they are.
 
 ```ts
-keep({ router, echo: { ttl: 24 * 60 * 60 * 1000, store: myRedisStore } }) // ms, as every Nexo time; any { get, set, delete }
+keep({ router, idempotency: { ttl: 24 * 60 * 60 * 1000, store: myRedisStore } }) // ms, as every Nexo time; any { get, set, delete }
 ```
 
 ## In production
 
-keep sends bytes as they are: no gzip, no brotli. Put a reverse proxy in front (Caddy compresses by default; nginx with `gzip on`); it also terminates TLS. Behind it, keep sees plain HTTP: hedge's cookie then goes without `__Host-` and HSTS is not sent — a "behind a proxy" option is a later item.
+keep sends bytes as they are: no gzip, no brotli. Put a reverse proxy in front (Caddy compresses by default; nginx with `gzip on`); it also terminates TLS. Behind it, keep sees plain HTTP: the csrf cookie then goes without `__Host-` and HSTS is not sent — a "behind a proxy" option is a later item.
 
 ## Why it works this way
 
 - **Web standards, nothing else.** A handler takes a context and returns a standard `Response`; there are no `c.html()` helpers to learn. Bun sits behind a thin layer (the only one today), and a test is one `server.fetch(request)` with no network.
-- **Safe by default, each part a knob.** `hedge`, `bunker` and `echo` are on unless you turn them off, as Rails and Django protect forms by default: left to each app, each app has to remember it. Each one does one job: hedge judges requests, bunker decorates responses, echo answers retries. They were not merged into one, because judging a request and dressing a response are different jobs.
+- **Safe by default, each part a knob.** `csrf`, `securityHeaders` and `idempotency` are on unless you turn them off, as Rails and Django protect forms by default: left to each app, each app has to remember it. Each one does one job: csrf judges requests, securityHeaders dresses responses, idempotency answers retries. They were not merged into one, because judging a request and dressing a response are different jobs.
 - **One question for "is this request from here?".** The browser's own `Sec-Fetch-Site` and `Origin` answer it first, and a token only when they can't. One verdict and one 403, instead of a token on every form plus a separate origin check. A request nobody can vouch for (curl, tests) passes unless you ask for `strict`, the way Go 1.25 decides it.
 - **No Content Security Policy by default.** A strict default policy breaks inline styles and bridge's prefetch rules on the first page. It is one explicit option, with a nonce minted per request.
 - **Routes win over files, and you're told.** A file hidden by a route is reported when the server starts, instead of being served sometimes. Static files are the same `files()` handler you can mount yourself.
