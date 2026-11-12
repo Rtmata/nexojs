@@ -45,7 +45,7 @@ export interface BridgeHooks {
 }
 
 const CLIENT_ENTRY = fileURLToPath(
-  new URL('../../client/bridge/bridge.ts', import.meta.url),
+  new URL('../../client/bridge/served.ts', import.meta.url),
 )
 
 interface Built {

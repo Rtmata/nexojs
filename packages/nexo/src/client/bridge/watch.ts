@@ -26,7 +26,12 @@ export class Watch {
     private readonly selector: string,
     private readonly role: string,
     private readonly act: (element: Element) => void,
-  ) {}
+    signal: AbortSignal,
+  ) {
+    signal.addEventListener('abort', () => this.observer.disconnect(), {
+      once: true,
+    })
+  }
 
   scan(root: ParentNode): void {
     for (const element of candidates(root, this.selector)) {

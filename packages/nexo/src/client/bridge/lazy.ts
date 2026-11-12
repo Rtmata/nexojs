@@ -39,11 +39,14 @@ function urlOf(element: Element): URL | null {
  * the focus never moves.
  */
 export class Lazy {
-  private readonly watch = new Watch(SELF_LOADING, 'load', (element) =>
-    this.load(element),
-  )
+  private readonly watch: Watch
 
-  constructor(private readonly session: Session) {}
+  constructor(
+    private readonly session: Session,
+    signal: AbortSignal,
+  ) {
+    this.watch = new Watch(SELF_LOADING, 'load', (e) => this.load(e), signal)
+  }
 
   /** `from`: the URL the content in `root` just came from. */
   scan(root: ParentNode, from?: URL): void {

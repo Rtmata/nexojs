@@ -193,7 +193,7 @@
     "directory": "packages/nexo"
   },
   "sideEffects": [
-    "./src/client/bridge/bridge.ts",
-    "./dist/client/bridge/bridge.js"
+    "./src/client/bridge/served.ts",
+    "./dist/client/bridge/served.js"
   ]
 }

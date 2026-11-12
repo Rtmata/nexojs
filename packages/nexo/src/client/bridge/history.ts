@@ -52,14 +52,26 @@ export class HistoryKeeper {
   /** A URL a scroll marker asked for, waiting for the page to settle; null when the address bar is right as it is. */
   private retitled: string | null = null
 
-  constructor(private readonly restore: Restore) {
+  constructor(
+    private readonly restore: Restore,
+    signal: AbortSignal,
+  ) {
     history.scrollRestoration = 'manual'
     this.current = this.shown = this.kept() ?? this.fresh()
     this.write('replaceState', this.current)
-    addEventListener('popstate', (event: PopStateEvent) =>
-      this.travel(event.state?.bridge),
+    addEventListener(
+      'popstate',
+      (event: PopStateEvent) => this.travel(event.state?.bridge),
+      { signal },
     )
-    addEventListener('scroll', () => this.settle(), { passive: true })
+    addEventListener('scroll', () => this.settle(), { passive: true, signal })
+    signal.addEventListener(
+      'abort',
+      () => (history.scrollRestoration = 'auto'),
+      {
+        once: true,
+      },
+    )
   }
 
   /** Called after a swap and its scroll, with the scroll as it was before them: `push` adds an entry, `replace` rewrites the current one; either starts where the page is now. */

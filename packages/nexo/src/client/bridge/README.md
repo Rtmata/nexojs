@@ -49,6 +49,21 @@ router.get('/shelf/:n', (ctx) => render(<Shelf />, { only: segmentsOf(ctx.url) }
 <Segment name="shelf">…links and forms…</Segment>
 ```
 
+**Start bridge once per page, in one script.** A page with no script of its own loads the served `/_nexo/bridge.js`, which starts bridge for the page's life. A page that uses bridge from its own code (`visit`, `arrivals`) does one of two things:
+
+- an import map that sends `@nexoamigos/nexo/bridge/client` to `/_nexo/bridge.js`, so the served script and your code are one module and one bridge;
+- or a bundled client entry that calls `start({ signal })` itself, and no served script.
+
+Importing `bridge/client` starts nothing. While bridge runs, `<html>` carries `data-bridge-started`, so a second `start` from any script throws. `visit`, `reload`, `prefetch` and `arrivals` in a script where bridge isn't started throw, saying how to start it.
+
+```ts
+// a bundled client entry
+import { arrivals, start } from '@nexoamigos/nexo/bridge/client'
+
+start({ signal: new AbortController().signal })
+arrivals((segment, { signal }) => attach(segment, panels, { signal }))
+```
+
 A `<Segment name="shelf">` is a region of the page that can be replaced on its own (`data-bridge-segment="shelf"` in the HTML). A link or form inside one is fetched with `?_segment=shelf` — a plain URL you can paste or `curl` — and `render`'s `only` answers with those segments alone. Names may not start with `_`.
 
 ## Attributes
@@ -169,6 +184,7 @@ document.addEventListener('bridge:transition', (event) => {
 ## Why it works this way
 
 - **The server renders whole pages; the browser swaps parts of them.** Every URL answers with a real page, so links, forms, `curl` and search engines work with no JavaScript at all, and bridge is a layer you add, never a requirement. A client that renders the page itself (hydration) was set aside: it needs the same code twice and a page that is blank until the JS runs.
+- **Started where you write it, once.** Importing bridge starts nothing; the served script or your entry calls `start`. Starting on import put a second copy of bridge on a page that both loaded the script and bundled an import, and every click was followed twice, with two caches and two histories; segments' lives kept by one copy were ended by the other. The `<html data-bridge-started>` mark makes that mistake an error you see.
 - **A segment is named in the HTML, not chosen with a selector.** `data-bridge-segment="shelf"` and `data-bridge-target="shelf"` say what changes in words a reader can follow, and the same names travel in the URL (`?_segment=shelf`) so the server can answer with just those parts. Any server works: without `only`, bridge cuts the segment out of the whole page.
 - **One rule for every attribute: inherited from the closest ancestor.** Set `_top` on `<html>` and the site swaps whole pages; set `_none` on a section and its links stay the browser's. No second mechanism for site-wide settings.
 - **bridge injects no CSS, no progress bar and no script into what it swaps.** It marks the state (`aria-busy`, `data-active`, `data-exiting`, `data-bridge-direction`) and your CSS shows it. Client code lives in modules that listen for `bridge:swapped` or use `arrivals`, so nothing runs from swapped HTML.

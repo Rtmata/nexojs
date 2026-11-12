@@ -47,6 +47,8 @@ const panels = registry({ dialog, feed, focusgroup, tabs })
 arrivals((segment, { signal }) => attach(segment, panels, { signal }))
 ```
 
+`arrivals` needs bridge started in the same script: through an import map that sends `@nexoamigos/nexo/bridge/client` to the served `/_nexo/bridge.js`, or by calling `start({ signal })` in your own entry (see bridge's README). Without bridge, attach once: `attach(document.body, panels, { signal })`.
+
 Gap bridges fill in what an engine lacks today and are marked for removal when support lands.
 
 A hyphenated name is a registry key: `registry({ 'press-hold': pressHold })`, and its params read `data-press-hold-duration`. A boolean param is on by its presence, and off by the one text `"false"` (`data-x-open="false"`, for a param whose default is on). Every panel event is `<panel>:<verb>`, bubbles, and carries its facts in `detail`. Every panel takes back what it wrote when it ends (its `signal` aborts): the markup is the server's again. A panel that throws (the wrong element, a bad param) is reported as an uncaught error naming it, and the rest of the page's panels still connect.

@@ -22,18 +22,33 @@ import { Watch } from './watch'
  * same to its own rules.
  */
 export class Prefetch {
-  private readonly watch = new Watch('a[href]', 'prefetch', (link) =>
-    this.bring(link as HTMLAnchorElement),
-  )
+  private readonly watch: Watch
   private readonly rules = new SpeculationRules()
   private readonly hovers = new Hovers((link) => this.bring(link))
 
-  constructor(private readonly loader: Loader) {
-    document.addEventListener('pointerdown', (e) => this.on(e, 'tap'), true)
-    document.addEventListener('pointerover', (e) => this.on(e, 'hover'), true)
-    document.addEventListener('focusin', (e) => this.on(e, 'hover'), true)
-    document.addEventListener('pointerout', (e) => this.off(e), true)
-    document.addEventListener('focusout', (e) => this.off(e), true)
+  constructor(
+    private readonly loader: Loader,
+    signal: AbortSignal,
+  ) {
+    const bring = (link: Element) => this.bring(link as HTMLAnchorElement)
+    this.watch = new Watch('a[href]', 'prefetch', bring, signal)
+    const capture = { capture: true, signal }
+    document.addEventListener('pointerdown', (e) => this.on(e, 'tap'), capture)
+    document.addEventListener(
+      'pointerover',
+      (e) => this.on(e, 'hover'),
+      capture,
+    )
+    document.addEventListener('focusin', (e) => this.on(e, 'hover'), capture)
+    document.addEventListener('pointerout', (e) => this.off(e), capture)
+    document.addEventListener('focusout', (e) => this.off(e), capture)
+    signal.addEventListener(
+      'abort',
+      () => (this.hovers.clear(), this.rules.clear()),
+      {
+        once: true,
+      },
+    )
   }
 
   scan(root: ParentNode): void {
@@ -84,6 +99,11 @@ class Hovers {
   end(link: Element): void {
     clearTimeout(this.timers.get(link))
     this.timers.delete(link)
+  }
+
+  clear(): void {
+    for (const timer of this.timers.values()) clearTimeout(timer)
+    this.timers.clear()
   }
 }
 
@@ -157,6 +177,11 @@ class SpeculationRules {
         this.urls[eagerness].add(link.href)
     }
     if (this.count() !== before) this.write()
+  }
+
+  /** bridge stopped: its rules leave the page. */
+  clear(): void {
+    document.querySelector(`script[${OWNED}]`)?.remove()
   }
 
   private count(): number {

@@ -14,7 +14,14 @@ export class HexTrail {
     this.update(entries),
   )
 
-  constructor(private readonly history: HistoryKeeper) {}
+  constructor(
+    private readonly history: HistoryKeeper,
+    signal: AbortSignal,
+  ) {
+    signal.addEventListener('abort', () => this.observer.disconnect(), {
+      once: true,
+    })
+  }
 
   scan(root: ParentNode): void {
     for (const marker of root.querySelectorAll(`[${HEX}]`))
