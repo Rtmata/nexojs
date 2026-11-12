@@ -93,6 +93,17 @@ describe('csrf: where a request comes from', () => {
     expect((await behind('https://museo.test:8443')).status).toBe(403) // another port is another host
   })
 
+  test('never the other way: an http page posting to the https site is outside', async () => {
+    const s = server()
+    const r = await s.fetch(
+      new Request('https://museo.test/order', {
+        method: 'POST',
+        headers: { origin: 'http://museo.test' },
+      }),
+    )
+    expect(r.status).toBe(403)
+  })
+
   test('nobody speaking passes by default, and is refused when strict', async () => {
     expect((await post(server(), '/order')).status).toBe(200)
     expect(

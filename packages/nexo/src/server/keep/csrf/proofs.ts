@@ -34,10 +34,9 @@ export class FetchSite implements Proof {
 
 /**
  * The `Origin` header, for browsers that send it without Fetch Metadata:
- * this site's host or a trusted origin is here; another, or `null` (a
- * sandboxed page, a redirect), is outside. The host, not the whole
- * origin: behind a TLS proxy the browser says `https://site` while keep
- * sees `http://site`, the same site.
+ * this site's origin (or its https form behind a TLS proxy) or a trusted
+ * one is here; another, or `null` (a sandboxed page, a redirect), is
+ * outside.
  */
 export class OriginHeader implements Proof {
   constructor(private readonly trusted: ReadonlySet<string>) {}
@@ -46,17 +45,18 @@ export class OriginHeader implements Proof {
     const origin = request.headers.get('origin')
     if (origin === null) return null
     if (this.trusted.has(origin)) return 'here'
-    return hostOf(origin) === new URL(request.url).host ? 'here' : 'outside'
+    return sameSite(origin, new URL(request.url)) ? 'here' : 'outside'
   }
 }
 
-/** `https://site:8443` → `site:8443`; `null`, or anything not a URL, has none. */
-function hostOf(origin: string): string | undefined {
-  try {
-    return new URL(origin).host
-  } catch {
-    return undefined
-  }
+/**
+ * The same origin, or the one case a TLS proxy makes: the browser on
+ * `https://site` while keep sees `http://site`. Never the other way: an
+ * `http://` page must not post to the `https://` site.
+ */
+function sameSite(origin: string, url: URL): boolean {
+  if (origin === url.origin) return true
+  return url.protocol === 'http:' && origin === `https://${url.host}`
 }
 
 /**
