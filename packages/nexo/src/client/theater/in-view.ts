@@ -31,19 +31,22 @@ function thresholdOf(amount: InViewOptions['amount'] = 'some'): number {
  */
 class Visits {
   private visit: AbortController | null = null
+  /** With `once`, the one visit already began: a later entry in the same batch starts none. */
+  private spent = false
 
   constructor(
     private readonly enter: Visit,
     private readonly threshold: number,
     /** Called when a visit ends: with `once`, stop watching the element. */
     private readonly ended: () => void = () => {},
+    private readonly once = false,
   ) {}
 
   /** Starts a visit when the entry is inside, ends it when outside. */
   seen(entry: IntersectionObserverEntry): void {
     const inside =
       entry.isIntersecting && entry.intersectionRatio >= this.threshold
-    if (inside && !this.visit) this.start(entry)
+    if (inside && !this.visit && !this.spent) this.start(entry)
     if (!inside) this.end()
   }
 
@@ -62,6 +65,7 @@ class Visits {
    */
   private start(entry: IntersectionObserverEntry): void {
     this.visit = new AbortController()
+    this.spent = this.once
     try {
       this.enter(entry, { signal: this.visit.signal })
     } catch (error) {
@@ -101,7 +105,7 @@ class Watch {
   ) {
     const threshold = thresholdOf(options.amount)
     const visits = (el: Element) =>
-      new Visits(enter, threshold, this.endedOf(el))
+      new Visits(enter, threshold, this.endedOf(el), this.options.once)
     this.visits = new Map(elements.map((el) => [el, visits(el)]))
     this.observer = this.observerOf(threshold)
     for (const el of elements) this.observer.observe(el)
