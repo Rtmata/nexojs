@@ -23,8 +23,7 @@ describe('routes per language', () => {
   test('each language is a normal route, and ctx.lang says which one answered', async () => {
     const router = boat({ languages: ['en', 'es'] })
     router.get(
-      'console',
-      { en: '/en/console/:id', es: '/es/consola/:id' },
+      route('console', { en: '/en/console/:id', es: '/es/consola/:id' }),
       (ctx) => new Response(`${ctx.lang}:${ctx.params.id}`),
     )
 
@@ -38,14 +37,14 @@ describe('routes per language', () => {
 
   test('a missing language throws when the route is registered', () => {
     const router = boat({ languages: ['en', 'es'] })
-    expect(() => router.get('console', { es: '/es/consola/:id' }, ok)).toThrow(
-      'route "console" has no path for "en"',
-    )
+    expect(() =>
+      router.get(route('console', { es: '/es/consola/:id' }), ok),
+    ).toThrow('route "console" has no path for "en"')
   })
 
   test('{ only } allows a route in fewer languages on purpose', () => {
     const router = boat({ languages: ['en', 'es'] })
-    router.get('press', { es: '/es/prensa' }, ok, { only: ['es'] })
+    router.get(route('press', { es: '/es/prensa' }), ok, { only: ['es'] })
     expect(router.href('press', {}, 'es')).toBe('/es/prensa')
     expect(() => router.href('press', {}, 'en')).toThrow('has no "en" version')
   })
@@ -54,15 +53,14 @@ describe('routes per language', () => {
     const router = boat({ languages: ['en', 'es'] })
     expect(() =>
       router.get(
-        'console',
-        { en: '/en/c', es: '/es/c', pt: '/pt/c' } as any,
+        route('console', { en: '/en/c', es: '/es/c', pt: '/pt/c' } as any),
         ok,
       ),
     ).toThrow('uses language "pt"')
   })
 
   test('paths per language need declared languages', () => {
-    expect(() => boat().get('console', { en: '/en/c' }, ok)).toThrow(
+    expect(() => boat().get(route('console', { en: '/en/c' }), ok)).toThrow(
       'no languages were declared',
     )
   })
@@ -70,8 +68,11 @@ describe('routes per language', () => {
 
 describe('href', () => {
   const router = boat({ languages: ['en', 'es'] })
-  router.get('console', { en: '/en/console/:id', es: '/es/consola/:id' }, ok)
-  router.get('about', '/about', ok)
+  router.get(
+    route('console', { en: '/en/console/:id', es: '/es/consola/:id' }),
+    ok,
+  )
+  router.get(route('about', '/about'), ok)
   router.get('/plain', ok)
 
   test('fills the path of the requested language', () => {
@@ -107,8 +108,7 @@ describe('href', () => {
   test('ctx.link uses the language of the route that answered', async () => {
     const r = boat({ languages: ['en', 'es'] })
     r.get(
-      'console',
-      { en: '/en/console/:id', es: '/es/consola/:id' },
+      route('console', { en: '/en/console/:id', es: '/es/consola/:id' }),
       (ctx) => new Response(ctx.link('console', { id: 'snes' })),
     )
     expect(await (await visit(r, '/es/consola/nes')).text()).toBe(
@@ -118,9 +118,9 @@ describe('href', () => {
 
   test('the same name may be reused only with the same paths (GET and POST of one page)', () => {
     const r = boat()
-    r.get('vote', '/vote', ok)
-    r.post('vote', '/vote', ok)
-    expect(() => r.put('vote', '/other', ok)).toThrow(
+    r.get(route('vote', '/vote'), ok)
+    r.post(route('vote', '/vote'), ok)
+    expect(() => r.put(route('vote', '/other'), ok)).toThrow(
       'two different routes are named "vote"',
     )
   })
@@ -129,7 +129,10 @@ describe('href', () => {
 describe('alternates', () => {
   test('gives the current page in every language', () => {
     const router = boat({ languages: ['en', 'es'] })
-    router.get('console', { en: '/en/console/:id', es: '/es/consola/:id' }, ok)
+    router.get(
+      route('console', { en: '/en/console/:id', es: '/es/consola/:id' }),
+      ok,
+    )
     router.get('/plain', ok)
 
     expect(
@@ -257,7 +260,7 @@ describe('langFrom', () => {
 
   test('two languages may share a path when langFrom tells them apart', () => {
     const router = boat({ languages: ['en', 'es'], langFrom: 'subdomain' })
-    router.get('arcade', { en: '/arcade', es: '/arcade' }, ok)
+    router.get(route('arcade', { en: '/arcade', es: '/arcade' }), ok)
     expect(router.match('GET', '/arcade', 'es')?.route.lang).toBe('es')
     expect(router.match('GET', '/arcade', 'en')?.route.lang).toBe('en')
     // No language known: the default one answers.
@@ -267,7 +270,7 @@ describe('langFrom', () => {
   test('without langFrom, a shared path is still a clash, with a hint', () => {
     const router = boat({ languages: ['en', 'es'] })
     expect(() =>
-      router.get('arcade', { en: '/arcade', es: '/arcade' }, ok),
+      router.get(route('arcade', { en: '/arcade', es: '/arcade' }), ok),
     ).toThrow("tell them apart with a langFrom that doesn't read the path")
   })
   test('language tags and cookie values are read case-insensitively, quotes allowed', () => {
@@ -298,7 +301,7 @@ describe('langFrom', () => {
 
   test('alternates of a shared path point at each language through the URL', () => {
     const bySubdomain = boat({ languages: ['en', 'es'], langFrom: 'subdomain' })
-    bySubdomain.get('arcade', { en: '/arcade', es: '/arcade' }, ok)
+    bySubdomain.get(route('arcade', { en: '/arcade', es: '/arcade' }), ok)
     expect(
       bySubdomain.alternates({
         url: new URL('http://es.museum.test/arcade'),
@@ -313,7 +316,7 @@ describe('langFrom', () => {
       languages: ['en', 'es'],
       langFrom: { query: 'lang' },
     })
-    byQuery.get('arcade', { en: '/arcade', es: '/arcade' }, ok)
+    byQuery.get(route('arcade', { en: '/arcade', es: '/arcade' }), ok)
     expect(
       byQuery.alternates({ url: new URL('http://x/arcade?lang=es') }),
     ).toEqual({
@@ -325,7 +328,7 @@ describe('langFrom', () => {
       languages: ['en', 'es'],
       langFrom: { cookie: 'lang' },
     })
-    byCookie.get('arcade', { en: '/arcade', es: '/arcade' }, ok)
+    byCookie.get(route('arcade', { en: '/arcade', es: '/arcade' }), ok)
     expect(byCookie.alternates({ url: new URL('http://x/arcade') })).toEqual({})
   })
 })
@@ -333,7 +336,10 @@ describe('langFrom', () => {
 describe('languages, more cases', () => {
   test('ctx.link in a route falls back to the default language', async () => {
     const router = boat({ languages: ['en', 'es'] })
-    router.get('console', { en: '/en/console/:id', es: '/es/consola/:id' }, ok)
+    router.get(
+      route('console', { en: '/en/console/:id', es: '/es/consola/:id' }),
+      ok,
+    )
     router.get('/', (ctx) => new Response(ctx.link('console', { id: 'nes' })))
     const found = router.match('GET', '/')!
     const response = await found.route.handler({
@@ -347,7 +353,10 @@ describe('languages, more cases', () => {
 
   test('alternates skip a language whose path needs a param this URL lacks', () => {
     const router = boat({ languages: ['en', 'es'] })
-    router.get('c', { en: '/en/console/:slug', es: '/es/consola/:id' }, ok)
+    router.get(
+      route('c', { en: '/en/console/:slug', es: '/es/consola/:id' }),
+      ok,
+    )
     expect(
       router.alternates({ url: new URL('http://x/en/console/nes') }),
     ).toEqual({
@@ -363,7 +372,7 @@ describe('languages, more cases', () => {
   test('a failed registration leaves nothing behind', () => {
     const router = boat({ languages: ['en', 'es'] })
     router.get('/b', ok)
-    expect(() => router.get('x', { en: '/a', es: '/b' }, ok)).toThrow(
+    expect(() => router.get(route('x', { en: '/a', es: '/b' }), ok)).toThrow(
       'match exactly the same URLs',
     )
     expect(router.routes.map((r) => r.pattern.path)).toEqual(['/b'])

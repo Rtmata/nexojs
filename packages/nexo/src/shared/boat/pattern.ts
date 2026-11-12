@@ -59,16 +59,15 @@ export class Pattern {
    * The URL these params make. Missing, unknown or dot-segment values throw:
    * a broken link fails loudly instead of pointing somewhere wrong.
    */
-  fill(values: LinkParams = {}): string {
+  fill(values: LinkParams = {}): `/${string}` {
     const unknown = Object.keys(values).filter((n) => !this.params.includes(n))
     if (unknown.length > 0) {
       throw new Error(
         `boat: "${this.path}" has no param ${quoted(unknown)}. Give only the params its path names`,
       )
     }
-    return (
-      '/' + this.segments.flatMap((s) => this.fillSegment(s, values)).join('/')
-    )
+    const path = this.segments.flatMap((s) => this.fillSegment(s, values))
+    return `/${path.join('/')}`
   }
 
   /** Only the params this pattern uses, so a URL with more still links. */

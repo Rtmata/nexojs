@@ -89,12 +89,12 @@ export interface Link<L extends string = string> {
     route: R,
     params: ParamsIn<R['paths'], Lang> | undefined,
     lang: Lang,
-  ): string
+  ): `/${string}`
   <R extends RouteDef<string, any>>(
     route: R,
     params?: ParamsForAll<R['paths']>,
-  ): string
-  (name: string, params?: LinkParams, lang?: L): string
+  ): `/${string}`
+  (name: string, params?: LinkParams, lang?: L): `/${string}`
 }
 
 /** The params a link must give to fit every path of a route. */
@@ -182,5 +182,5 @@ export interface RouteDef<N extends string, Paths extends RoutePaths> {
   /** The params checked against the path of the language given: `:slug` in 'es', `:id` in 'en'. */
   href<const Lang extends LanguagesOf<Paths>>(
     ...args: HrefArgs<ParamsIn<Paths, Lang>, Lang>
-  ): string
+  ): `/${string}` // every path starts with "/": boat refuses one that doesn't
 }

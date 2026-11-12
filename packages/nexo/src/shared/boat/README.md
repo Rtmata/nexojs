@@ -55,9 +55,10 @@ The server router is `@nexoamigos/nexo/boat`; the browser one is `@nexoamigos/ne
 
 ## Names and links
 
-- A route with a name can be linked to: `router.get('about', '/about', handler)`, then `router.href('about')` or `ctx.link('about')`.
-- `route('game', paths)` declares a route on its own, in any file. Links to it are checked by the editor (a missing param is a type error) and built without the router: `gameRoute.href({ id: 'nes' }, 'es')`.
-- `router.check()` throws if something declared can't work, such as a redirect to a name never registered. keep calls it when the server starts.
+- **Two ways to register, told apart by what you pass, never by its text:** a path (`router.get('/health', handler)`, a route with no name) or a `route()`. A name, or a path per language, always goes in `route()`.
+- `route('game', paths)` declares a route on its own, in any file: `router.get(gameRoute, handler)`. Links to it are checked by the editor (a missing param is a type error) and built without the router: `gameRoute.href({ id: 'nes' }, 'es')`. `router.href('game', …)` and `ctx.link('game', …)` build them by name too.
+- A redirect goes to a path, a full URL, a `route()` or a function. A route's bare name is refused: pass its `route()`.
+- `router.check()` throws if something declared can't work, such as a redirect to a `route()` never registered. keep calls it when the server starts.
 
 ## Languages
 
@@ -66,7 +67,11 @@ const router = boat({
   languages: ['en', 'es'],
   langFrom: ['prefix', { cookie: 'lang' }, 'header'],
 })
-router.get('console', { en: '/en/console/:id', es: '/es/consola/:id' }, handler)
+const consoleRoute = route('console', {
+  en: '/en/console/:id',
+  es: '/es/consola/:id',
+})
+router.get(consoleRoute, handler)
 ```
 
 - A route may have a path per language. Each becomes a normal route, and `ctx.lang` says which answered. A route declared per language needs a path for each language, unless it says `{ only: ['es'] }`.
@@ -126,7 +131,7 @@ mount(
 
 - **Standard `Request` in, `Response` out.** A handler is a plain function you can call in a test. Helpers like `c.html()` would be a second way to answer, to learn and to keep in step with the platform.
 - **The most specific route wins, and clashes are errors.** First-match-in-order routing makes registration order a hidden rule; here a mistake is found when the server starts.
-- **Routes in code, as values.** `route()` makes links checkable from any file. File-based routing can come later as a layer that calls the same router.
+- **Routes in code, as values.** `route()` makes links checkable from any file, and it is the one way to name a route: a text that meant a path when it started with `/` and a name otherwise was set aside, since a typo silently changed its meaning. File-based routing can come later as a layer that calls the same router.
 - **"Not found" has two kinds.** No route at all, and a route whose thing doesn't exist. Both reach the same page, but a loader can say the second without faking a missing route.
 - **Languages are routes, not a rewrite.** Each language's path is a real route, so links, redirects and `alternates` know about every language with no URL rewriting in between.
 - **The browser router imports nothing.** It takes `match`, the URL source and the signals library as values, so it works without omino or connector, and a desktop app picks the hash while a site picks the Navigation API.

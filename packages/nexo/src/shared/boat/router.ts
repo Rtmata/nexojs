@@ -4,15 +4,9 @@ import { NameBook } from './name-book'
 import { isNotFound } from '../http/not-found'
 import type { Pattern } from './pattern'
 import { redirect, type RedirectStatus } from './redirect'
-import { RedirectSource, Redirects } from './redirects'
+import { isAbsolute, RedirectSource, Redirects } from './redirects'
 import { Registration } from './registration'
-import {
-  isPathsObject,
-  isRouteDef,
-  Variants,
-  type RouteDef,
-  type RoutePaths,
-} from './route'
+import { isRouteDef, Variants, type RouteDef, type RoutePaths } from './route'
 import { RouteTable, type Match, type Route } from './route-table'
 import type {
   Context,
@@ -52,11 +46,15 @@ export interface RouteOptions<L extends string> {
 }
 
 /**
- * Where a declared redirect goes: a fixed path, a route name, a `route()`
- * (params carry over) or a function of the request.
+ * Where a declared redirect goes: a path or a full URL, a `route()`
+ * (params carry over) or a function of the request. A route's name alone
+ * is not one: its `route()` is, and the editor checks it.
  */
 export type RedirectTarget =
-  string | RouteDef<string, any> | ((ctx: Context) => string)
+  | `/${string}`
+  | `${string}:${string}`
+  | RouteDef<string, any>
+  | ((ctx: Context) => string)
 
 type ContextFor<
   R extends RouteDef<string, any>,
@@ -82,23 +80,6 @@ export interface Register<L extends string> {
     handler: RouteHandler<R['params'], ContextFor<R, L>, D>,
     options?: RouteOptions<L>,
   ): Router<L>
-  /** A named path, so links can be built to it: `router.get('about', '/about', handler)` */
-  <P extends `/${string}`, D>(
-    name: string,
-    path: P,
-    handler: RouteHandler<PathParams<P>, Context<PathParams<P>, L>, D>,
-  ): Router<L>
-  /** A name and one path per language: `router.get('console', { es: …, en: … }, handler)` */
-  <const Paths extends { readonly [K in L]?: string }, D>(
-    name: string,
-    paths: Paths,
-    handler: RouteHandler<
-      PathParams<Paths[keyof Paths] & string>,
-      LocalizedContext<PathParams<Paths[keyof Paths] & string>, L>,
-      D
-    >,
-    options?: RouteOptions<L>,
-  ): Router<L>
 }
 
 export interface Router<L extends string = string> {
@@ -114,7 +95,7 @@ export interface Router<L extends string = string> {
    *
    *   router.redirect('/', '/en')
    *   router.redirect('/consolas/:id', consoleRoute)              // 301 to the same id
-   *   router.redirect('old-console', { es: '/es/consolas/:id', en: '/en/consoles/:id' }, consoleRoute)
+   *   router.redirect(route('old-console', { es: '/es/consolas/:id', en: '/en/consoles/:id' }), consoleRoute)
    *
    *   router.redirect('/old/:id', (ctx) => `/new/${lookup(ctx.params.id)}`)
    *
@@ -122,12 +103,6 @@ export interface Router<L extends string = string> {
    */
   redirect(
     from: `/${string}` | RouteDef<string, any>,
-    to: RedirectTarget,
-    options?: RedirectOptions<L>,
-  ): Router<L>
-  redirect(
-    name: string,
-    paths: { readonly [K in L]?: string },
     to: RedirectTarget,
     options?: RedirectOptions<L>,
   ): Router<L>
@@ -197,8 +172,9 @@ export interface Router<L extends string = string> {
  * answered:
  *
  *   const router = boat({ languages: ['en', 'es'] })
- *   router.get('console', { en: '/en/console/:id', es: '/es/consola/:id' }, handler)
- *   router.href('console', { id: 'nes' }, 'es')   // '/es/consola/nes'
+ *   const consoleRoute = route('console', { en: '/en/console/:id', es: '/es/consola/:id' })
+ *   router.get(consoleRoute, handler)
+ *   consoleRoute.href({ id: 'nes' }, 'es')   // '/es/consola/nes'
  */
 export function boat<const L extends string = string>(
   options?: BoatOptions<L>,
@@ -406,14 +382,10 @@ class RedirectDeclaration {
   ) {}
 
   static read(args: readonly unknown[]): RedirectDeclaration {
-    const perLanguage = typeof args[0] === 'string' && !args[0].startsWith('/')
-    if (perLanguage) ensurePathsGiven(args[0] as string, args[1])
-    const source = args.slice(0, perLanguage ? 2 : 1)
-    const [to, options] = args.slice(source.length) as [RedirectTarget, any]
-    if (to === undefined)
-      throw new Error(
-        "boat: router.redirect needs somewhere to go. Give a path, a route name, a route() or a function: router.redirect('/old', '/new')",
-      )
+    const [from, to, options] = args as [unknown, RedirectTarget, any]
+    ensureSource(from)
+    ensureTarget(to)
+    const source = [from]
     const { status, only } = readOptions(options)
     return new RedirectDeclaration(source, to, status, only)
   }
@@ -425,9 +397,9 @@ class RedirectDeclaration {
   }
 
   variants(): Variants {
-    const [first, second] = this.source
+    const [first] = this.source
     if (isRouteDef(first)) return Variants.of(first)
-    return new Variants(this.label, (second ?? first) as RoutePaths)
+    return new Variants(this.label, first as RoutePaths)
   }
 
   /** The route that answers the source URLs with this redirect. */
@@ -436,10 +408,21 @@ class RedirectDeclaration {
   }
 }
 
-function ensurePathsGiven(name: string, paths: unknown): void {
-  if (isPathsObject(paths)) return
+/** A path, or a route() — a name with paths per language goes in route() too. */
+function ensureSource(from: unknown): void {
+  if (isRouteDef(from) || (typeof from === 'string' && from.startsWith('/')))
+    return
   throw new Error(
-    `boat: router.redirect("${name}", …) needs a path starting with "/", a route(), or a name followed by its paths per language`,
+    `boat: router.redirect moves a path starting with "/" or a route(); a name, or paths per language, go in route(): router.redirect(route('old', { en: '/old' }), to)`,
+  )
+}
+
+/** A path, a full URL, a route() or a function: a route's bare name is refused, its route() says the same and is checked. */
+function ensureTarget(to: unknown): void {
+  if (typeof to === 'function' || isRouteDef(to)) return
+  if (typeof to === 'string' && (to.startsWith('/') || isAbsolute(to))) return
+  throw new Error(
+    `boat: router.redirect goes to a path, a full URL, a route() or a function; ${to === undefined ? 'nothing was given' : `${JSON.stringify(to)} is none of them (a route's name: pass its route())`}`,
   )
 }
 

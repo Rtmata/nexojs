@@ -26,7 +26,7 @@ export class Links<L extends string> {
    * The URL of a route in a language. Throws if the name, a param or the
    * language doesn't exist.
    */
-  href(target: Target, params?: LinkParams, lang?: string): string {
+  href(target: Target, params?: LinkParams, lang?: string): `/${string}` {
     const known = lang === undefined ? undefined : this.languages.known(lang)
     return this.variantsOf(target).in(known).fill(params)
   }

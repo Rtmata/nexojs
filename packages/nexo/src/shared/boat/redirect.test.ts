@@ -53,8 +53,7 @@ describe('router.redirect()', () => {
     const router = boat({ languages: ['en', 'es'] })
     router.get(consoleRoute, () => new Response('console'))
     router.redirect(
-      'old-console',
-      { en: '/en/consoles/:id', es: '/es/consolas/:id' },
+      route('old-console', { en: '/en/consoles/:id', es: '/es/consolas/:id' }),
       consoleRoute,
       308,
     )
@@ -64,10 +63,11 @@ describe('router.redirect()', () => {
     expect(response.headers.get('location')).toBe('/es/consola/nes')
   })
 
-  test('accepts a route name as target', async () => {
+  test('accepts a route() as target', async () => {
     const router = boat()
-    router.get('home', '/home', () => new Response('home'))
-    router.redirect('/start', 'home', 302)
+    const home = route('home', '/home')
+    router.get(home, () => new Response('home'))
+    router.redirect('/start', home, 302)
     expect((await visit(router, '/start')).headers.get('location')).toBe(
       '/home',
     )
@@ -115,13 +115,11 @@ describe('router.redirect()', () => {
       '/new/7',
     )
   })
-  test('a bare name without paths per language is rejected right away', () => {
+  test('a bare name as the source, or no target, is rejected right away', () => {
     expect(() => (boat() as any).redirect('old', '/new')).toThrow(
-      'needs a path starting with "/", a route(), or a name followed by its paths',
+      'router.redirect moves a path starting with "/" or a route()',
     )
-    expect(() => (boat() as any).redirect('/old')).toThrow(
-      'needs somewhere to go',
-    )
+    expect(() => (boat() as any).redirect('/old')).toThrow('nothing was given')
   })
 
   test('a target param the source does not capture fails at registration', () => {
@@ -132,12 +130,21 @@ describe('router.redirect()', () => {
     expect(() => boat().redirect('/old', consoleRoute)).toThrow('needs ":id"')
   })
 
-  test('a route name registered later is checked when it arrives', () => {
+  test('a route registered later under the same name is checked when it arrives', () => {
     const router = boat()
-    router.redirect('/old', 'console')
+    router.redirect('/old', route('console', '/console'))
     expect(() =>
-      router.get('console', '/console/:id', () => new Response()),
+      router.get(route('console', '/console/:id'), () => new Response()),
     ).toThrow('needs ":id"')
+  })
+
+  test("a route's bare name is not a target: its route() is", () => {
+    expect(() => boat().redirect('/old', 'console' as never)).toThrow(
+      `"console" is none of them (a route's name: pass its route())`,
+    )
+    expect(() => boat().get('console' as never, () => new Response())).toThrow(
+      "a name, or paths per language, go in route(): router.get(route('console', '/path'), handler)",
+    )
   })
 
   test('extra source params are left out of a route target', async () => {
@@ -150,10 +157,11 @@ describe('router.redirect()', () => {
     )
   })
 
-  test('a route name with a colon is a name, not an absolute URL', async () => {
+  test('a route() whose name has a colon is that route, not an absolute URL', async () => {
     const router = boat()
-    router.get('museum:home', '/home', () => new Response('home'))
-    router.redirect('/start', 'museum:home')
+    const home = route('shop:home', '/home')
+    router.get(home, () => new Response('home'))
+    router.redirect('/start', home)
     expect((await visit(router, '/start')).headers.get('location')).toBe(
       '/home',
     )
@@ -165,8 +173,9 @@ describe('router.redirect()', () => {
 
   test('a per-language redirect can exist in some languages only', async () => {
     const router = boat({ languages: ['en', 'es'] })
-    router.get('home', { en: '/en', es: '/es' }, () => new Response('home'))
-    router.redirect('old-press', { es: '/es/prensa' }, 'home', {
+    const home = route('home', { en: '/en', es: '/es' })
+    router.get(home, () => new Response('home'))
+    router.redirect(route('old-press', { es: '/es/prensa' }), home, {
       status: 302,
       only: ['es'],
     })
@@ -179,7 +188,7 @@ describe('router.redirect()', () => {
     const press = route('press', { es: '/es/prensa' })
     const router = boat({ languages: ['en', 'es'] })
     expect(() =>
-      router.redirect('old', { en: '/en/old', es: '/es/old' }, press),
+      router.redirect(route('old', { en: '/en/old', es: '/es/old' }), press),
     ).toThrow('"press" has no "en" version')
   })
 
@@ -195,11 +204,12 @@ describe('router.redirect()', () => {
 
   test('check() reports redirects to names that never arrived', () => {
     const router = boat()
-    router.redirect('/old', 'nowhere')
+    const nowhere = route('nowhere', '/here')
+    router.redirect('/old', nowhere)
     expect(() => router.check()).toThrow(
       'goes to "nowhere", but no GET route has that name',
     )
-    router.get('nowhere', '/here', () => new Response())
+    router.get(nowhere, () => new Response())
     expect(() => router.check()).not.toThrow()
   })
 

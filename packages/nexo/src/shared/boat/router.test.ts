@@ -98,7 +98,7 @@ describe('specificity, encoded URLs, links and redirects', () => {
   })
 
   test('static segments compare decoded, and links encode them once', () => {
-    const router = boat().get('cafe', '/caf%C3%A9', ok)
+    const router = boat().get(route('cafe', '/caf%C3%A9'), ok)
 
     expect(router.match('GET', '/caf%C3%A9')).not.toBeNull()
     expect(router.href('cafe')).toBe('/caf%C3%A9')
@@ -106,13 +106,14 @@ describe('specificity, encoded URLs, links and redirects', () => {
 
   test('a route without a handler or a path fails at registration', () => {
     expect(() => (boat().get as any)('/x')).toThrow('needs a handler')
-    expect(() => (boat().get as any)('about', ok)).toThrow('needs a path')
+    expect(() => (boat().get as any)('about', ok)).toThrow(
+      'a route is a path starting with "/" or a route()',
+    )
   })
 
   test('a link in an unknown language fails, even to a single-path route', () => {
     const router = boat({ languages: ['en', 'es'] }).get(
-      'about',
-      '/about',
+      route('about', '/about'),
       fine,
     )
 
@@ -124,8 +125,7 @@ describe('specificity, encoded URLs, links and redirects', () => {
 
   test('linkFor falls back like a route does', () => {
     const router = boat({ languages: ['en', 'es'] }).get(
-      'credits',
-      { en: '/credits' },
+      route('credits', { en: '/credits' }),
       fine,
       { only: ['en'] },
     )
@@ -137,7 +137,7 @@ describe('specificity, encoded URLs, links and redirects', () => {
     const router = boat({
       languages: ['en', 'es'],
       langFrom: ['subdomain', { query: 'lang' }],
-    }).get('arcade', { en: '/arcade', es: '/arcade' }, fine)
+    }).get(route('arcade', { en: '/arcade', es: '/arcade' }), fine)
     const url = new URL('http://www.example.com/arcade')
 
     expect(router.alternates({ url, lang: 'en' })).toEqual({
@@ -156,8 +156,7 @@ describe('specificity, encoded URLs, links and redirects', () => {
 
   test('a link takes a declared language in any case', () => {
     const router = boat({ languages: ['es-MX', 'en'] }).get(
-      'home',
-      { 'es-MX': '/', en: '/en' },
+      route('home', { 'es-MX': '/', en: '/en' }),
       fine,
     )
 
@@ -178,7 +177,10 @@ describe('specificity, encoded URLs, links and redirects', () => {
     const router = boat({
       languages: ['en', 'es', 'fr'],
       langFrom: { cookie: 'lang' },
-    }).get('arcade', { en: '/arcade', es: '/arcade', fr: '/fr/arcade' }, fine)
+    }).get(
+      route('arcade', { en: '/arcade', es: '/arcade', fr: '/fr/arcade' }),
+      fine,
+    )
     const url = new URL('http://x/fr/arcade')
 
     expect(router.alternates({ url, lang: 'fr' })).toEqual({ fr: '/fr/arcade' })
@@ -192,7 +194,9 @@ describe('specificity, encoded URLs, links and redirects', () => {
   })
 
   test('a redirect needs a GET route at its target', () => {
-    const router = boat().post('save', '/save', fine).redirect('/old', 'save')
+    const router = boat()
+      .post(route('save', '/save'), fine)
+      .redirect('/old', route('save', '/save'))
 
     expect(() => router.check()).toThrow('no GET route has that name')
   })
@@ -208,13 +212,10 @@ describe('specificity, encoded URLs, links and redirects', () => {
 describe('redirects language by language, and paths no URL can match', () => {
   const fine = () => new Response('ok')
 
-  test('a redirect to its own name loops, even before the name exists', () => {
+  test('a redirect to its own route loops, even before the route is registered', () => {
+    const legacy = route('legacy', { en: '/en/legacy', es: '/es/legado' })
     expect(() =>
-      boat({ languages: ['en', 'es'] }).redirect(
-        'legacy',
-        { en: '/en/legacy', es: '/es/legado' },
-        'legacy',
-      ),
+      boat({ languages: ['en', 'es'] }).redirect(legacy, legacy),
     ).toThrow('back to the same URL')
   })
 
@@ -224,21 +225,20 @@ describe('redirects language by language, and paths no URL can match', () => {
     )
     expect(() =>
       boat({ languages: ['en', 'es'] }).redirect(
-        'old',
-        { en: '/en/old', es: '/es/viejo' },
+        route('old', { en: '/en/old', es: '/es/viejo' }),
         '/en/old',
       ),
     ).toThrow('back to the same URL')
   })
 
   test('each language fills the target path of its own language', () => {
-    const router = boat({ languages: ['en', 'es'] }).get(
-      'c',
-      { en: '/en/c/:id', es: '/es/c/:slug' },
-      fine,
-    )
+    const c = route('c', { en: '/en/c/:id', es: '/es/c/:slug' })
+    const router = boat({ languages: ['en', 'es'] }).get(c, fine)
     expect(() =>
-      router.redirect('old', { en: '/en/old/:id', es: '/es/viejo/:slug' }, 'c'),
+      router.redirect(
+        route('old', { en: '/en/old/:id', es: '/es/viejo/:slug' }),
+        c,
+      ),
     ).not.toThrow()
   })
 
@@ -258,8 +258,7 @@ describe('redirects language by language, and paths no URL can match', () => {
 
   test('language keys may be spelled any way', () => {
     const router = boat({ languages: ['es-MX', 'en'] }).get(
-      'p',
-      { 'es-mx': '/es/p', en: '/en/p' },
+      route('p', { 'es-mx': '/es/p', en: '/en/p' }),
       fine,
     )
     expect(router.href('p', undefined, 'ES_MX' as any)).toBe('/es/p')

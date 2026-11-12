@@ -106,20 +106,17 @@ export class Redirects {
     if (typeof to !== 'string')
       return this.toRoute(to.name, Variants.of(to), from)
     if (isAbsolute(to)) return () => to
-    if (to.startsWith('/')) return this.toPath(to, from)
-    return this.toRoute(to, undefined, from)
+    return this.toPath(to, from)
   }
 
-  /** Remember a redirect to a route name, so `check()` can find its GET route. */
+  /** Remember a redirect to a route(), so `check()` can find its GET route. */
   track(from: RedirectSource, name: string): void {
     this.targets.push({ from, to: name })
   }
 
-  /** The route name a target points at, if it's a name or a `route()`. */
+  /** The route name a target points at, when it is a `route()`. */
   nameOf(to: RedirectTarget): string | undefined {
-    if (typeof to === 'function') return undefined
-    if (typeof to !== 'string') return to.name
-    return isAbsolute(to) || to.startsWith('/') ? undefined : to
+    return typeof to === 'object' ? to.name : undefined
   }
 
   /** A name just arrived: every redirect waiting for it must be able to reach it. */
@@ -157,24 +154,18 @@ export class Redirects {
     return (ctx) => pattern.fill(pattern.pick(ctx.params)) + suffix
   }
 
-  /** `fixed` is a route()'s own paths; a name is looked up per request. */
+  /** A route()'s own paths, checked against the source now. */
   private toRoute(
     name: string,
-    fixed: Variants | undefined,
+    variants: Variants,
     from: RedirectSource,
   ): Resolve {
     from.ensureNotNamed(name)
-    const known = fixed ?? this.names.get(name)
-    if (known) from.ensureReaches(name, known)
-    return (ctx) => this.locate(name, fixed, ctx)
+    from.ensureReaches(name, variants)
+    return (ctx) => this.locate(variants, ctx)
   }
 
-  private locate(
-    name: string,
-    fixed: Variants | undefined,
-    ctx: Context,
-  ): string {
-    const variants = fixed ?? this.names.require(name)
+  private locate(variants: Variants, ctx: Context): string {
     const pattern = variants.in(
       variants.firstOf([ctx.lang, this.languages.default]),
     )
@@ -184,10 +175,9 @@ export class Redirects {
 
 /**
  * A location to use as is: `scheme://…`, `//host/…`, or one of the
- * schemes without slashes (`mailto:`, `tel:`…). Anything else with a colon
- * is a route name.
+ * schemes without slashes (`mailto:`, `tel:`…).
  */
-function isAbsolute(to: string): boolean {
+export function isAbsolute(to: string): boolean {
   return (
     /^([a-z][a-z0-9+.-]*:\/\/|\/\/)/i.test(to) ||
     /^(mailto|tel|sms|geo|data|urn):/i.test(to)

@@ -13,12 +13,10 @@ import type { Params, RouteHandler } from './types'
 
 /**
  * One call to `router.get(...)` (or `post`, `put`…), read into its parts.
- * The four ways to call it are told apart by their first argument:
+ * Two ways, told apart by what the first argument is, never by its text:
  *
- *   ('/path', handler)                  a plain path
- *   (route(), handler, options?)        a route() definition
- *   ('name', '/path', handler)          a named path
- *   ('name', { en, es }, handler, options?)   a name and paths per language
+ *   ('/path', handler)                  a plain path, no name
+ *   (route(), handler, options?)        a route(): a name, one path or one per language
  */
 export class Registration {
   constructor(
@@ -116,14 +114,14 @@ type Parts = [
 ]
 
 function partsOf(args: readonly unknown[]): Parts {
-  const [first, second, third, fourth] = args as [unknown, any, any, unknown]
-  if (typeof first === 'string' && first.startsWith('/')) {
-    return [undefined, first, second, onlyOf(third)]
-  }
+  const [first, second, third] = args as [unknown, any, unknown]
   if (isRouteDef(first))
     return [first.name, first.paths, second, onlyOf(third), first]
-  if (typeof first === 'string') return [first, second, third, onlyOf(fourth)]
-  throw new Error('boat: a route needs a path, a name, or a route() definition')
+  if (typeof first === 'string' && first.startsWith('/'))
+    return [undefined, first, second, onlyOf(third)]
+  throw new Error(
+    `boat: a route is a path starting with "/" or a route(); a name, or paths per language, go in route(): router.get(route(${typeof first === 'string' ? `'${first}'` : "'name'"}, '/path'), handler)`,
+  )
 }
 
 function onlyOf(options: unknown): readonly string[] | undefined {

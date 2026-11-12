@@ -9,7 +9,7 @@ import {
 } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import { boat } from '../../shared/boat'
+import { boat, route } from '../../shared/boat'
 import { files } from './files'
 import { keep } from './keep'
 
@@ -35,8 +35,11 @@ describe('keep', () => {
   test('an error page gets the language of the route that failed', async () => {
     const errors = spyOn(console, 'error').mockImplementation(() => {})
     const router = boat({ languages: ['en', 'es'] })
-    router.get('home', { en: '/en', es: '/es' }, () => new Response('home'))
-    router.get('boom', { en: '/en/boom', es: '/es/boom' }, () => {
+    router.get(
+      route('home', { en: '/en', es: '/es' }),
+      () => new Response('home'),
+    )
+    router.get(route('boom', { en: '/en/boom', es: '/es/boom' }), () => {
       throw new Error('boom')
     })
     router.onError(
@@ -137,7 +140,7 @@ describe('keep', () => {
 
   test('listen() refuses a router whose setup cannot work', async () => {
     const router = boat()
-    router.redirect('/old', 'nowhere')
+    router.redirect('/old', route('nowhere', '/nowhere'))
     await expect(keep({ router }).listen(0)).rejects.toThrow(
       'no GET route has that name',
     )
@@ -196,8 +199,7 @@ describe('keep', () => {
       langFrom: { cookie: 'lang' },
     })
     router.get(
-      'arcade',
-      { en: '/arcade', es: '/arcade' },
+      route('arcade', { en: '/arcade', es: '/arcade' }),
       (ctx) => new Response(ctx.lang),
     )
     router.notFound((ctx) => new Response(`lost:${ctx.lang}`, { status: 404 }))
@@ -276,7 +278,7 @@ describe('keep', () => {
 
   test('the base context can build links to named routes', async () => {
     const router = boat()
-    router.get('about', '/about', () => new Response('about'))
+    router.get(route('about', '/about'), () => new Response('about'))
     router.notFound(({ link }) => new Response(link('about'), { status: 404 }))
     expect(await (await get(keep({ router }), '/nada')).text()).toBe('/about')
   })
