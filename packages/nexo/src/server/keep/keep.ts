@@ -91,9 +91,10 @@ export interface KeepOptions {
   securityHeaders?: false | SecurityHeadersOptions
   /**
    * A request sent twice with the same `Idempotency-Key` is answered once
-   * (see `idempotency`): always on, this tunes how long and where answers are kept.
+   * (see `idempotency`): on by default, `false` turns it off (a proxy that
+   * already does it), an object tunes how long and where answers are kept.
    */
-  idempotency?: IdempotencyOptions
+  idempotency?: false | IdempotencyOptions
 }
 
 export interface StopOptions {
@@ -144,7 +145,7 @@ export function keep(options: KeepOptions): Server {
 /**
  * The server (pattern: facade): middlewares around the request flow
  * (security headers outermost so every answer gets them, then csrf, unless
- * turned off; then idempotency, always), the static folders, and listening.
+ * turned off; then idempotency, unless turned off), the static folders, and listening.
  */
 class KeepServer implements Server {
   private readonly router: KeepRouter
@@ -174,7 +175,8 @@ class KeepServer implements Server {
     if (options.securityHeaders !== false)
       this.middlewares.push(securityHeaders(options.securityHeaders))
     if (options.csrf !== false) this.middlewares.push(csrf(options.csrf))
-    this.middlewares.push(idempotency(options.idempotency))
+    if (options.idempotency !== false)
+      this.middlewares.push(idempotency(options.idempotency))
   }
 
   get url(): URL | null {

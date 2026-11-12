@@ -48,6 +48,14 @@ describe('idempotency', () => {
     expect(orders()).toBe(1)
   })
 
+  test('false turns it off, as csrf and securityHeaders', async () => {
+    const { s, orders } = server({ idempotency: false })
+    await post(s, '/order', 'k1')
+    const again = await post(s, '/order', 'k1')
+    expect(again.headers.get(REPLAYED_HEADER)).toBeNull()
+    expect(orders()).toBe(2)
+  })
+
   test('another key, or no key, is another order', async () => {
     const { s, orders } = server()
     await post(s, '/order', 'k1')

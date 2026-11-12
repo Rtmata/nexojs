@@ -43,14 +43,14 @@ The router may also be a plain `(request) => Response` function. Every option be
 
 ## Options
 
-| Option            | Default         | What it does                                                                                                                                      |
-| ----------------- | --------------- | ------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `router`          | required        | A `boat()` router, anything meeting `KeepRouter`, or a plain `(request) => Response` function.                                                    |
-| `static`          | none            | Folders served when no route matches: `'./public'`, `{ dir, at, cache, watch }`, or a list of both. Routes always win.                            |
-| `idleTimeout`     | `2 * 60 * 1000` | Milliseconds a silent connection stays open (0: forever; at most 255 s, Bun's limit). A stream sending heartbeats more often stays open.          |
-| `csrf`            | on              | Requests that change something must come from this site. `false` turns it off; `{ trusted, except, strict }` tunes it.                            |
-| `securityHeaders` | on              | The headers every response carries. `false` turns them off; an object tunes each one or adds a Content Security Policy.                           |
-| `idempotency`     | always on       | A request sent twice with the same `Idempotency-Key` is answered once. `{ ttl, store }` tunes how long (an hour by default) and where it is kept. |
+| Option            | Default         | What it does                                                                                                                                                                                           |
+| ----------------- | --------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `router`          | required        | A `boat()` router, anything meeting `KeepRouter`, or a plain `(request) => Response` function.                                                                                                         |
+| `static`          | none            | Folders served when no route matches: `'./public'`, `{ dir, at, cache, watch }`, or a list of both. Routes always win.                                                                                 |
+| `idleTimeout`     | `2 * 60 * 1000` | Milliseconds a silent connection stays open (0: forever; at most 255 s, Bun's limit). A stream sending heartbeats more often stays open.                                                               |
+| `csrf`            | on              | Requests that change something must come from this site. `false` turns it off; `{ trusted, except, strict }` tunes it.                                                                                 |
+| `securityHeaders` | on              | The headers every response carries. `false` turns them off; an object tunes each one or adds a Content Security Policy.                                                                                |
+| `idempotency`     | on              | A request sent twice with the same `Idempotency-Key` is answered once. `false` turns it off (a proxy that already does it); `{ ttl, store }` tunes how long (an hour by default) and where it is kept. |
 
 ## The server
 
