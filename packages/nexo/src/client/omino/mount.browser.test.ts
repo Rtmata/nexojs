@@ -85,6 +85,13 @@ for (const [name, engine] of engines) {
       })
     })
 
+    test('a class object: a name two keys share stays while either is on', async () => {
+      expect(await play('sharedClassName')).toEqual({
+        one: 'primary',
+        none: null,
+      })
+    })
+
     test('value and checked are live properties', async () => {
       expect(await play('liveValue')).toEqual({
         value: 'from the signal',
@@ -157,6 +164,7 @@ for (const [name, engine] of engines) {
         width: '20',
         p: 'http://www.w3.org/1999/xhtml',
         raw: 'trusted',
+        rawInSvg: 'http://www.w3.org/2000/svg',
       })
     })
 

@@ -93,6 +93,20 @@ export function attributeHoles() {
   return { first, after: div.outerHTML }
 }
 
+/** Two keys of one class object share a name: it stays while either is on. */
+export function sharedClassName() {
+  const main = signal(true)
+  const focused = signal(true)
+  const { el } = run(<p class={{ 'btn primary': main, primary: focused }} />)
+  const p = el.firstElementChild!
+  main.set(false)
+  flush()
+  const one = p.className
+  focused.set(false)
+  flush()
+  return { one, none: p.getAttribute('class') }
+}
+
 export function liveValue() {
   const value = signal('start')
   const done = signal(false)
@@ -274,6 +288,7 @@ export function svgAndRaw() {
         <foreignObject>
           <p>html again</p>
         </foreignObject>
+        {raw('<path d="M0 0h1"/>')}
       </svg>
       {raw('<i>trusted</i>')}
     </div>,
@@ -287,6 +302,7 @@ export function svgAndRaw() {
     width: rect.getAttribute('width'),
     p: el.querySelector('p')!.namespaceURI,
     raw: el.querySelector('i')!.textContent,
+    rawInSvg: el.querySelector('path')!.namespaceURI,
   }
 }
 

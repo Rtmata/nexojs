@@ -1,4 +1,4 @@
-import { Slot } from './component'
+import { isSlotClass } from './component'
 import { Element, Fragment, Scoped, type Child, type Scope } from './element'
 import { readOnce } from './hole'
 import { isNothing } from './leaf'
@@ -88,12 +88,7 @@ export function childrenOf(props: { children?: unknown }): Scoped | undefined {
 
 /** A <Slot>, or an element of a class that extends it. */
 export function isSlot(child: Child): child is Element {
-  if (!(child instanceof Element)) return false
-  const { type } = child
-  return (
-    type === Slot ||
-    (typeof type === 'function' && type.prototype instanceof Slot)
-  )
+  return child instanceof Element && isSlotClass(child.type)
 }
 
 function slotOf(child: Child): string | undefined {

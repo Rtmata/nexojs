@@ -179,6 +179,24 @@ const NATURAL: Record<string, Kind> = {
   },
 }
 
+/** `bind:group`: grouped by the shared signal, not by component. */
+const GROUP_CHECKBOX: Kind = {
+  events: ['change'],
+  read: (el) => (el as HTMLInputElement).value,
+  write: (el, v) =>
+    ((el as HTMLInputElement).checked = ((v as unknown[] | null) ?? [])
+      .map(String)
+      .includes((el as HTMLInputElement).value)),
+}
+
+const GROUP_RADIO: Kind = {
+  events: ['change'],
+  read: (el) => (el as HTMLInputElement).value,
+  write: (el, v) =>
+    ((el as HTMLInputElement).checked =
+      v != null && String(v) === (el as HTMLInputElement).value), // the server compared the JSX value (maybe a number) the same way
+}
+
 /** Which kind each `bind:<name>` is on this element; `undefined`: not there. */
 const PICKERS: Record<string, Picker> = {
   value: valueKind,
@@ -195,6 +213,12 @@ const PICKERS: Record<string, Picker> = {
   ...pickFrom(MEDIA, (el) => el instanceof HTMLMediaElement),
   ...pickFrom(VIDEO_SIZE, (el) => el instanceof HTMLVideoElement),
   ...pickFrom(NATURAL, (el) => el instanceof HTMLImageElement),
+  group: (el) =>
+    isInput(el, 'checkbox')
+      ? GROUP_CHECKBOX
+      : isInput(el, 'radio')
+        ? GROUP_RADIO
+        : undefined,
 }
 
 /** Element sizes: read-only, from one shared `ResizeObserver` per box. */
@@ -276,31 +300,6 @@ export class Bindings {
       : kind.read(el)
   }
 }
-
-/** `bind:group`: grouped by the shared signal, not by component. */
-const GROUP_CHECKBOX: Kind = {
-  events: ['change'],
-  read: (el) => (el as HTMLInputElement).value,
-  write: (el, v) =>
-    ((el as HTMLInputElement).checked = ((v as unknown[] | null) ?? [])
-      .map(String)
-      .includes((el as HTMLInputElement).value)),
-}
-
-const GROUP_RADIO: Kind = {
-  events: ['change'],
-  read: (el) => (el as HTMLInputElement).value,
-  write: (el, v) =>
-    ((el as HTMLInputElement).checked =
-      v != null && String(v) === (el as HTMLInputElement).value), // the server compared the JSX value (maybe a number) the same way
-}
-
-PICKERS.group = (el) =>
-  isInput(el, 'checkbox')
-    ? GROUP_CHECKBOX
-    : isInput(el, 'radio')
-      ? GROUP_RADIO
-      : undefined
 
 /** `bind-on="change"` waits for commit, only where text is typed. */
 function eventsOf(

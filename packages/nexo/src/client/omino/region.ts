@@ -44,9 +44,7 @@ export class Region {
 
   /** The markers, to place where the region goes. */
   nodes(): Node[] {
-    const fragment = document.createDocumentFragment()
-    fragment.append(this.start, this.end)
-    return [fragment]
+    return markers(this.start, this.end)
   }
 
   show(child: Child): void {
@@ -111,7 +109,7 @@ export class Region {
   private go(old: Content | undefined): Promise<void> | undefined {
     if (!old) return undefined
     const leaving = this.motions.leave(rangeOf(old), old.life.signal)
-    return then(leaving, () => remove(old))
+    return then(leaving, () => removeRange(old))
   }
 
   private updateText(child: Child): boolean {
@@ -160,9 +158,17 @@ function both(
   return Promise.all([a, b]).then(() => {})
 }
 
-function remove(content: Content): void {
+/** Content leaves: its life ends, then its nodes leave the document. A `<For>` row is one too. */
+export function removeRange(content: Content): void {
   content.life.end()
-  for (const node of rangeOf(content)) node.parentNode?.removeChild(node)
+  for (const node of rangeOf(content)) (node as ChildNode).remove() // siblings in a range: each has a parent
+}
+
+/** Where a region or a list sits: its two markers, as one node to insert. */
+export function markers(start: Node, end: Node): Node[] {
+  const fragment = document.createDocumentFragment()
+  fragment.append(start, end)
+  return [fragment]
 }
 
 /** The content's nodes now: inner regions' content included. */

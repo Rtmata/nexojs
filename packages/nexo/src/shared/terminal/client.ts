@@ -1,5 +1,5 @@
 import type { ArgsOf, CodeOf, ResultOf, Table } from './contract'
-import { CommandError } from './errors'
+import { CommandError, RESERVED } from './errors'
 import { check } from './schema'
 
 /** What a transport is told: the command's name, its args, whether it only reads. */
@@ -33,7 +33,12 @@ export class Client<T extends Table> {
   ): Promise<ResultOf<T[K]>> {
     const spec = this.table[name]
     if (!spec)
-      throw new CommandError('unknownCommand', `terminal: no command "${name}"`)
+      throw new CommandError(
+        'unknownCommand',
+        `terminal: no command "${name}"`,
+        undefined,
+        RESERVED.unknownCommand, // as the server answers it
+      )
     const sent = spec.args ? checked(spec.args, args, name) : undefined
     return (await this.transport.send(
       { name, args: sent, read: spec.read ?? false },

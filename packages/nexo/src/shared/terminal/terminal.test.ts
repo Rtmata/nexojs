@@ -143,6 +143,29 @@ describe('terminal over HTTP', () => {
     ).toBe(200)
   })
 
+  test('a code the command does not declare is a bug, even one every object has', async () => {
+    const quiet = spyOn(console, 'error').mockImplementation(() => {})
+    const strict = terminal({ x: { errors: { notFound: { status: 404 } } } })
+    const site = keep({ router: boat() }).use(
+      strict.serve({ x: (_args, { fail }) => fail('toString' as never) }),
+    )
+    const fetch = (url: string | URL | Request, init?: RequestInit) =>
+      site.fetch(new Request(new URL(String(url), 'http://site.test'), init))
+    const error = (await strict
+      .client(http({ fetch }))
+      .exec('x')
+      .catch((e: unknown) => e)) as CommandError
+    expect([error.code, error.status]).toEqual(['internal', 500])
+    quiet.mockRestore()
+  })
+
+  test('the client names an unknown command with the status the server would give', async () => {
+    const error = (await (commands as any)
+      .exec('nope')
+      .catch((e: unknown) => e)) as CommandError
+    expect([error.code, error.status]).toEqual(['unknownCommand', 404])
+  })
+
   test('unknown commands, args for a command that takes none, bad JSON', async () => {
     expect((await viaKeep('/_nexo/terminal/nope', post({}))).status).toBe(404)
     expect((await viaKeep('/_nexo/terminal/boom', post({ x: 1 }))).status).toBe(

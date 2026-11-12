@@ -26,6 +26,7 @@ export class Durations {
   /** `{ minutes: 190 }` → `'3 h y 10 min'`; `{ minutes: 12.4 }` → `'12 min'`. */
   duration(duration: Duration, options: DurationOptions = {}): string {
     const { units = Infinity, ...shown } = options
+    ensureUnits(units)
     const finest = finestIndex(duration)
     const total = totalOf(duration)
     const last = lastShown(total, finest, units)
@@ -63,6 +64,14 @@ function ensureLength(amount: number, unit: DurationUnit): void {
   if (Number.isFinite(amount) && amount >= 0) return
   throw new Error(
     `quarry: ${amount} ${unit} is not a length of time. Give zero or more`,
+  )
+}
+
+/** How many units to show: a whole number, one or more (left out, all of them). */
+function ensureUnits(units: number): void {
+  if (units === Infinity || (Number.isInteger(units) && units >= 1)) return
+  throw new Error(
+    `quarry: units ${units} can't say how many units to show. Give a whole number, 1 or more`,
   )
 }
 

@@ -619,6 +619,13 @@ describe('duration', () => {
     expect(() => es.duration({ minutes: -1 })).toThrow('quarry:')
     expect(() => es.duration({ minutes: NaN })).toThrow('quarry:')
   })
+
+  test('units is a whole number, one or more', () => {
+    for (const units of [0, -1, 1.5])
+      expect(() => es.duration({ minutes: 190 }, { units })).toThrow(
+        `quarry: units ${units} can't say how many units to show`,
+      )
+  })
 })
 
 describe('month and weekday', () => {

@@ -71,7 +71,7 @@ export class DomBuilder {
     const text = textOf(child)
     if (text !== undefined) return [document.createTextNode(text)]
     const html = rawOf(child)
-    if (html !== undefined) return parse(html)
+    if (html !== undefined) return parse(html, place.ns)
     return this.branch(child, place)
   }
 
@@ -282,11 +282,17 @@ function namespaceInside(tag: string, ns: string): string {
   return tag === 'foreignObject' ? HTML : ns
 }
 
-/** Trusted markup from `raw()`, parsed as HTML. */
-function parse(html: string): Node[] {
+/**
+ * Trusted markup from `raw()`, parsed in the namespace it lands in: inside
+ * <svg> or <math> the HTML parser reads it within that element, so
+ * `<path>` is an SVG path, as the server's text becomes in the page.
+ */
+function parse(html: string, ns: string): Node[] {
   const template = document.createElement('template')
-  template.innerHTML = html
-  return [...template.content.childNodes]
+  const wrapper = ns === SVG ? 'svg' : ns === MATHML ? 'math' : ''
+  template.innerHTML = wrapper ? `<${wrapper}>${html}</${wrapper}>` : html
+  const content = template.content
+  return [...(wrapper ? content.firstChild!.childNodes : content.childNodes)]
 }
 
 /** A <script> made in the browser runs: only data types are allowed (JSON). */

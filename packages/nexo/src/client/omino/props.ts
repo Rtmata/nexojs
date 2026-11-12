@@ -78,11 +78,12 @@ export class ElementProps {
     this.holes.write(value, (v) => ((el as any)[key] = v), signal)
   }
 
-  /** An object: each class on its own, each value maybe a hole. Else the whole attribute. */
   /**
    * A string, function or readable: one hole for the whole attribute. An
-   * object: a hole per key. An array: each entry its own way (`['btn',
-   * { active: isActive }, () => size.get()]`), so nested holes stay live.
+   * object: a hole per key, written as a one-entry list, so a name two keys
+   * share stays while either is on. An array: each entry its own way
+   * (`['btn', { active: isActive }, () => size.get()]`), so nested holes
+   * stay live.
    */
   private classes(el: Element, value: unknown, signal: AbortSignal) {
     if (Array.isArray(value)) return this.classList(el, value, signal)
@@ -92,8 +93,7 @@ export class ElementProps {
         (v) => setClass(el, v as ClassValue),
         signal,
       )
-    for (const [names, on] of Object.entries(value))
-      this.holes.write(on, (v) => toggle(el, names, Boolean(v)), signal)
+    this.classList(el, [value], signal)
   }
 
   /**
@@ -184,11 +184,6 @@ function setClass(el: Element, value: ClassValue): void {
   const names = classNames(value)
   if (names) el.setAttribute('class', names)
   else el.removeAttribute('class')
-}
-
-function toggle(el: Element, names: string, on: boolean): void {
-  for (const name of names.split(/\s+/).filter(Boolean))
-    el.classList.toggle(name, on)
 }
 
 function setStyle(style: CSSStyleDeclaration, name: string, value: unknown) {

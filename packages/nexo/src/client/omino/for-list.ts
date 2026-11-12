@@ -3,7 +3,13 @@ import type { ForProps } from '../../shared/omino/for'
 import { InsertedPhase, type Life } from './life'
 import type { ReactiveValue, Reactivity } from './reactivity'
 import type { Motions } from './motions'
-import { rangeFragment, rangeOf, type BuildInto } from './region'
+import {
+  markers,
+  rangeFragment,
+  rangeOf,
+  removeRange,
+  type BuildInto,
+} from './region'
 import { cssMove, elementsIn } from './row-moves'
 
 /** One row: made once per key, its nodes between `first` and `last`. */
@@ -43,9 +49,7 @@ export class ForList<T> {
   ) {}
 
   nodes(): Node[] {
-    const fragment = document.createDocumentFragment()
-    fragment.append(this.start, this.end)
-    return [fragment]
+    return markers(this.start, this.end)
   }
 
   update(items: readonly T[]): void {
@@ -191,7 +195,7 @@ export class ForList<T> {
   }
 
   private goes(row: Row<T>): void {
-    const done = () => removeRow(row)
+    const done = () => removeRange(row)
     const leaving = this.motions.leave(rangeOf(row), row.life.signal)
     if (leaving) leaving.then(done, reportError)
     else done()
@@ -262,11 +266,6 @@ function move(node: Node, before: Node): void {
   if ('moveBefore' in parent && parent.isConnected)
     (parent as any).moveBefore(node, before)
   else parent.insertBefore(node, before)
-}
-
-function removeRow<T>(row: Row<T>): void {
-  row.life.end()
-  for (const node of rangeOf(row)) node.parentNode?.removeChild(node)
 }
 
 /** The row's signal, read-only for the row's code. */

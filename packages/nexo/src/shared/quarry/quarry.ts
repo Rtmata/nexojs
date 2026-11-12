@@ -112,7 +112,7 @@ export interface Quarry {
   months(options?: NameOptions): string[]
   /** The seven days from the one the language's week starts on, each with its ISO number. */
   weekdays(options?: NameOptions): WeekdayName[]
-  /** `'es'` → `'español'`. `''` when there's no name for it, like `'und'`. */
+  /** `'es'` → the language's name as the engine's `Intl.DisplayNames` writes it (`'español'`, or `'Español'` where its data capitalises, as WebKit and Bun). `''` when there's no name for it, like `'und'`. */
   language(code: string | null, options?: DisplayNameOptions): string
   /** `'JP'` → `'Japón'`. `''` when there's no name for it. */
   region(code: string | null, options?: DisplayNameOptions): string

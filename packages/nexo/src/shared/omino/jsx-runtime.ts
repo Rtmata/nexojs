@@ -51,6 +51,12 @@ function noKey(): never {
 /** Same as `jsx`; the compiler uses it when there are several static children. */
 export const jsxs = jsx
 
+/** What an element's own `enter` / `exit` receive: its life, and whether to keep still. */
+interface MotionRun {
+  signal: AbortSignal
+  reducedMotion: boolean
+}
+
 /** Attributes accepted by every HTML element. */
 export interface HtmlAttributes {
   class?: ClassValue
@@ -59,6 +65,14 @@ export interface HtmlAttributes {
   if?: unknown
   /** Which `<Slot name>` of the parent component this goes into. */
   slot?: string
+  /** In the browser, once the element is in the document; `signal` is its life. Left out on the server. */
+  ref?(el: Element, run: { signal: AbortSignal }): unknown // method form: `(el: HTMLInputElement) =>` fits too
+  /** In the browser: its arrival, awaited instead of its CSS animations. */
+  enter?(el: Element, run: MotionRun): unknown
+  /** In the browser: its leaving, awaited before it is removed. */
+  exit?(el: Element, run: MotionRun): unknown
+  /** The longest a leaving waits, in ms. */
+  'exit-timeout'?: number
   /** Not accepted: omino never diffs, so a key would do nothing. */
   key?: never
   [attribute: string]: unknown

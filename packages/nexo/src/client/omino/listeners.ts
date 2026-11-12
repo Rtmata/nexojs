@@ -57,13 +57,9 @@ function options(value: ListenerObject, signal: AbortSignal) {
 function notAListener(el: Element, name: string, value: unknown): Error {
   if (typeof value === 'string')
     return new Error(
-      `omino: <${tag(el)} ${name}="…"> would be inline JavaScript, which omino never writes. Pass a function`,
+      `omino: <${el.localName} ${name}="…"> would be inline JavaScript, which omino never writes. Pass a function`,
     )
   return new Error(
-    `omino: <${tag(el)} ${name}> takes a function or { handleEvent, passive, capture, once }`,
+    `omino: <${el.localName} ${name}> takes a function or { handleEvent, passive, capture, once }`,
   )
-}
-
-function tag(el: Element): string {
-  return el.localName
 }

@@ -197,7 +197,10 @@ async function rawArgs(request: Request, url: URL): Promise<unknown> {
 }
 
 function declared(spec: CommandSpec, failure: Failure): Response {
-  const error = spec.errors?.[failure.code]
+  const errors = spec.errors ?? {}
+  const error = Object.hasOwn(errors, failure.code) // not inherited keys: fail('toString')
+    ? errors[failure.code]
+    : undefined
   if (!error)
     throw new Error(
       `terminal: "${failure.code}" is not one of this command's errors`,

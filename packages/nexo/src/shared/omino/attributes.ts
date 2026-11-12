@@ -64,7 +64,7 @@ export class Attributes {
     const raw = readOnce(given) // the server reads a hole once
     const value = valueOf(tag, name, raw)
     if (value === null || value === undefined || value === false) return ''
-    ensureNoCode(tag, name, value)
+    ensureNoScriptUrl(tag, name, value) // handlers were dealt with above
     if (value === true) return ` ${name}`
     ensureText(tag, name, value)
     return ` ${name}="${escapeHtml(String(value))}"`
@@ -77,11 +77,6 @@ export function ensureName(tag: string, name: string): void {
   throw new Error(
     `omino: "${name}" on <${tag}> is not an attribute name. Leave out spaces, quotes, control characters, '<', '>', '/' and '='`,
   )
-}
-
-/** A URL that runs script. (Handlers are dealt with before: `handlerOnServer`.) */
-function ensureNoCode(tag: string, name: string, value: unknown): void {
-  ensureNoScriptUrl(tag, name, value)
 }
 
 /**
