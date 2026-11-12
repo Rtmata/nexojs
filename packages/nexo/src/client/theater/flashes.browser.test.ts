@@ -1,7 +1,7 @@
 /** The flash checker in Chrome: predicted from keyframes, measured from frames. */
 import { afterAll, beforeAll, describe, expect, test } from 'bun:test'
 import { chromium, type Browser } from 'playwright'
-import { flashes } from '../../shared/theater/flashes-measured'
+import { flashes } from '../../shared/theater/flashes'
 import { bundle, chrome, clockedPage, pageWith } from './page.fixture'
 
 let browser: Browser

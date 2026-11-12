@@ -52,7 +52,7 @@ describe('the client build', () => {
     expect(listed).toContain('./src/client/theater/pieces/easing/back.ts')
     expect(listed.filter((source) => source.includes('*'))).toEqual([])
     expect(listed).not.toContain('./src/shared/theater/test-clock.ts') // runs beside the browser
-    expect(listed).not.toContain('./src/shared/theater/flashes-measured.ts')
+    expect(listed).not.toContain('./src/shared/theater/flashes.ts')
   })
 
   test('each nexo-built target is its source built: dist/ for src/, .js for .ts', async () => {
