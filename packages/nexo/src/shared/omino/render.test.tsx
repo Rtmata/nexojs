@@ -933,7 +933,7 @@ describe('srcdoc', () => {
     await expect(
       renderToString(<iframe srcdoc={'<script>alert(1)</script>'} />),
     ).rejects.toThrow(
-      "<iframe srcdoc> runs as a page, so plain text isn't taken there; pass raw(html) for HTML you trust",
+      "<iframe srcdoc> is read as HTML, so plain text isn't taken there; pass raw(html) for HTML you trust",
     )
   })
 })

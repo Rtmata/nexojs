@@ -161,9 +161,12 @@ for (const [name, engine] of engines) {
       const result = await play('guardedProps')
       expect(result.trusted).toBe('<p>book</p>')
       expect(result.text).toContain(
-        "srcdoc> runs as a page, so plain text isn't taken there",
+        "srcdoc> is read as HTML, so plain text isn't taken there",
       )
       expect(result.url).toContain('holds a script URL')
+      expect(result.urlObject).toContain('holds a script URL')
+      expect(result.innerHtml).toContain('innerHTML> is read as HTML')
+      expect(await play('pageSheetBack')).toBe(1)
     })
 
     test('svg namespaces, foreignObject and raw()', async () => {

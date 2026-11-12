@@ -153,21 +153,24 @@ function inGroup(group: unknown, value: unknown): boolean {
   return Array.isArray(group) ? group.includes(value) : group === value
 }
 
+/** Names whose value the browser reads as HTML: srcdoc's page, and, through prop:, innerHTML and outerHTML. */
+const HTML_SINKS = new Set(['srcdoc', 'innerhtml', 'outerhtml'])
+
 /**
- * Shared with the client renderer: `srcdoc` is a page the browser runs, so
- * it takes only HTML marked as trusted with `raw()`, as content does; plain
- * text there (a visitor's) is refused on both sides.
+ * Shared with the client renderer: what the browser reads as HTML (a
+ * `srcdoc` page, a `prop:innerHTML`) takes only HTML marked as trusted
+ * with `raw()`, as content does; plain text there (a visitor's) is refused.
  */
 export function documentValue(
   tag: string,
   name: string,
   value: unknown,
 ): unknown {
-  if (name.toLowerCase() !== 'srcdoc') return value
+  if (!HTML_SINKS.has(name.toLowerCase())) return value
   if (value instanceof RawHtml) return value.html
   if (value === null || value === undefined || value === false) return value
   throw new Error(
-    `omino: <${tag} srcdoc> runs as a page, so plain text isn't taken there; pass raw(html) for HTML you trust`,
+    `omino: <${tag} ${name}> is read as HTML, so plain text isn't taken there; pass raw(html) for HTML you trust`,
   )
 }
 

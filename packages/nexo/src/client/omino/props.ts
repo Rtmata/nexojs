@@ -166,7 +166,8 @@ export class ElementProps {
 /** A property gets the same guards its attribute has: no script URL, srcdoc only from raw(). */
 function guarded(el: Element, key: string, given: unknown): unknown {
   const value = documentValue(el.localName, key, given)
-  if (typeof value === 'string') ensureNoScriptUrl(el.localName, key, value)
+  if (typeof value === 'string' || value instanceof URL)
+    ensureNoScriptUrl(el.localName, key, value) // a URL object becomes its text when assigned
   return value
 }
 

@@ -50,10 +50,13 @@ export interface RouteOptions<L extends string> {
  * (params carry over) or a function of the request. A route's name alone
  * is not one: its `route()` is, and the editor checks it.
  */
+/** The schemes a redirect may name without `//`. */
+type Scheme = 'mailto' | 'tel' | 'sms' | 'geo' | 'data' | 'urn'
+
 export type RedirectTarget =
   | `/${string}` // a path, or `//host/…`
   | `${string}://${string}`
-  | `${'mailto' | 'tel' | 'sms' | 'geo' | 'data' | 'urn'}:${string}`
+  | `${Scheme | Uppercase<Scheme> | Capitalize<Scheme>}:${string}` // schemes ignore case
   | RouteDef<string, any>
   | ((ctx: Context) => string)
 

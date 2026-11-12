@@ -85,7 +85,6 @@ export function arrivals(fn: Arrival, options: { signal: AbortSignal }): void {
  * kept per call, so a second call still gets every segment.
  */
 class Subscriber {
-  private readonly roots = new WeakSet<Element>()
   private readonly given = new WeakSet<Element>()
 
   constructor(
@@ -95,8 +94,7 @@ class Subscriber {
 
   /** An arrived element and the owners inside it, deepest first, itself last. */
   visit(root: Element): void {
-    const again = this.roots.has(root)
-    this.roots.add(root)
+    const again = this.given.has(root)
     const inside = [...root.querySelectorAll(OWNER)]
       .reverse()
       .filter((element) => !again || !this.given.has(element))

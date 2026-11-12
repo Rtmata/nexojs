@@ -29,7 +29,8 @@ function thresholdOf(amount: InViewOptions['amount'] = 'some'): number {
  * One element's visits: each time it comes in, a new signal; when it
  * leaves (or everything stops), that signal aborts.
  */
-class Visits {
+export class Visits {
+  // exported for its test only: no piece lists it
   private visit: AbortController | null = null
   /** With `once`, the one visit already began: a later entry in the same batch starts none. */
   private spent = false

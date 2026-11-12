@@ -1351,5 +1351,17 @@ export function guardedProps() {
     trusted: (el.querySelector('iframe') as HTMLIFrameElement).srcdoc,
     text: tried(() => <iframe prop:srcdoc="<script>alert(1)</script>" />),
     url: tried(() => <a prop:href="javascript:alert(1)">x</a>),
+    urlObject: tried(() => <a prop:href={new URL('javascript:alert(1)')}>x</a>),
+    innerHtml: tried(() => (
+      <div prop:innerHTML="<img src=x onerror=alert(1)>" />
+    )),
   }
+}
+
+/** A page-wide sheet whose <style> left the page (a whole-page swap) comes back on the next render. */
+export function pageSheetBack() {
+  run(<Marked />)
+  document.querySelector('style[data-sheet="test.mark"]')!.remove()
+  run(<Marked />)
+  return document.querySelectorAll('style[data-sheet="test.mark"]').length
 }
