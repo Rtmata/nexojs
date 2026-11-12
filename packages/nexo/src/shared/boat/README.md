@@ -119,7 +119,7 @@ mount(
 )
 ```
 
-- `routes({ … })` uses the server's patterns (params, wildcards, decoding, the most specific wins) and returns a plain `match` function. You may pass your own instead.
+- `routes({ … })` uses the server's patterns (params, wildcards, decoding, the most specific wins; two paths for the same URLs throw, as on the server) and returns a plain `match` function. You may pass your own instead.
 - A route is `{ load?, page, failed? }`. `load` gets `{ params, url, signal }`; the latest navigation wins and a stale answer is dropped. While it loads, the page before stays and `router.data.isLoading` says so.
 - `router.page` is a hole for omino: put it where the page goes.
 - `failed` is the page for a `load` that throws, with `{ error, retry }`. A route's own wins over `router.failed(page)`. Without either, the page before stays and the error is reported.

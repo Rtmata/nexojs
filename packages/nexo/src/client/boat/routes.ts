@@ -45,8 +45,8 @@ type Table<R> = { [Path in keyof R]: ClientRoute<PathParams<Path & string>> }
 
 /**
  * Client routes: the same patterns as the server's — `:id`, `*`,
- * decoding, the most specific wins — returned as the plain `match` function
- * the client router takes.
+ * decoding, the most specific wins, two paths for the same URLs an error —
+ * returned as the plain `match` function the client router takes.
  *
  *   const match = routes({ '/': shelf, '/book/:id': { load, page } })
  */
@@ -56,7 +56,26 @@ export function routes<const R extends Table<R>>(
   const compiled = Object.entries(table as Record<string, ClientRoute>).map(
     ([path, route]) => ({ pattern: new Pattern(path), route }),
   )
+  ensureDistinct(compiled.map(({ pattern }) => pattern))
   return (url) => best(compiled, url)
+}
+
+/**
+ * Two paths of the same shape (`/book/:id`, `/book/:slug`) would answer the
+ * same URLs, and one would hide the other: an error now, in the server
+ * router's words (its check needs whole routes with methods, so this
+ * mirrors it over patterns).
+ */
+function ensureDistinct(patterns: readonly Pattern[]): void {
+  const seen = new Map<string, Pattern>()
+  for (const pattern of patterns) {
+    const clash = seen.get(pattern.shape)
+    if (clash)
+      throw new Error(
+        `boat: "${pattern.path}" and "${clash.path}" match exactly the same URLs. Change one of the paths`,
+      )
+    seen.set(pattern.shape, pattern)
+  }
 }
 
 function best(
