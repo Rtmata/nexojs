@@ -2,6 +2,35 @@
 
 The server. It takes a router, answers requests with it, serves files from folders, and keeps every answer safe by default.
 
+## At a glance
+
+```ts
+import { keep } from '@nexoamigos/nexo/keep'
+import { boat } from '@nexoamigos/nexo/boat'
+
+const router = boat()
+  .get('/', () => new Response('hello'))
+  .post('/order', () => new Response('ordered', { status: 201 }))
+
+const server = keep({ router, static: './public' })
+
+await server.fetch(new Request('http://localhost/'))
+// 200 "hello", with X-Content-Type-Options: nosniff and the other safe headers
+await server.fetch(
+  new Request('http://localhost/order', {
+    method: 'POST',
+    headers: { origin: 'https://elsewhere.example' },
+  }),
+)
+// 403: a request that changes something must come from this site
+await server.fetch(new Request('http://localhost/robots.txt'))
+// 200, the file from ./public, with an ETag and Cache-Control: no-cache
+
+await server.listen(3000)
+```
+
+## Setup
+
 ```ts
 import { keep } from '@nexoamigos/nexo/keep'
 import { boat } from '@nexoamigos/nexo/boat'
@@ -10,26 +39,28 @@ const router = boat().get('/', () => new Response('hello'))
 await keep({ router, static: './public' }).listen(3000)
 ```
 
+The router may also be a plain `(request) => Response` function. Every option below has a safe default; only `router` is required.
+
 ## Options
 
-| Option        | Default         | What it does                                                                                                                             |
-| ------------- | --------------- | ---------------------------------------------------------------------------------------------------------------------------------------- |
-| `router`      | required        | A `boat()` router, anything meeting `KeepRouter`, or a plain `(request) => Response` function.                                           |
-| `static`      | none            | Folders served when no route matches: `'./public'`, `{ dir, at, cache, watch }`, or a list of both. Routes always win.                   |
-| `idleTimeout` | `2 * 60 * 1000` | Milliseconds a silent connection stays open (0: forever; at most 255 s, Bun's limit). A stream sending heartbeats more often stays open. |
-| `hedge`       | on              | Requests that change something must come from this site. `false` turns it off; `{ trusted, except, strict }` tunes it.                   |
-| `bunker`      | on              | The headers every response carries. `false` turns them off; an object tunes each one or adds a Content Security Policy.                  |
-| `echo`        | always on       | A request sent twice with the same `Idempotency-Key` is answered once. `{ ttl, store }` tunes how long and where it is kept.             |
+| Option        | Default         | What it does                                                                                                                                      |
+| ------------- | --------------- | ------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `router`      | required        | A `boat()` router, anything meeting `KeepRouter`, or a plain `(request) => Response` function.                                                    |
+| `static`      | none            | Folders served when no route matches: `'./public'`, `{ dir, at, cache, watch }`, or a list of both. Routes always win.                            |
+| `idleTimeout` | `2 * 60 * 1000` | Milliseconds a silent connection stays open (0: forever; at most 255 s, Bun's limit). A stream sending heartbeats more often stays open.          |
+| `hedge`       | on              | Requests that change something must come from this site. `false` turns it off; `{ trusted, except, strict }` tunes it.                            |
+| `bunker`      | on              | The headers every response carries. `false` turns them off; an object tunes each one or adds a Content Security Policy.                           |
+| `echo`        | always on       | A request sent twice with the same `Idempotency-Key` is answered once. `{ ttl, store }` tunes how long (an hour by default) and where it is kept. |
 
 ## The server
 
-| Member                | What it does                                                                                                        |
-| --------------------- | ------------------------------------------------------------------------------------------------------------------- |
-| `use(middleware)`     | Wraps every request. A `Middleware` is `(handler) => handler`; `{ onStart, onRequest, onResponse }` hooks work too. |
-| `fetch(request)`      | Answers one request without a network: tests.                                                                       |
-| `listen(port = 3000)` | Runs the `onStart` hooks, checks the folders, then listens. `0` picks a free port: read it from `url`.              |
-| `url`                 | Where it listens, once it does; `null` before and after.                                                            |
-| `stop({ grace })`     | No new requests; the ones running get `grace` ms (5000) to finish, then their connections are closed.               |
+| Member                            | What it does                                                                                                                                         |
+| --------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `use(middleware)`                 | Wraps every request. A `Middleware` is `(handler) => handler`; `{ onStart, onRequest, onResponse }` hooks work too.                                  |
+| `fetch(request)`                  | Answers one request without a network: tests.                                                                                                        |
+| `listen(port = 3000, { signal })` | Runs the `onStart` hooks, checks the folders, then listens. `0` picks a free port: read it from `url`. Aborting `signal` stops it, as `stop()` does. |
+| `url`                             | Where it listens, once it does; `null` before and after.                                                                                             |
+| `stop({ grace })`                 | No new requests; the ones running get `grace` ms (5000) to finish, then their connections are closed.                                                |
 
 A middleware wraps the whole flow; the first one added is the outermost. The order keep itself uses: `bunker` (every answer gets its headers, even a refusal), `hedge`, `echo`, then yours, then the request flow.
 
@@ -127,3 +158,12 @@ keep({ router, echo: { ttl: 24 * 60 * 60 * 1000, store: myRedisStore } }) // ms,
 ## In production
 
 keep sends bytes as they are: no gzip, no brotli. Put a reverse proxy in front (Caddy compresses by default; nginx with `gzip on`); it also terminates TLS. Behind it, keep sees plain HTTP: hedge's cookie then goes without `__Host-` and HSTS is not sent — a "behind a proxy" option is a later item.
+
+## Why it works this way
+
+- **Web standards, nothing else.** A handler takes a context and returns a standard `Response`; there are no `c.html()` helpers to learn. Bun sits behind a thin layer (the only one today), and a test is one `server.fetch(request)` with no network.
+- **Safe by default, each part a knob.** `hedge`, `bunker` and `echo` are on unless you turn them off, as Rails and Django protect forms by default: left to each app, each app has to remember it. Each one does one job: hedge judges requests, bunker decorates responses, echo answers retries. They were not merged into one, because judging a request and dressing a response are different jobs.
+- **One question for "is this request from here?".** The browser's own `Sec-Fetch-Site` and `Origin` answer it first, and a token only when they can't. One verdict and one 403, instead of a token on every form plus a separate origin check. A request nobody can vouch for (curl, tests) passes unless you ask for `strict`, the way Go 1.25 decides it.
+- **No Content Security Policy by default.** A strict default policy breaks inline styles and bridge's prefetch rules on the first page. It is one explicit option, with a nonce minted per request.
+- **Routes win over files, and you're told.** A file hidden by a route is reported when the server starts, instead of being served sometimes. Static files are the same `files()` handler you can mount yourself.
+- **Compression and TLS belong to the proxy in front.** Caddy or nginx already do them well; keep sends bytes as they are.

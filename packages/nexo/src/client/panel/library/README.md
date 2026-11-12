@@ -1,6 +1,37 @@
 # panel library
 
-Built-in panels: industry patterns (WAI-ARIA APG, Open UI). Each one enhances the native element where there is one and works without JS. Register them like your own:
+Built-in panels: the industry's interactive patterns (WAI-ARIA APG, Open UI), each enhancing the native element where there is one and working without JS. Register them like your own panels.
+
+## At a glance
+
+```html
+<!-- without JS: a table of contents and a dialog the button opens -->
+<div data-panel="tabs">
+  <ul>
+    <li><a href="#games">Games</a></li>
+    <li><a href="#screens">Screens</a></li>
+  </ul>
+  <section id="games">…</section>
+  <section id="screens">…</section>
+</div>
+
+<button commandfor="info" command="show-modal">Info</button>
+<dialog id="info" data-panel="dialog" closedby="any">
+  <h2>Ys</h2>
+  …
+</dialog>
+```
+
+```ts
+import { attach, dialog, registry, tabs } from '@nexoamigos/nexo/panel'
+import { arrivals } from '@nexoamigos/nexo/bridge/client'
+
+const panels = registry({ dialog, tabs })
+arrivals((segment, { signal }) => attach(segment, panels, { signal }))
+// with JS: APG tabs (one panel shown, arrows among the tabs) and a dialog named by its heading
+```
+
+## Setup
 
 ```ts
 import {
@@ -63,11 +94,11 @@ The panel names the dialog from its first heading (APG). The `closedby="any"` br
 
 ## feed
 
-APG Feed: the museum's infinite shelf. Loading more is bridge's job (`data-bridge-src`, `data-bridge-load="viewport"`, `data-bridge-swap="append"`; it sets `aria-busy` while loading). The panel adds the roles, numbers articles as they arrive (`aria-posinset`, `aria-setsize` from `data-feed-total`, else `-1`) and the keys: Page Down / Up between articles, Ctrl+End / Ctrl+Home out of the feed.
+APG Feed: an endless list that loads more as you scroll. Loading more is bridge's job (`data-bridge-src`, `data-bridge-load="viewport"`, `data-bridge-swap="append"`; it sets `aria-busy` while loading). The panel adds the roles, numbers articles as they arrive (`aria-posinset`, `aria-setsize` from `data-feed-total`, else `-1`) and the keys: Page Down / Up between articles, Ctrl+End / Ctrl+Home out of the feed.
 
 ## requestCloseTop
 
-Not a panel: a function for the Android back button or the museum's own Escape. It closes the innermost open modal dialog or popover (a menu in a sheet before the sheet) with the platform's own `requestClose()` / `hidePopover()`, so `cancel` and `beforetoggle` still run. Returns whether it closed something; `false` means the app may go back.
+Not a panel: a function for the Android back button or an app's own Escape key. It closes the innermost open modal dialog or popover (a menu in a sheet before the sheet) with the platform's own `requestClose()` / `hidePopover()`, so `cancel` and `beforetoggle` still run. Returns whether it closed something; `false` means the app may go back.
 
 ```ts
 onBack(() => requestCloseTop() || history.back())
@@ -428,3 +459,12 @@ These APG patterns are the platform's own; write the element and style it.
 ## Lazy media: markup, no panel
 
 `<img loading="lazy">` and `<iframe loading="lazy">` work in every engine. For `<video>`, `loading="lazy"` is Chrome-only (150+). Write `preload="none"` too: every engine then waits to fetch the video, though the `poster` still loads early where `loading` is missing. A script can't help here, because the poster is requested before any script runs.
+
+## Why it works this way
+
+- **The native element first.** Each panel enhances `<dialog>`, `<details name>`, popover, `<select>`, `<input type="range">` and the rest, and the page works without JS (tabs are a table of contents, a dialog still opens). A panel that rebuilds a control from `<div>`s would lose the platform's focus, forms and accessibility, and leave the page empty until JS runs.
+- **The industry's patterns, not new ones.** Keys and ARIA follow WAI-ARIA APG; names follow Open UI where it has one (`focusgroup`, interest invokers, `closedby`). Someone who knows the platform already knows these panels.
+- **Gap bridges are temporary.** Where an engine lacks a standard (`closedby`, `command`, `switch`, interest invokers), the panel copies the platform's behavior, checks for support where the engine lets it be checked, and is marked for removal once support lands. The markup you write is the standard one, so it keeps working when the bridge goes.
+- **Native patterns get no panel.** Radio groups, spinbuttons, disclosures and the like are the platform's own: the table above says what to write instead of shipping code that does what the browser already does.
+- **No look of its own.** Panels write state (ARIA attributes, `data-*`, custom properties such as `--slider-fill`); how it looks is your CSS. The only styles a panel sets are the ones it needs to work, such as visually hidden text for screen readers or `touch-action` for a gesture.
+- **Everything is taken back.** When a panel's signal aborts, every attribute, role and style it wrote returns to what the server sent, so a segment can be swapped or re-attached without leftovers.

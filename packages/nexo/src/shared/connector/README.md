@@ -2,8 +2,10 @@
 
 State that tells who read it. A `signal` holds a value, a `computed` works one out from others, an effect runs again when what it read changes. Writes only mark; values are worked out when read (push-pull: lazy, cached, glitch-free). It knows nothing of the DOM or the server, and runs in both.
 
+## At a glance
+
 ```ts
-import { computed, effect, signal } from '@nexoamigos/nexo/connector'
+import { computed, effect, signal, watch } from '@nexoamigos/nexo/connector'
 
 const price = signal(10)
 const quantity = signal(2)
@@ -11,9 +13,26 @@ const total = computed(() => price.get() * quantity.get())
 
 effect(() => console.log(total.get())) // 20
 quantity.set(3) // 30, after the current code
+
+const controller = new AbortController() // a screen's lifetime
+watch(
+  quantity,
+  (now, before, { signal }) => fetch(`/stock?want=${now}`, { signal }),
+  {
+    signal: controller.signal,
+  },
+)
+controller.abort() // the watch and its fetch end together
 ```
 
-A reactive read always looks like a call: `.get()`. Reading without depending on it: `peek()`, or `untrack(fn)` for several reads.
+## Setup
+
+```ts
+import { signal } from '@nexoamigos/nexo/connector'
+// or one piece: '@nexoamigos/nexo/connector/signal'
+```
+
+A reactive read always looks like a call: `.get()`. Reading without depending on it: `peek()`, or `untrack(fn)` for several reads. connector runs on the server and in the browser; nothing in it needs a DOM except `frame` and `MediaQuery` (`idle` falls back to `later(1)`).
 
 ## Values
 
@@ -145,3 +164,13 @@ effect(() => list(query.get()))
 ```
 
 `debounce(fn, ms, { leading, maxWait, signal })` returns the function with `cancel()`, `flush()` and `pending` (a readable signal: "saving…"). `debounced(source, ms)` is that, writing a signal from a `watch`; it hears every change, through computeds too. Debouncing is not a scheduler: a scheduler hears once per dirty effect, so it couldn't restart its wait.
+
+## Why it works this way
+
+- **Push-pull: writes mark, reads compute.** A `set` only marks what depends on it; a computed works out its value when read and caches it. So nothing is computed that nobody reads, and an effect never sees half of a change (no glitches).
+- **A reactive read looks like a call, `.get()`.** You can tell from the code what is tracked. `.value` properties, proxies and callable signals were set aside: the first two make a tracked read look like a plain one, the third looks like any function call.
+- **Two kinds of effect.** `effect` tracks what it reads, for small things. `watch` names its sources, so what wakes it is written where you can see it; hidden dependencies in effects were the bugs to avoid.
+- **One scheduler concept at every height.** When an effect runs is a value you pass (`microtask`, `frame`, `later(ms)`, your own), not a set of special APIs. `batch`, `flush` and the loop limit are defined on it.
+- **Lifetimes are `AbortSignal`s.** The same signal ends a screen's effects, listeners, `fetch`es and events, because the platform already uses it for all of them. Each run also gets its own signal, so a load that a newer change made stale is dropped.
+- **No deep reactivity.** A signal notifies when its value is a different value (`Object.is` by default). In-place change lives only in `SignalArray`, `SignalSet` and `SignalMap`, which are plain signals inside. Deep proxies would track writes nobody can see in the code.
+- **State and events are different things.** A signal is something that is; an `event` is something that happens. `changed()` is the one bridge between them, written where it is used.

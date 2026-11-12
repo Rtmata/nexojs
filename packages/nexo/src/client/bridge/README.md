@@ -2,6 +2,36 @@
 
 Navigation in the browser, segment by segment. The server renders whole pages as always; bridge fetches the next one and swaps in only the segments that changed, so the page stays — its scroll, its state, its playing video. Without JavaScript everything still works: links are links, forms are forms.
 
+## At a glance
+
+```tsx
+// server
+const router = boat().get('/shelf/:n', (ctx) =>
+  render(
+    <html>
+      <head>
+        <script type="module" src="/_nexo/bridge.js" />
+      </head>
+      <body>
+        <h1>Arcade</h1>
+        <Segment name="shelf">
+          <a href={`/shelf/${Number(ctx.params.n) + 1}`}>next</a>
+        </Segment>
+      </body>
+    </html>,
+    { only: segmentsOf(ctx.url) },
+  ),
+)
+keep({ router }).use(bridge())
+```
+
+```text
+GET /shelf/1                 → the whole page, as without bridge
+GET /shelf/2?_segment=shelf  → <div data-bridge-segment="shelf"><a href="/shelf/3">next</a></div>
+```
+
+A click on "next" asks for the second URL and replaces only the shelf; the heading, the scroll and anything playing stay. Without JavaScript the same link loads the whole page.
+
 ## Setup
 
 ```ts
@@ -135,3 +165,13 @@ document.addEventListener('bridge:transition', (event) => {
     animateView(event.detail.transition, { spring: { duration: 500 } })
 })
 ```
+
+## Why it works this way
+
+- **The server renders whole pages; the browser swaps parts of them.** Every URL answers with a real page, so links, forms, `curl` and search engines work with no JavaScript at all, and bridge is a layer you add, never a requirement. A client that renders the page itself (hydration) was set aside: it needs the same code twice and a page that is blank until the JS runs.
+- **A segment is named in the HTML, not chosen with a selector.** `data-bridge-segment="shelf"` and `data-bridge-target="shelf"` say what changes in words a reader can follow, and the same names travel in the URL (`?_segment=shelf`) so the server can answer with just those parts. Any server works: without `only`, bridge cuts the segment out of the whole page.
+- **One rule for every attribute: inherited from the closest ancestor.** Set `_top` on `<html>` and the site swaps whole pages; set `_none` on a section and its links stay the browser's. No second mechanism for site-wide settings.
+- **bridge injects no CSS, no progress bar and no script into what it swaps.** It marks the state (`aria-busy`, `data-active`, `data-exiting`, `data-bridge-direction`) and your CSS shows it. Client code lives in modules that listen for `bridge:swapped` or use `arrivals`, so nothing runs from swapped HTML.
+- **Every step is an event you can take over.** `bridge:fetch`, `bridge:swap` and the rest can be cancelled or handled, so a case bridge doesn't cover goes back to the platform instead of needing a new option.
+- **Changes of view are live by default.** The leaving content gets a mark and its CSS animation is awaited in every browser, Firefox included. View Transitions are opt-in, because they snapshot the page and freeze what was moving.
+- **A form is sent again only when keep can answer it once.** The `Idempotency-Key` lets keep replay the first answer, so a lost response never means a double order.
