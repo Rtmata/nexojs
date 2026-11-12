@@ -24,8 +24,8 @@ export interface Tween<T> {
 }
 
 /**
- * One trip at a time: starting the next stops the last where it is
- *, and each trip also stops with the caller's signal.
+ * One trip at a time: starting the next stops the last where it is,
+ * and each trip also stops with the caller's signal.
  */
 class Trips {
   private current = new AbortController()

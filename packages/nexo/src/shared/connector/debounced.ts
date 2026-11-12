@@ -8,8 +8,8 @@ import { watch, type WatchSource } from './watch'
 export interface DebouncedOptions extends DebounceOptions, Named {}
 
 /**
- * A value that follows its source once the source stops changing for `ms`
- *. Nothing of its own: a `signal`, written by a `watch` on `sync` (it
+ * A value that follows its source once the source stops changing for `ms`.
+ * Nothing of its own: a `signal`, written by a `watch` on `sync` (it
  * hears every change, through computeds too) whose callback is `debounce`d.
  */
 export class DebouncedValue<T> implements ReadonlyView<T> {

@@ -40,7 +40,6 @@ export function string(fallback = ''): Param<string> {
   return { parse: (text) => text ?? fallback, write: (value) => value }
 }
 
-/** Arrays and objects, as JSON in the attribute. */
 /** Arrays and objects, as JSON in the attribute; `shape` says what the JSON must be (`'array'`, `'object'`). */
 export function json<T>(fallback: T, shape?: 'array' | 'object'): Param<T> {
   const expected = shape

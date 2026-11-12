@@ -1,6 +1,6 @@
 /**
- * Coming and going, as every Nexo module that moves elements does it
- *: the marks, and how long to wait for what they start. Internal:
+ * Coming and going, as every Nexo module that moves elements does it:
+ * the marks, and how long to wait for what they start. Internal:
  * omino, bridge and theater share it; it is not a public path.
  */
 

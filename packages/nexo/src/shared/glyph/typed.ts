@@ -60,8 +60,8 @@ export class TypedGroup<T extends TokenType, N extends GroupOf<T>> {
 }
 
 /**
- * A token group whose name isn't one of the known ones, with its type
- *: the type says what the values are, so a value of another kind is
+ * A token group whose name isn't one of the known ones, with its type:
+ * the type says what the values are, so a value of another kind is
  * a TS error.
  *
  *   const palette = defineTokens({ blue: typed('color', { 500: '#3b82f6' }) })

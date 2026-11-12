@@ -11,8 +11,8 @@ export interface FontFile {
 }
 
 /**
- * The fallback, adjusted to the font so nothing moves when it arrives
- *: a font on the device (`local`) and the numbers `measureFont`
+ * The fallback, adjusted to the font so nothing moves when it arrives:
+ * a font on the device (`local`) and the numbers `measureFont`
  * prints, as ratios — `sizeAdjust: 1.07` is `size-adjust: 107%`.
  */
 export interface FontMetrics {
@@ -47,8 +47,8 @@ export interface Font {
 export type Fonts<F> = { readonly [K in keyof F]: Font } & Sheet
 
 /**
- * Your font files as `@font-face` rules, written once from one declaration
- *: the family name can't drift between the rule and its uses, since
+ * Your font files as `@font-face` rules, written once from one declaration:
+ * the family name can't drift between the rule and its uses, since
  * the token takes `stack`. With `metrics`, a fallback face from a device
  * font, sized to match. The rules stay out of layers: `@font-face`
  * has no cascade to order, and the same text serves an iframe.

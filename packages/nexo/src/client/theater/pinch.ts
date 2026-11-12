@@ -69,8 +69,8 @@ interface Start {
 const GESTURE_SPAN = spanOf({ x: 0, y: 0 }, { x: 1, y: 0 })
 
 /**
- * Zooms (and turns, and moves) an element with two fingers or a trackpad
- *: scale, rotation and offset follow the fingers' distance, angle
+ * Zooms (and turns, and moves) an element with two fingers or a trackpad:
+ * scale, rotation and offset follow the fingers' distance, angle
  * and middle point; past its limits the zoom stretches, and on release a
  * spring brings it back, at the speed it had (the velocity drag measures). Give it
  * zoom buttons too: `set` animates the zoom.

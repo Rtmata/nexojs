@@ -26,7 +26,7 @@ export interface SourceListener {
 }
 
 /**
- * The Navigation API (museum, Android): every navigation the router claims
+ * The Navigation API (Chromium, including Android): every navigation the router claims
  * is intercepted, with scroll and focus left to Nexo. Baseline 2026; on
  * non-HTTP schemes (`tauri://`) WebKit only intercepts `#…` changes.
  */
@@ -93,7 +93,7 @@ export function historyUrl(): UrlSource {
 
 /**
  * The hash (`#/book/3`): the route is what follows `#`; works on any scheme,
- * `tauri://` included (Lector on Linux).
+ * `tauri://` included (a Tauri app on Linux).
  */
 export function hashUrl(): UrlSource {
   return new PushStateUrl({

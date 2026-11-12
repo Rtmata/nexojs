@@ -32,8 +32,8 @@ const MOTION_PROPS = new Set(['enter', 'exit', 'exit-timeout'])
 
 /**
  * Writes an element's props: as attributes, as the server does, except the
- * live-state list and `prop:…`; `class` and `style` objects key by key
- *; `on…` as listeners. Any value may be a hole.
+ * live-state list and `prop:…`; `class` and `style` objects key by key;
+ * `on…` as listeners. Any value may be a hole.
  */
 export class ElementProps {
   private readonly bindings: Bindings

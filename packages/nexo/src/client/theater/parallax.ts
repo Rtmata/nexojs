@@ -17,8 +17,8 @@ export interface ParallaxOptions {
 const REACH = 50
 
 /**
- * A layer moving at its own speed while its element crosses the viewport
- *. It is exactly `scroll(animate(el, { translate }), { subject: el })`
+ * A layer moving at its own speed while its element crosses the viewport.
+ * It is exactly `scroll(animate(el, { translate }), { subject: el })`
  * — with that piece's fallback and signal. Under reduced motion there is
  * no parallax at all: the layer stays where the page puts it.
  *

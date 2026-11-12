@@ -71,8 +71,8 @@ export interface TokenOptions<D> {
 }
 
 /**
- * Tokens as custom properties by one visible rule, `--<group>-<name>`
- *. Each leaf of the result is the `var()` that reads its token, the
+ * Tokens as custom properties by one visible rule, `--<group>-<name>`.
+ * Each leaf of the result is the `var()` that reads its token, the
  * result is also the sheet that defines them on `:root`, in the
  * `glyph.tokens` layer. A token may point to another; a colour may be
  * `{ light, dark }`, emitted as `light-dark()` with `color-scheme`.
