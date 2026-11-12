@@ -1,7 +1,7 @@
 /**
  * An easing: progress in time (0 → 1) to progress in value. It may go
  * past 0 or 1 (`back`, `elastic` overshoot). The one shape every curve in
- * theater speaks (B.4): a CSS string is read into one of these, and one of
+ * theater speaks: a CSS string is read into one of these, and one of
  * these is sampled into CSS `linear()` for the browser.
  *
  *   const half: Easing = (t) => t * t

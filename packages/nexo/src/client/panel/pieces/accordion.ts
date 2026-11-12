@@ -1,2 +1,2 @@
-/** The `accordion` panel: its own import path (A.1b). */
+/** The `accordion` panel: its own import path. */
 export { accordion } from '../library/accordion'

@@ -98,5 +98,5 @@ export class Flight {
   }
 }
 
-/** Set on the link or form while its request runs: a state, so unprefixed (audit item 6b, as HTML's own states). */
+/** Set on the link or form while its request runs: a state, so unprefixed (as HTML's own states). */
 export const ACTIVE = 'data-active'

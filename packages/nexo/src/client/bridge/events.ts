@@ -4,7 +4,7 @@
  * and `bridge:fail` fire on the link that started the navigation;
  * `bridge:swapped` on each segment that just arrived, with its lifetime in
  * `detail.signal`; `bridge:leave` on each one about to go, whose listeners
- * may hand `detail.waitUntil(promise)` their exits (C.19b). Cancelling
+ * may hand `detail.waitUntil(promise)` their exits. Cancelling
  * `bridge:fetch` or `bridge:swap` with `preventDefault()` stops bridge
  * there; the handler owns what happens next (`detail.swap()` does the swap).
  * `bridge:fail` carries the `error` and, once a response arrived, its

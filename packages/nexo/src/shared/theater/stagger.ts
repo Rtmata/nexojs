@@ -12,7 +12,7 @@ export interface StaggerOptions {
 }
 
 /**
- * Each element of a list starts `each` ms after the one before it (B.2),
+ * Each element of a list starts `each` ms after the one before it,
  * counting from `from`. Pass it as `delay` to an animation of a list.
  *
  *   animate(covers, { opacity: [0, 1] }, { delay: stagger(50, { from: 'center' }) })

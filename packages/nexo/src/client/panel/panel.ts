@@ -10,15 +10,15 @@ export type EventHandler<C> = (
 type Schema = Record<string, Param<unknown>>
 
 export interface PanelOptions<S extends Schema, C> {
-  /** Typed params, read from `data-<panel>-<key>` (D.3). */
+  /** Typed params, read from `data-<panel>-<key>`. */
   params?: S
-  /** `'click .next': (e, ctx) => …` — declarative, so it can be inspected (D.1). */
+  /** `'click .next': (e, ctx) => …` — declarative, so it can be inspected. */
   events?: Record<string, EventHandler<C>>
   /** Free code when it connects; what it returns is `ctx` for the handlers. */
   connect?(el: Element, params: ParamsOf<S>, run: { signal: AbortSignal }): C
 }
 
-/** What a panel is: the same shape as `ref` (C.17a), plus its typed and markup forms. */
+/** What a panel is: the same shape as `ref`, plus its typed and markup forms. */
 export interface Panel<S extends Schema, C> {
   /** Connect with the params' defaults. */
   (el: Element, run: { signal: AbortSignal }): void
@@ -32,11 +32,11 @@ export interface Panel<S extends Schema, C> {
 }
 
 /**
- * A behavior for markup that's already there (D.1): params, an events map
+ * A behavior for markup that's already there: params, an events map
  * and free code, as one plain function of `(el, { signal })`. Works without
- * signals (A.1); everything it adds ends with `signal`.
+ * signals; everything it adds ends with `signal`.
  *
- *   import * as param from '@nexoamigos/nexo/panel/params' // a namespace (audit item 11)
+ *   import * as param from '@nexoamigos/nexo/panel/params' // a namespace
  *
  *   const gallery = panel({
  *     params: { start: param.number(0) },
@@ -99,7 +99,7 @@ function readDefaults<S extends Schema>(schema: S): ParamsOf<S> {
   return params as ParamsOf<S>
 }
 
-/** Events that don't bubble: their bubbling twin, or listened to in the capture phase (D.2 b). */
+/** Events that don't bubble: their bubbling twin, or listened to in the capture phase. */
 const TWIN: Record<string, string> = { focus: 'focusin', blur: 'focusout' }
 const NON_BUBBLING = new Set([
   'mouseenter',
@@ -144,7 +144,7 @@ const NON_BUBBLING = new Set([
 /** `'click .next'` → type and selector. */
 type Entry<C> = { selector: string; handler: EventHandler<C> }
 
-/** One panel on one element: `connect` runs, then one listener per event type on `el` (D.2 b). */
+/** One panel on one element: `connect` runs, then one listener per event type on `el`. */
 class Connection<S extends Schema, C> {
   private readonly ctx: C
 

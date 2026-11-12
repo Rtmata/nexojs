@@ -4,7 +4,7 @@ import { AnimationGroup } from './group'
 import { reducedMotion } from './reduce'
 import type { Playback } from './playback'
 
-/** Where elements were: the "first" of FLIP (E.1). */
+/** Where elements were: the "first" of FLIP. */
 export interface Measured {
   readonly boxes: ReadonlyMap<Element, DOMRect>
 }
@@ -51,13 +51,13 @@ function land(el: Element): void {
 
 /**
  * Animates the measured elements from where they were to where they are
- * now (the "last, invert, play" of FLIP, E.1), on WAAPI with theater's
+ * now (the "last, invert, play" of FLIP), on WAAPI with theater's
  * curve, speed and reduced motion. Elements that didn't move, or left
  * the page, are skipped.
  */
 export function flip(before: Measured, options: AnimateOptions = {}): Playback {
   for (const el of before.boxes.keys()) land(el)
-  if (reducedMotion() && options.reduce !== false) return new AnimationGroup([]) // it only moves, to where it already is (C.1)
+  if (reducedMotion() && options.reduce !== false) return new AnimationGroup([]) // it only moves, to where it already is
   const animations = [...before.boxes].flatMap(([el, first]) => {
     const keyframes = el.isConnected
       ? inverseOf(first, el.getBoundingClientRect())
@@ -87,7 +87,7 @@ function flipOne(
 }
 
 /**
- * `measure`, your change, `flip` — in one call (E.1).
+ * `measure`, your change, `flip` — in one call.
  *
  *   layout(covers, () => applyFilter(), { spring: { duration: 400 }, signal })
  */
@@ -105,7 +105,7 @@ export function layout(
 export type MoveFn = (rows: Element[], update: () => void) => unknown
 
 /**
- * A row mover for omino's `<For move={moves(options)}>` (E.2): FLIP with
+ * A row mover for omino's `<For move={moves(options)}>`: FLIP with
  * theater's curve. omino calls it with the rows and the reorder; it never
  * imports theater.
  *

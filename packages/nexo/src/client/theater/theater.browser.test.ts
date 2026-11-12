@@ -40,7 +40,7 @@ describe.skipIf(!chrome)('theater in Chrome', () => {
     expect(result).toEqual([0.5, 1])
   })
 
-  test('speed: a wrong value in CSS is reported and 1 is used (audit item 4)', async () => {
+  test('speed: a wrong value in CSS is reported and 1 is used', async () => {
     const page = await openPage(
       browser,
       code,
@@ -170,7 +170,7 @@ describe.skipIf(!chrome)('theater in Chrome', () => {
     expect(elapsed).toBeLessThan(180)
   })
 
-  test('benchmark: value springs per frame fit in the 16 ms budget (item 33)', async () => {
+  test('benchmark: value springs per frame fit in the 16 ms budget', async () => {
     const page = await openPage(browser, code, '')
     const result = await page.evaluate(async () => {
       const { frames, SpringCurve } = (window as any).theater

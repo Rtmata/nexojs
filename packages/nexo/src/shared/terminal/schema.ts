@@ -1,7 +1,7 @@
 /**
  * Standard Schema v1 (standardschema.dev): the interface, copied as types,
  * so any validator that meets it (Valibot, Zod, ArkType…) plugs in with no
- * dependency (R.24). Nexo's own small validators below meet it too.
+ * dependency. Nexo's own small validators below meet it too.
  */
 export interface StandardSchemaV1<Input = unknown, Output = Input> {
   readonly '~standard': {
@@ -59,9 +59,9 @@ function fails(message: string, path: PropertyKey[]): Issue[] {
 }
 
 /**
- * Trusted as is, no check (R.24): for transports whose other side already
+ * Trusted as is, no check: for transports whose other side already
  * validates (Tauri: Rust's types). Only the type. Named as Zod's and
- * Valibot's (`custom<T>()`, audit item 13).
+ * Valibot's (`custom<T>()`).
  */
 export function custom<T>(): StandardSchemaV1<T> {
   return schema((value) => ({ value: value as T }))

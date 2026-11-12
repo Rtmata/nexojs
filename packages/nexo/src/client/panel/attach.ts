@@ -4,16 +4,16 @@ import { PANEL_ATTRIBUTE } from './vocabulary'
 
 export { PANEL_ATTRIBUTE }
 
-/** Panels by the name markup uses: `data-panel="gallery tabs"` (F.1). A plain object (D.2). */
+/** Panels by the name markup uses: `data-panel="gallery tabs"`. A plain object. */
 export type Registry = Record<string, Panel<any, any>>
 
-/** Who is connected, so `attach` is idempotent per element (item 36) and `observe` can end them. */
+/** Who is connected, so `attach` is idempotent per element and `observe` can end them. */
 const connected = new WeakMap<Element, Map<string, AbortController>>()
 
 /**
  * Connect every `data-panel` in `root` (itself included), each with a child
- * of `signal` (B.8). Explicit, no observer (D.2): call it on load and for
- * each arrival (`arrivals` from bridge, R.17). An element already connected
+ * of `signal`. Explicit, no observer: call it on load and for
+ * each arrival (`arrivals` from bridge). An element already connected
  * to a panel isn't connected again while that connection lives. A panel
  * that throws is reported (`reportError`) and skipped: the rest connect.
  */

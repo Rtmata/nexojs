@@ -8,7 +8,7 @@ export type Direction = 'forward' | 'back' | 'replace'
 /** A return through history: back or forward. */
 export type ReturnDirection = Exclude<Direction, 'replace'>
 
-/** What `data-bridge-transition` says (decision 35): snapshots or not, and the types. */
+/** What `data-bridge-transition` says: snapshots or not, and the types. */
 export interface TransitionSays {
   /** `true` on, `false` off, `null` when nothing says (the arriving page may). */
   snapshots: boolean | null
@@ -16,7 +16,7 @@ export interface TransitionSays {
 }
 
 /**
- * Reads `data-bridge-transition` (decision 35): absent says nothing,
+ * Reads `data-bridge-transition`: absent says nothing,
  * `"false"` turns snapshots off, anything else turns them on and its words
  * are the types (a bare attribute: no types).
  */
@@ -39,7 +39,7 @@ export function joined(
   return { snapshots, types: snapshots ? types : [] }
 }
 
-/** What `bridge:transition` carries (E.4): a plain value, so bridge imports nobody. */
+/** What `bridge:transition` carries: a plain value, so bridge imports nobody. */
 export interface ChangeDetail {
   /** The View Transition, with snapshots; `null` when the change is live. */
   transition: ViewTransition | null
@@ -56,10 +56,10 @@ const TYPES = 'data-bridge-types'
 let latest: object | null = null
 
 /**
- * One change of view (E.4, the view manager): the current view leaves, the
+ * One change of view (the view manager): the current view leaves, the
  * next enters, and while it happens `<html>` says which way and which
  * types — for CSS, in every browser. Live by default (omino's marks on
- * the new elements, C.15c); snapshots when asked (a View Transition, its
+ * the new elements); snapshots when asked (a View Transition, its
  * types where the browser has them).
  */
 export class ViewChange {
@@ -173,7 +173,7 @@ export class ViewChange {
 }
 
 /**
- * Snapshots run at the page's speed (C.1b): bridge reads the CSS property
+ * Snapshots run at the page's speed: bridge reads the CSS property
  * as theater does (`settle/speed`) — it imports no theater — and sets
  * each View Transition animation's rate once they exist.
  */

@@ -1,7 +1,7 @@
 /**
- * terminal: typed commands between a client and a server or Tauri (A.2,
- * F.1). One shared table; `client(transport).exec(name, args, { signal })`;
- * `serve(handlers)` for keep. Imports no other module (A.1).
+ * terminal: typed commands between a client and a server or Tauri. One
+ * shared table; `client(transport).exec(name, args, { signal })`;
+ * `serve(handlers)` for keep. Imports no other module.
  */
 export * from './pieces/client'
 export * from './pieces/terminal'

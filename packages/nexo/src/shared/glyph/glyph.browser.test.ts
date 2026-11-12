@@ -1,5 +1,5 @@
 /**
- * glyph's CSS in real engines (G.2): Chromium, WebKit and Firefox through
+ * glyph's CSS in real engines: Chromium, WebKit and Firefox through
  * Playwright, for what only a browser decides — the layer order,
  * `light-dark()` resolving by `color-scheme`, and themes nested in rooms. The CSS is made here, in Bun,
  * and put in a blank page as it is: nothing is bundled.
@@ -41,12 +41,12 @@ const tokens = defineTokens({
   font: { body: 'serif', mono: 'monospace' },
 })
 
-/** A theme that fixes the dark scheme, and one that only changes colours (C.1–C.3). */
+/** A theme that fixes the dark scheme, and one that only changes colours. */
 const night = defineTheme(tokens, 'night', { colorScheme: 'dark' })
 const paper = defineTheme(tokens, 'paper', {
   color: { text: '#300', surface: '#ffe' },
 })
-/** A recipe over the tokens: a variant beats the base by layer alone, a compound beats both, a part inherits a var (A.1, D). */
+/** A recipe over the tokens: a variant beats the base by layer alone, a compound beats both, a part inherits a var. */
 const button = recipe('button', {
   vars: { bg: tokens.color.surface, pad: '4px' },
   base: (v) => ({ 'background-color': v.bg, padding: v.pad }),
@@ -139,7 +139,7 @@ for (const [name, engine] of engines) {
       await browser?.close()
     })
 
-    test('a { light, dark } token follows the system scheme (C.3)', async () => {
+    test('a { light, dark } token follows the system scheme', async () => {
       await page.emulateMedia({ colorScheme: 'light' })
       expect(await computed(page, 'text', 'color')).toBe('rgb(34, 34, 34)')
       await page.emulateMedia({ colorScheme: 'dark' })
@@ -161,7 +161,7 @@ for (const [name, engine] of engines) {
       expect(await computed(page, 'link', 'color')).toBe('rgb(37, 99, 235)')
     })
 
-    test("glyph's layer order holds whatever order its sheets come in (E.1)", async () => {
+    test("glyph's layer order holds whatever order its sheets come in", async () => {
       expect(await computed(page, 'probe', 'color')).toBe('rgb(0, 0, 1)')
     })
 
@@ -169,7 +169,7 @@ for (const [name, engine] of engines) {
       expect(await computed(page, 'mine', 'color')).toBe('rgb(0, 0, 3)')
     })
 
-    test("colorScheme: 'dark' flips the light-dark tokens, whatever the system says (C.3)", async () => {
+    test("colorScheme: 'dark' flips the light-dark tokens, whatever the system says", async () => {
       await page.emulateMedia({ colorScheme: 'light' })
       expect(await computed(page, 'night-text', 'color')).toBe(
         'rgb(238, 238, 238)',
@@ -179,7 +179,7 @@ for (const [name, engine] of engines) {
       )
     })
 
-    test('a room inside another theme shows its own text and surface (C.1, C.2)', async () => {
+    test('a room inside another theme shows its own text and surface', async () => {
       await page.emulateMedia({ colorScheme: 'light' })
       expect(await computed(page, 'paper-text', 'color')).toBe('rgb(51, 0, 0)')
       expect(await computed(page, 'paper', 'background-color')).toBe(
@@ -189,13 +189,13 @@ for (const [name, engine] of engines) {
       expect(await computed(page, 'paper', 'color-scheme')).toBe('light dark')
     })
 
-    test("colorScheme: 'inherit' takes the dark of the room around it (C.3)", async () => {
+    test("colorScheme: 'inherit' takes the dark of the room around it", async () => {
       await page.emulateMedia({ colorScheme: 'light' })
       expect(await computed(page, 'inner', 'color-scheme')).toBe('dark')
       expect(await computed(page, 'inner', 'color')).toBe('rgb(238, 238, 238)')
     })
 
-    test('a theme named with quotes, a backslash and </style> still applies (C.1)', async () => {
+    test('a theme named with quotes, a backslash and </style> still applies', async () => {
       await page.emulateMedia({ colorScheme: 'light' })
       expect(await computed(page, 'odd', 'color')).toBe('rgb(238, 238, 238)')
     })
@@ -212,7 +212,7 @@ for (const [name, engine] of engines) {
       expect(await computed(page, 'ghost-small', 'padding-top')).toBe('0px')
     })
 
-    test("colorMix computes what the browser's color-mix(in oklch) shows (C.5)", async () => {
+    test("colorMix computes what the browser's color-mix(in oklch) shows", async () => {
       const shown = await computed(page, 'mix', 'color')
       expect(bytes(shown)).toEqual(bytes(colorMix('#3b82f6', 'white', 20)))
     })

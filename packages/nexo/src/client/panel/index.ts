@@ -1,10 +1,10 @@
 /**
  * panel: behaviors for markup that's already there (D). A panel is a plain
  * function of `(el, { signal })`, like omino's `ref`; `attach` connects the
- * ones markup names with `data-panel`. Imports no other module (A.1).
+ * ones markup names with `data-panel`. Imports no other module.
  */
 export * from './pieces/core'
-/** The built-in panels (D.4), one piece each. Register them like your own: `registry({ tabs, gallery })`. */
+/** The built-in panels, one piece each. Register them like your own: `registry({ tabs, gallery })`. */
 export * from './pieces/focusgroup'
 export * from './pieces/tabs'
 export * from './pieces/dialog'

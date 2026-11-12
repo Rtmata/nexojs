@@ -6,7 +6,7 @@ import { Marks } from './marks'
 import { collapsed, Options } from './options'
 
 /**
- * Combobox (WAI-ARIA APG Combobox, R.39). The element decides:
+ * Combobox (WAI-ARIA APG Combobox). The element decides:
  * - `<input type="text">`: free text with suggestions in the list its
  *   `aria-controls` names; the app or bridge may fill that list as the
  *   visitor types (then `data-combobox-filter="none"`). Layer 0 sends the

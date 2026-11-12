@@ -1,5 +1,5 @@
 /**
- * The client router in real engines (F.3): Chromium, WebKit, Firefox, on a
+ * The client router in real engines: Chromium, WebKit, Firefox, on a
  * page served by keep so pushState and the Navigation API work.
  */
 import { afterAll, beforeAll, describe, expect, test } from 'bun:test'
@@ -106,7 +106,7 @@ describe('boat client', () => {
         })
       })
 
-      test("R.41: a load that throws shows the route's failed page, else the router's; retry works; nothing without a hook", async () => {
+      test("a load that throws shows the route's failed page, else the router's; retry works; nothing without a hook", async () => {
         expect(await play('failing')).toEqual({
           routeOwn: 'route failed: boom',
           afterRetry: 'flaky ok',

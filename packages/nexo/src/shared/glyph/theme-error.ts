@@ -16,7 +16,7 @@ interface Mistake<C extends string, D> {
 }
 
 /**
- * A mistake in a theme a person wrote (C.4), told by `themeFrom`. One type
+ * A mistake in a theme a person wrote, told by `themeFrom`. One type
  * per `code`, so `switch (error.code)` knows its `data`:
  *
  *   es: { notAColor: ({ value }) => `«${value}» no es un color`, … }

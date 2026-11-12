@@ -21,14 +21,14 @@ const button = recipe('button', {
 })
 
 describe('recipe (D)', () => {
-  test('a call gives every group with its value, defaults included (D.2)', () => {
+  test('a call gives every group with its value, defaults included', () => {
     expect(button()).toBe('button button--intent-primary button--size-medium')
     expect(button({ size: 'small', intent: 'ghost' })).toBe(
       'button button--intent-ghost button--size-small',
     )
   })
 
-  test('the sheet: vars with defaults and the base below, variants and when above (A.1, D.1, D.4)', () => {
+  test('the sheet: vars with defaults and the base below, variants and when above', () => {
     expect(button.name).toBe('glyph.recipes(button)')
     expect(button.css).toBe(`${LAYER_ORDER}
 @layer glyph.recipes {
@@ -62,7 +62,7 @@ describe('recipe (D)', () => {
 `)
   })
 
-  test('parts: a class each, reading the root vars through inheritance (D.5)', () => {
+  test('parts: a class each, reading the root vars through inheritance', () => {
     const card = recipe('card', {
       vars: { gap: '1rem' },
       base: (v) => ({ display: 'grid', gap: v.gap }),
@@ -78,7 +78,7 @@ describe('recipe (D)', () => {
     )
   })
 
-  test('variants nest selectors too, and set vars there (D.3)', () => {
+  test('variants nest selectors too, and set vars there', () => {
     const link = recipe('link', {
       vars: { fg: 'blue' },
       base: (v) => ({ color: v.fg }),

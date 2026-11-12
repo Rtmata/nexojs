@@ -43,7 +43,7 @@ type Reads = (typeof READS)[number]
 export interface SignalArray<T> extends Pick<ReadonlyArray<T>, Reads> {}
 
 /**
- * An array whose reads are tracked (B.9a), built of plain signals: one per
+ * An array whose reads are tracked, built of plain signals: one per
  * index someone read, plus `length`. Every change is the native one on the
  * items, then each index read so far gets its value again, and `length` its
  * own; only the ones that differ notify.
@@ -127,7 +127,7 @@ export class SignalArray<T> implements Iterable<T> {
     return this
   }
 
-  /** What JSON can hold: a plain array (B.9c). */
+  /** What JSON can hold: a plain array. */
   toJSON(): T[] {
     return [...this.items]
   }

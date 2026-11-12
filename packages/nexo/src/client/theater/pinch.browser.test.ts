@@ -1,4 +1,4 @@
-/** `pinch` (F.2) in Chrome: two synthetic touch pointers, and a trackpad's ctrl + wheel. */
+/** `pinch` in Chrome: two synthetic touch pointers, and a trackpad's ctrl + wheel. */
 import { afterAll, beforeAll, describe, expect, test } from 'bun:test'
 import { chromium, type Browser, type Page } from 'playwright'
 import { bundle, chrome, clockedPage } from './page.fixture'

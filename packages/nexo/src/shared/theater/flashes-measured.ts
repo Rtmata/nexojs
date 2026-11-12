@@ -131,7 +131,7 @@ async function frame(
 }
 
 /**
- * The measured source of the flash checker (C.3): the page's real frames
+ * The measured source of the flash checker: the page's real frames
  * — images, video and canvas included — captured on the test clock and
  * fed to WCAG 2.3.1's counter, region by region (a 3 × 3 grid, each a
  * ninth of the screen: the safe area). A flash smaller than a region is

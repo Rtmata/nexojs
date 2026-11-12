@@ -5,7 +5,7 @@ import type { ColorScheme, Found, TokenSet } from './token-set'
 const REFERENCE = /var\(--([A-Za-z0-9_-]+)\)/g
 
 /**
- * Final values from the definitions (C.6), as the browser would compute
+ * Final values from the definitions, as the browser would compute
  * them for one scheme: each `var(--…)` replaced by the value it points to,
  * each `{ light, dark }` by its side. Nothing is read from a page.
  */

@@ -3,7 +3,7 @@ import { Marks } from './marks'
 
 /**
  * Switch (WAI-ARIA APG Switch) on `<input type="checkbox" switch>`, the
- * platform's own (Safari 17.4; R.33).
+ * platform's own (Safari 17.4).
  *
  *   <label><input type="checkbox" switch data-panel="switch"> Subtitles</label>
  *

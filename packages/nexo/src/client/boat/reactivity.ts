@@ -1,6 +1,6 @@
 /**
- * What the client router needs from a signals library, as a value (R.20,
- * as omino's R.12): connector meets it as is. boat imports none (A.1).
+ * What the client router needs from a signals library, as a value (the
+ * same shape omino asks for): connector meets it as is. boat imports none.
  */
 export interface Reactivity {
   signal<T>(value: T): ReactiveValue<T>
@@ -27,7 +27,7 @@ export interface ReactiveValue<T> extends ReadableLike<T> {
   asReadonly(): ReadableLike<T>
 }
 
-/** connector's `resource` (B.10), as the router uses it. */
+/** connector's `resource`, as the router uses it. */
 export interface ResourceLike<T> {
   readonly value: ReadableLike<T | undefined>
   readonly status: ReadableLike<string>

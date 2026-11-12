@@ -22,7 +22,7 @@ export interface Debounced<A extends unknown[]> {
 }
 
 /**
- * The timers of one debounced function (R.8). Each call restarts the wait;
+ * The timers of one debounced function. Each call restarts the wait;
  * the last call's arguments run when it ends, or at `maxWait`.
  */
 class Debouncer<A extends unknown[]> {
@@ -83,7 +83,7 @@ class Debouncer<A extends unknown[]> {
     this.waiting.set(false)
   }
 
-  /** It runs from a timer: an error is reported, as an effect's (E.1). */
+  /** It runs from a timer: an error is reported, as an effect's. */
   private run(args: A): void {
     try {
       this.fn(...args)
@@ -94,7 +94,7 @@ class Debouncer<A extends unknown[]> {
 }
 
 /**
- * Wait until calls stop for `ms`, then run the last one (R.8). Works for any
+ * Wait until calls stop for `ms`, then run the last one. Works for any
  * function: a `watch` callback, a DOM handler, an event listener.
  *
  *   watch(search, debounce(load, 300, { maxWait: 1000 }))

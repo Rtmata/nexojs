@@ -10,7 +10,7 @@ export type Snapshot<T> = T extends { toJSON(): infer R }
         : T
 
 /**
- * Exactly what `JSON.stringify(x)` produces, as objects instead of text (B.9c):
+ * Exactly what `JSON.stringify(x)` produces, as objects instead of text:
  * the same walk, the same `toJSON`, the same losses. For destinations that
  * skip `toJSON`: `postMessage`, `structuredClone`, IndexedDB.
  *

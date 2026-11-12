@@ -23,7 +23,7 @@ const tokens = defineTokens(
   { refersTo: [palette] },
 )
 
-describe('writeDtcg (B.1)', () => {
+describe('writeDtcg', () => {
   test('each group with its $type, references as {group.token}', () => {
     const { tokens: json } = writeDtcg(palette, tokens)
     expect(json.blue).toEqual({
@@ -125,7 +125,7 @@ describe('writeDtcg (B.1)', () => {
   })
 })
 
-describe('readDtcg (B.1)', () => {
+describe('readDtcg', () => {
   test("glyph's own output reads back to the same values", () => {
     const { resolver } = writeDtcg(palette, tokens)
     const back = readDtcg(resolver)

@@ -1,7 +1,7 @@
 /**
  * What every piece of glyph that produces CSS gives (reset, base, tokens,
  * themes): a plain value, so omino's `styles` list can take it without
- * importing glyph (A.3). `name` is the key a page emits each sheet once by; `css` is
+ * importing glyph. `name` is the key a page emits each sheet once by; `css` is
  * complete and already inside its layer.
  */
 export interface Sheet {
@@ -9,7 +9,7 @@ export interface Sheet {
   readonly css: string
 }
 
-/** glyph's layers (E.1), lowest first: a later layer wins whatever the specificity. */
+/** glyph's layers, lowest first: a later layer wins whatever the specificity. */
 export type Layer =
   | 'glyph.reset'
   | 'glyph.base'

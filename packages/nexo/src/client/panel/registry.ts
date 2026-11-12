@@ -11,7 +11,7 @@ export type PanelParams<P> = P extends Panel<infer S, any> ? ParamsOf<S> : never
 export type Markup = Record<string, string | true>
 
 /**
- * The names markup uses, given once (R.23): `attach(root, panels, …)` reads
+ * The names markup uses, given once: `attach(root, panels, …)` reads
  * them and `markup` writes them, typed by the key.
  *
  *   const panels = registry({ gallery, tabs })

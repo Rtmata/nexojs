@@ -79,7 +79,7 @@ describe.skipIf(!chrome)('animate in Chrome', () => {
     expect(await style(page, 'b', 'opacity')).toBe('1')
   })
 
-  test('reduced motion: what moves jumps to its end, opacity still fades (C.1)', async () => {
+  test('reduced motion: what moves jumps to its end, opacity still fades', async () => {
     const { page, clock } = await clockedPage(browser, code, '<p id="a">a</p>')
     await page.emulateMedia({ reducedMotion: 'reduce' })
     await page.evaluate(() => {
@@ -119,7 +119,7 @@ describe.skipIf(!chrome)('animate in Chrome', () => {
     expect(await style(page, 'b', 'translate')).not.toBe('0px')
   })
 
-  test('speed below the element stretches its time (C.1b)', async () => {
+  test('speed below the element stretches its time', async () => {
     const { page, clock } = await clockedPage(
       browser,
       code,

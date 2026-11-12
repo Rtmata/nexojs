@@ -1,2 +1,2 @@
-/** The `slider` panel: its own import path (A.1b). */
+/** The `slider` panel: its own import path. */
 export { slider } from '../library/slider'

@@ -1,6 +1,6 @@
 /**
  * The colour spaces glyph computes in, and the conversions between them
- * (C.5). sRGB is what WCAG's contrast reads; OKLCH is where mixing looks
+ *. sRGB is what WCAG's contrast reads; OKLCH is where mixing looks
  * even to the eye. Numbers are CSS's own: channels 0–1, L 0–1, hue in degrees.
  */
 

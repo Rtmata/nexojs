@@ -1,5 +1,5 @@
 /**
- * The candidate nearest to a mistyped `name` (C.4), as rustc finds one:
+ * The candidate nearest to a mistyped `name`, as rustc finds one:
  * edits counted with neighbours swapped as one and case ignored, at most
  * one for every three letters, rounded up — so `primry`, `pirmary`,
  * `Primary` and `srfce` find their name, and `zzz` finds nothing.

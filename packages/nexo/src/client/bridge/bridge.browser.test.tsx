@@ -853,7 +853,7 @@ describe.if(chrome)('when things go wrong', () => {
     expect(orders).toBe(1)
     expect(keys).toEqual([expect.stringMatching(/^[0-9a-f]{32}$/)])
     expect(await sameDocument()).toBe(true)
-    // the second fetch is the quiet retry; the fail is the landing's: a page without the segment (decision 12)
+    // the second fetch is the quiet retry; the fail is the landing's: a page without the segment
     expect(await log()).toEqual([
       'bridge:fetch',
       'bridge:fetch',
@@ -1668,7 +1668,7 @@ describe.if(chrome)('from a script: visit, reload, prefetch', () => {
     expect(await text('[data-bridge-segment="shelf"] li')).toBe('game 1')
   })
 
-  test('a wrong option in a script throws (audit item 4: JS throws, markup reports)', async () => {
+  test('a wrong option in a script throws (JS throws, markup reports)', async () => {
     await open('/shelf/1')
     const message = await call(
       `bridge.visit('/shelf/2', { history: 'pushh' }).then(() => 'went', (error) => error.message)`,
@@ -2180,7 +2180,7 @@ describe.if(chrome)('hooks for the page', () => {
     expect(await text('[data-bridge-segment="inner"]')).toBe('inner 6')
   })
 
-  test('a live change: <html> says the direction meanwhile, bridge:transition says it all (E.4)', async () => {
+  test('a live change: <html> says the direction meanwhile, bridge:transition says it all', async () => {
     await open('/shelf/1')
     await page.evaluate(() => {
       const w = window as any
@@ -2210,7 +2210,7 @@ describe.if(chrome)('hooks for the page', () => {
     )
   })
 
-  test('a return through history goes back (E.4)', async () => {
+  test('a return through history goes back', async () => {
     await open('/shelf/1')
     await page.click('#push')
     await page.waitForSelector('text=game 2')
@@ -2226,7 +2226,7 @@ describe.if(chrome)('hooks for the page', () => {
     expect(await page.evaluate(() => (window as any).direction)).toBe('back')
   })
 
-  test('a live leave is marked and its CSS animation awaited before the swap (E.4, C.15c)', async () => {
+  test('a live leave is marked and its CSS animation awaited before the swap', async () => {
     await open('/shelf/1')
     await page.addStyleTag({
       content:
@@ -2269,7 +2269,7 @@ describe.if(chrome)('hooks for the page', () => {
     ])
   })
 
-  test('snapshots run at the page speed (C.1b: --theater-speed on <html>)', async () => {
+  test('snapshots run at the page speed (--theater-speed on <html>)', async () => {
     await open('/shelf/1?transition=zoom')
     await page.evaluate(() =>
       document.documentElement.style.setProperty('--theater-speed', '0.5'),
@@ -2299,7 +2299,7 @@ describe.if(chrome)('hooks for the page', () => {
       w.transitions = 0
       document.startViewTransition = ((arg: any) => {
         w.transitions++
-        const update = typeof arg === 'function' ? arg : arg.update // with types where the browser has them (E.4)
+        const update = typeof arg === 'function' ? arg : arg.update // with types where the browser has them
         update()
         const done = Promise.resolve()
         return {

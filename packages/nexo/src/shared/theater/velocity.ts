@@ -11,7 +11,7 @@ const WINDOW = 100
 const STILL = 40
 
 /**
- * px/s along one axis (F.1): a least-squares line over the last 100 ms
+ * px/s along one axis: a least-squares line over the last 100 ms
  * of samples; none if the pointer stood still. The one velocity estimate
  * in Nexo — panel's `gesture`, theater's `drag` and `pinch` read it.
  *

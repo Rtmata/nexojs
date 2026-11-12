@@ -10,7 +10,7 @@ export type PropertyName<D> = {
 
 /**
  * The final value of every token of a theme or a token object, for one
- * scheme (C.6): references followed, light or dark picked, from the
+ * scheme: references followed, light or dark picked, from the
  * definitions alone — no page is read, so it works on the server, in a
  * worker, in a test. For what glyph's sheets don't reach: a reader iframe,
  * a canvas, an email.

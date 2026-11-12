@@ -22,8 +22,8 @@ function choseCurve(options: AnimateOptions): boolean {
 }
 
 /**
- * Gives a View Transition theater's curve (B.3, B.4) and the page's speed
- * (C.1b) once its pseudo-elements exist (`ready`), then waits for the end.
+ * Gives a View Transition theater's curve and the page's speed
+ * once its pseudo-elements exist (`ready`), then waits for the end.
  * Success is the change having run (`updateCallbackDone`): a skipped
  * transition (a hidden tab, a newer one) never gets `ready`, yet the
  * change happened — as settle's rule says, cancelled counts as finished.
@@ -98,9 +98,9 @@ function tellIfNoNames(): void {
 }
 
 /**
- * Without View Transitions (R.5): the change, then FLIP for each name —
+ * Without View Transitions: the change, then FLIP for each name —
  * the new element with a name starts from where the old one with that
- * name was (E.3). A FLIP its signal stopped counts as finished: the
+ * name was. A FLIP its signal stopped counts as finished: the
  * change ran (settle's rule).
  */
 async function flipByName(
@@ -129,11 +129,11 @@ function movedByName(
 }
 
 /**
- * Shows a change as a View Transition (E.3, E.4): shared elements are the
+ * Shows a change as a View Transition: shared elements are the
  * ones with the same `view-transition-name` before and after. theater
  * gives it its curve and the page's speed. Where there are no View
- * Transitions, the named elements FLIP instead (R.5). Under reduced
- * motion the change just happens (C.1: shared elements move). Pass a
+ * Transitions, the named elements FLIP instead. Under reduced
+ * motion the change just happens (shared elements move). Pass a
  * transition already started (bridge's) to shape it.
  *
  *   await animateView(() => showDetail(game), { spring: { duration: 500, bounce: 0.15 } })

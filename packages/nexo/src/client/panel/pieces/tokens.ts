@@ -1,2 +1,2 @@
-/** The `tokens` panel: its own import path (A.1b). */
+/** The `tokens` panel: its own import path. */
 export { tokens } from '../library/tokens'

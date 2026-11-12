@@ -7,7 +7,7 @@ import {
 } from '../../shared/omino/styles'
 
 /**
- * A component's CSS in the browser (C.20a): once per document, as the
+ * A component's CSS in the browser: once per document, as the
  * server writes it (`<style data-scope-for>` in `<head>`); a page the
  * server already styled is left as it is.
  */
@@ -38,7 +38,7 @@ export function ensurePageSheet(sheet: PageSheet): void {
 
 const shared = new Map<string, { sheet: CSSStyleSheet; css: string }>()
 
-/** `shadow` (item 36): one constructed sheet per component, adopted by every instance. */
+/** `shadow`: one constructed sheet per component, adopted by every instance. */
 export function shadowSheet(styles: ComponentStyles): CSSStyleSheet {
   const known = shared.get(styles.name)
   if (known)

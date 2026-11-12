@@ -25,7 +25,7 @@ const fonts = defineFonts({
   },
 })
 
-describe('defineFonts (F.1, F.2)', () => {
+describe('defineFonts', () => {
   test('one @font-face per file, the adjusted fallback after, no layer', () => {
     expect(fonts.name).toBe('glyph.fonts(body, mono)')
     expect(fonts.css).toBe(`@font-face {

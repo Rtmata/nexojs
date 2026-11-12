@@ -1,12 +1,12 @@
-/** Anything with a `.get()`: a signal, a computed, your own object (B.11). */
+/** Anything with a `.get()`: a signal, a computed, your own object. */
 export interface ReadableLike<T> {
   get(): T
 }
 
 /**
  * A hole: a value that can change. A `Readable`, or a function, which counts
- * as one (C.13). In the browser it's bound to its place in the DOM; on the
- * server it's read once (C.12).
+ * as one. In the browser it's bound to its place in the DOM; on the
+ * server it's read once.
  */
 export type Hole<T> = ReadableLike<T> | (() => T)
 

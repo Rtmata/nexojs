@@ -1,9 +1,9 @@
 import { sheet } from './sheet'
 
 /**
- * A small modern reset (E.2): boxes sized by their border, no default
+ * A small modern reset: boxes sized by their border, no default
  * margins, media that never overflows, controls that use the page's font.
- * Optional: it applies only where a `styles` list names it (A.2).
+ * Optional: it applies only where a `styles` list names it.
  *
  *   static styles = [reset]
  */

@@ -1,2 +1,2 @@
-/** The `decode` panel: its own import path (A.1b). */
+/** The `decode` panel: its own import path. */
 export { decode, scrambled } from '../library/decode'

@@ -1,18 +1,18 @@
 import { CommandError, Failure } from './errors'
 import { type Output, type StandardSchemaV1 } from './schema'
 
-/** One declared error: its HTTP status and, maybe, the shape of its data (R.25). */
+/** One declared error: its HTTP status and, maybe, the shape of its data. */
 export interface ErrorSpec {
   status: number
   data?: StandardSchemaV1<any>
 }
 
-/** One command (R.24): what it takes, what it gives, how it may fail, whether it only reads (R.26). */
+/** One command: what it takes, what it gives, how it may fail, whether it only reads. */
 export interface CommandSpec {
   args?: StandardSchemaV1<any>
   result?: StandardSchemaV1<any>
   errors?: Record<string, ErrorSpec>
-  /** Side-effect free: it also answers GET, cacheable (R.26). */
+  /** Side-effect free: it also answers GET, cacheable. */
   read?: boolean
 }
 
@@ -25,7 +25,7 @@ export type ResultOf<C extends CommandSpec> =
 export type CodeOf<C extends CommandSpec> = keyof NonNullable<C['errors']> &
   string
 
-/** The handler's way out: a declared code, typed (R.25). */
+/** The handler's way out: a declared code, typed. */
 export type Fail<C extends CommandSpec> = <K extends CodeOf<C>>(
   code: K,
   data?: NonNullable<C['errors']>[K]['data'] extends StandardSchemaV1<any>

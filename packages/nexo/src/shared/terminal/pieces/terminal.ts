@@ -1,4 +1,4 @@
-/** The `terminal` piece: its own import path (A.1b), only what is public. */
+/** The `terminal` piece: its own import path, only what is public. */
 export type {
   ArgsOf,
   CommandSpec,
@@ -8,4 +8,4 @@ export type {
   Table,
 } from '../contract'
 export { terminal } from '../terminal'
-export type { Terminal } from '../terminal' // made by terminal() (audit item 12)
+export type { Terminal } from '../terminal' // made by terminal()

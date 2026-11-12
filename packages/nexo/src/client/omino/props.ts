@@ -12,7 +12,7 @@ import { isEventName, listen } from './listeners'
 import type { Motions } from './motions'
 
 /**
- * The properties whose attribute is only the initial value (R.13): the
+ * The properties whose attribute is only the initial value: the
  * standard's own list, written as properties so what shows is the live state.
  */
 const LIVE = new Set([
@@ -27,13 +27,13 @@ const LIVE = new Set([
 
 const SVG = 'http://www.w3.org/2000/svg'
 
-/** Nexo's own: how the element comes and goes (C.15c), never attributes. */
+/** Nexo's own: how the element comes and goes, never attributes. */
 const MOTION_PROPS = new Set(['enter', 'exit', 'exit-timeout'])
 
 /**
  * Writes an element's props: as attributes, as the server does, except the
- * live-state list and `prop:…` (R.13); `class` and `style` objects key by key
- * (C.20); `on…` as listeners (C.18a). Any value may be a hole.
+ * live-state list and `prop:…`; `class` and `style` objects key by key
+ *; `on…` as listeners. Any value may be a hole.
  */
 export class ElementProps {
   private readonly bindings: Bindings
@@ -78,7 +78,7 @@ export class ElementProps {
     this.holes.write(value, (v) => ((el as any)[key] = v), signal)
   }
 
-  /** An object: each class on its own, each value maybe a hole. Else the whole attribute (C.20c). */
+  /** An object: each class on its own, each value maybe a hole. Else the whole attribute. */
   /**
    * A string, function or readable: one hole for the whole attribute. An
    * object: a hole per key. An array: each entry its own way (`['btn',
@@ -134,7 +134,7 @@ export class ElementProps {
       )
   }
 
-  /** An object: CSS's own property names, each value maybe a hole (C.20b). */
+  /** An object: CSS's own property names, each value maybe a hole. */
   private styles(el: Element, value: unknown, signal: AbortSignal) {
     if (!isPlainObject(value))
       return this.holes.write(

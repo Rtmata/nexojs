@@ -22,7 +22,7 @@ const tokens = defineTokens(
   { refersTo: [palette] },
 )
 
-describe('resolve (C.6)', () => {
+describe('resolve', () => {
   test('references followed, the scheme picked, every token by its property name', () => {
     expect(resolve(tokens, { colorScheme: 'light' }).values).toEqual({
       'color-text': '#222',

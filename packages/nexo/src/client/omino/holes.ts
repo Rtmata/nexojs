@@ -4,9 +4,9 @@ import { isHole, readerOf, type Reactivity, type Scheduler } from './reactivity'
 const UNWRITTEN = Symbol('unwritten')
 
 /**
- * Binds holes to their places (C.12). A fixed value is written once. A hole
+ * Binds holes to their places. A fixed value is written once. A hole
  * is an effect whose first run is now, while its node is made, and whose
- * later runs go on connector's default scheduler (R.15). It lives on the
+ * later runs go on connector's default scheduler. It lives on the
  * place's signal.
  */
 export class Holes {
@@ -40,7 +40,7 @@ export class Holes {
 
 /**
  * Runs the first time it's asked, right away; every later time, as `later`
- * does. Its loop limit is `later`'s (R.6).
+ * does. Its loop limit is `later`'s.
  */
 class FirstNow implements Scheduler {
   private first = true

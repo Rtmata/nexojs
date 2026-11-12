@@ -1,7 +1,7 @@
 import { describe, expect, test } from 'bun:test'
 import { attributeOf, boolean, json, number, oneOf, string } from './params'
 
-describe('param parsers (D.3)', () => {
+describe('param parsers', () => {
   test('missing → the fallback', () => {
     expect(number(3).parse(null, 'g.start')).toBe(3)
     expect(boolean().parse(null, 'g.loop')).toBe(false)

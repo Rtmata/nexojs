@@ -1,5 +1,5 @@
 /**
- * What theater returns from every animation (B.1): the shape of WAAPI's
+ * What theater returns from every animation: the shape of WAAPI's
  * `Animation`, so what you learn on MDN works on values and groups too.
  * For a single element it is the browser's own `Animation`.
  */
@@ -18,7 +18,7 @@ export interface Playback {
 /** Where something is written each frame: a function, or anything with `set`. */
 export type ValueTarget<T> = ((value: T) => void) | { set(value: T): void }
 
-/** The write, whichever form the target has (A.2: a signal works through `set`). */
+/** The write, whichever form the target has (a signal works through `set`). */
 export function writerOf<T>(target: ValueTarget<T>): (value: T) => void {
   return typeof target === 'function' ? target : (value) => target.set(value)
 }

@@ -1,5 +1,5 @@
 /**
- * The speed of motion below an element (C.1b), read as theater and bridge
+ * The speed of motion below an element, read as theater and bridge
  * both read it. Internal: it is not a public path; theater exports the
  * property's name.
  */
@@ -24,7 +24,7 @@ export function speedAt(el: Element, owner: string): number {
   return isSpeed(speed) ? speed : notASpeed(text, owner)
 }
 
-/** CSS is markup: reported, and the page keeps moving at 1 (audit item 4). */
+/** CSS is markup: reported, and the page keeps moving at 1. */
 function notASpeed(text: string, owner: string): number {
   const message = `${owner}: ${SPEED_PROPERTY}: ${text} is not a speed (a positive number); 1 is used`
   reportError(new RangeError(message))

@@ -1,4 +1,4 @@
-/** The flash checker (C.3) in Chrome: predicted from keyframes, measured from frames. */
+/** The flash checker in Chrome: predicted from keyframes, measured from frames. */
 import { afterAll, beforeAll, describe, expect, test } from 'bun:test'
 import { chromium, type Browser } from 'playwright'
 import { flashes } from '../../shared/theater/flashes-measured'
@@ -147,7 +147,7 @@ describe.skipIf(!chrome)('flashes in Chrome', () => {
     expect(
       (await flashes(calm.page, { seconds: 1, clock: calm.clock })).failures,
     ).toEqual([])
-  }, 120_000) // a screenshot per frame: the faithful source is the slow one (C.3)
+  }, 120_000) // a screenshot per frame: the faithful source is the slow one
 
   test('measured: a region is averaged in linear light (fine black and white stripes are not sRGB 127)', async () => {
     const stripes =

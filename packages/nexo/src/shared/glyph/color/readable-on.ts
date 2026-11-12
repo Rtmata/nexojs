@@ -1,7 +1,7 @@
 import { contrastRatio } from './contrast'
 
 /**
- * The candidate with the best WCAG 2.2 contrast on `background` (C.5): any
+ * The candidate with the best WCAG 2.2 contrast on `background`: any
  * colours, not only black and white. On a tie the first written wins. It
  * returns the candidate as written; whether it is enough is for the
  * checks to say, since the best may still fall short.

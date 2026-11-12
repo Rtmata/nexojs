@@ -19,7 +19,7 @@ interface Row<T> {
 }
 
 /**
- * A keyed region (C.14): rows by key, each with its own life and its own
+ * A keyed region: rows by key, each with its own life and its own
  * `item` and `index` signals. A new object under a key sets that row's
  * `item`; a reorder moves nodes (fewest moves: the rows already in order
  * stay); a leaving row ends. ONE path: a diff of keys, no events.
@@ -101,7 +101,7 @@ export class ForList<T> {
     this.order = next
   }
 
-  /** E.2: the kept rows slide, by CSS (`move`) or by the given function. Leaving rows are not handed over: holding them still for a slide would cancel their exit. */
+  /** The kept rows slide, by CSS (`move`) or by the given function. Leaving rows are not handed over: holding them still for a slide would cancel their exit. */
   private moveRows(
     move: NonNullable<ForProps<T>['move']>,
     next: Row<T>[],
@@ -170,7 +170,7 @@ export class ForList<T> {
     return { ...row, first: fresh.firstChild!, last: fresh.lastChild!, fresh }
   }
 
-  /** Called once, untracked (C.14); an empty row still has a place. */
+  /** Called once, untracked; an empty row still has a place. */
   private content(
     item: ReactiveValue<T>,
     index: ReactiveValue<number>,
@@ -183,7 +183,7 @@ export class ForList<T> {
     return rangeFragment(this.build(tree, life, phase))
   }
 
-  /** Rows whose key is gone play their exit, then end and leave (C.15c). */
+  /** Rows whose key is gone play their exit, then end and leave. */
   private leave(next: Row<T>[]): void {
     const kept = new Set(next.map((row) => row.key))
     for (const row of this.order) if (!kept.has(row.key)) this.goes(row)

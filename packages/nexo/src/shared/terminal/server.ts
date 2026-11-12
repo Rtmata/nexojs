@@ -14,7 +14,7 @@ import { check } from './schema'
 /** What each command's handler gets besides its args: its way out, the request's signal, the request. */
 export interface Run<C extends CommandSpec> {
   fail: Fail<C>
-  /** `request.signal`: aborts when the caller gives up (R.26). */
+  /** `request.signal`: aborts when the caller gives up. */
   signal: AbortSignal
   request: Request
 }
@@ -26,13 +26,13 @@ export type Handlers<T extends Table> = {
   ) => ResultOf<T[K]> | Promise<ResultOf<T[K]>>
 }
 
-/** keep's hooks shape, met structurally: terminal imports no server (A.1). */
+/** keep's hooks shape, met structurally: terminal imports no server. */
 export interface ServeHooks {
   onRequest(ctx: { request: Request }): Promise<Response | undefined>
 }
 
 /**
- * The server side (A.2, R.24–R.26): answers `<base>/<name>`, validates the
+ * The server side: answers `<base>/<name>`, validates the
  * args ALWAYS (an invalid one never reaches the handler), sends declared
  * errors with their status, masks anything else as `internal`.
  *
@@ -96,7 +96,7 @@ export class CommandServer<T extends Table> implements ServeHooks {
     return handler(args, { fail: failFor(), signal: request.signal, request })
   }
 
-  /** A bug: reported here, masked there (R.25). */
+  /** A bug: reported here, masked there. */
   private unexpected(error: unknown): Response {
     console.error('terminal: a command failed unexpectedly\n', error)
     return reply('internal', 'internal error')
@@ -116,7 +116,7 @@ function nameIn(segment: string): string {
  * POST always, as JSON: a `content-type` another site's form or `no-cors`
  * fetch can't send without a preflight, which nothing here answers
  * (CSRF). GET only for `read` commands, never from another site's
- * navigation (R.26).
+ * navigation.
  */
 function refused(spec: CommandSpec, request: Request): Response | undefined {
   if (request.method === 'POST') return notJson(request)

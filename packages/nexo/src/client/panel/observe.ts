@@ -4,7 +4,7 @@ import type { PanelRegistry } from './registry'
 type Panels = Registry | PanelRegistry<any>
 
 /**
- * Opt-in (item 36): `attach` for DOM changed outside bridge. Started
+ * Opt-in: `attach` for DOM changed outside bridge. Started
  * explicitly, never at import; connects what's added, ends what's removed
  * (after the fact, so no exits). bridge's lifetimes stay the main path.
  */

@@ -1,5 +1,5 @@
 /**
- * WCAG 2.3.1's counter (C.3), the one concept both sources feed: a
+ * WCAG 2.3.1's counter, the one concept both sources feed: a
  * region's colour over time in, flashes per second out. Definitions from
  * WCAG 2.2's glossary ("general flash and red flash thresholds").
  */

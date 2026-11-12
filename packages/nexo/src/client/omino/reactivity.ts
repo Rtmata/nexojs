@@ -1,18 +1,18 @@
 /**
- * What the renderer needs from a signals library, as a value (R.12):
+ * What the renderer needs from a signals library, as a value:
  *
  *   import * as connector from '@nexoamigos/nexo/connector'
  *   mount(<App />, document.body, { signal, reactivity: connector })
  *
  * connector meets it as is; another library enters through an adapter. omino
- * never imports one: A.1, every module works alone.
+ * never imports one: every module works alone.
  */
 export interface Reactivity {
   signal<T>(value: T): ReactiveValue<T>
   effect(body: EffectBody, options?: EffectOptions): () => void
   untrack<T>(fn: () => T): T
   batch<T>(fn: () => T): T
-  /** The default scheduler: holes update on it (R.15). */
+  /** The default scheduler: holes update on it. */
   microtask: Scheduler
 }
 
@@ -31,10 +31,10 @@ export interface EffectOptions {
   name?: string
 }
 
-/** connector's scheduler shape (B.7): being called is the "dirty" notice. */
+/** connector's scheduler shape: being called is the "dirty" notice. */
 export interface Scheduler {
   schedule(run: () => void): () => unknown
-  /** Only on those that can block the thread (B.7, R.6). */
+  /** Only on those that can block the thread. */
   readonly limit?: number
   exhausted?(): boolean
 }

@@ -23,7 +23,7 @@ import type {
 } from './typed'
 
 /**
- * A theme (C.1): a sheet that sets every token under `[data-theme="<name>"]`,
+ * A theme: a sheet that sets every token under `[data-theme="<name>"]`,
  * and its values underneath, for `from`, `resolve` and `adoptTheme`.
  */
 export type Theme<D> = Sheet & Defined<D>
@@ -60,7 +60,7 @@ export type ColorName<D> =
       [G in ColorGroup<D>]: `${G}.${keyof NamesOf<D[G]> & (string | number)}`
     }[ColorGroup<D>]
 
-/** A pair to check: `['on-primary', 'primary', 'text']` (C.5). */
+/** A pair to check: `['on-primary', 'primary', 'text']`. */
 export type ContrastPair<D> = readonly [
   foreground: ColorName<D>,
   background: ColorName<D>,
@@ -69,19 +69,19 @@ export type ContrastPair<D> = readonly [
 
 /** `defineTheme`'s options, beside the groups it changes. */
 export type ThemeOptions<D> = {
-  /** The theme this one changes; without it, the tokens' own values (C.2). */
+  /** The theme this one changes; without it, the tokens' own values. */
   readonly from?: Theme<D>
   /**
    * Fixes `color-scheme`, or `inherit` takes the room around it's; without
-   * it the theme keeps its base's, else follows the system (C.3).
+   * it the theme keeps its base's, else follows the system.
    */
   readonly colorScheme?: ThemeScheme
-  /** More pairs to check, besides the tokens' and the base theme's (C.5). */
+  /** More pairs to check, besides the tokens' and the base theme's. */
   readonly contrastChecks?: readonly ContrastPair<D>[]
 } & ThemeChanges<D>
 
 /**
- * Another set of values for the same tokens (C.1–C.3), on any element with
+ * Another set of values for the same tokens, on any element with
  * `data-theme="<name>"`, nested or not. It writes only what changes over
  * its base — `from`, or the tokens' own values — and glyph merges them, so
  * the CSS carries every value and the theme looks the same wherever it
@@ -226,7 +226,7 @@ function themeSheet(name: string, lines: readonly string[]): Sheet {
 
 /**
  * Always written, so a room takes its scheme from the room around it only
- * when it says `inherit` (C.2): the one it says (C.3), else what the tokens
+ * when it says `inherit`: the one it says, else what the tokens
  * write on `:root` — `light dark` when a colour is `light-dark()` — else
  * `normal`, the page's own default.
  */
@@ -252,7 +252,7 @@ function surfaceDeclarations(set: TokenSet): string[] {
 }
 
 /**
- * Any text names a theme (C.1): `modo noche` too. Only empty text can't,
+ * Any text names a theme: `modo noche` too. Only empty text can't,
  * since `data-theme=""` is an element with no theme.
  */
 function nameProblems(name: unknown): ThemeError[] {

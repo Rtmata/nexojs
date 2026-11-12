@@ -6,20 +6,20 @@ import type { Reduce } from './reduce'
 import { SpringCurve, type SpringOptions } from './spring'
 import type { StaggerDelay } from './stagger'
 
-/** How an animation runs (B.1–B.5): WAAPI's timing, plus theater's own. */
+/** How an animation runs: WAAPI's timing, plus theater's own. */
 export interface AnimateOptions {
-  /** In ms, before speed (C.1b). 300 by default (Motion's). */
+  /** In ms, before speed. 300 by default (Motion's). */
   duration?: number
   /**
    * In ms, before speed. In a sequence a number shifts the segment from
-   * its place (B.2b). On a list, `stagger(…)` gives each element its own.
+   * its place. On a list, `stagger(…)` gives each element its own.
    */
   delay?: number | StaggerDelay
-  /** A CSS easing or a function (B.4). `ease` by default (CSS's). */
+  /** A CSS easing or a function. `ease` by default (CSS's). */
   easing?: string | Easing
-  /** A spring instead of an easing (B.3): its duration is computed. */
+  /** A spring instead of an easing: its duration is computed. */
   spring?: SpringOptions
-  /** A fling (B.3b): values only for now; elements get it with `drag`. */
+  /** A fling: values only for now; elements get it with `drag`. */
   inertia?: InertiaOptions
   /** How many times; `Infinity` loops. 1 by default. */
   iterations?: number
@@ -31,9 +31,9 @@ export interface AnimateOptions {
    * Elements only: a value has nothing under it.
    */
   composite?: CompositeOperation
-  /** Reduced motion (C.1): `false` essential, `'jump'` all jumps. */
+  /** Reduced motion: `false` essential, `'jump'` all jumps. */
   reduce?: Reduce
-  /** Aborting stops it where it is (B.5, B.5b). */
+  /** Aborting stops it where it is. */
   signal?: AbortSignal
 }
 
@@ -42,7 +42,7 @@ export const DEFAULT_EASING = 'ease'
 
 /**
  * The curve an animation follows, from its options: a spring when one is
- * given, else the easing over the duration. `speed` divides time (C.1b).
+ * given, else the easing over the duration. `speed` divides time.
  */
 export function curveOf(options: AnimateOptions, speed: number): Curve {
   if (options.spring && options.easing !== undefined) {

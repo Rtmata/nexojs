@@ -7,7 +7,7 @@ import { Typeahead } from './typeahead'
 
 /**
  * Listbox (WAI-ARIA APG Listbox) over a plain list, for choices that
- * aren't a form's (R.38: in a form, native radios or checkboxes). Options
+ * aren't a form's (in a form, native radios or checkboxes). Options
  * are `[role=option]`, else the list's children. Focus stays on the list
  * (`aria-activedescendant`); `[data-active]` marks the active option for
  * CSS. Single: selection follows the arrows. Multiple

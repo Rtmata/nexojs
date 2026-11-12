@@ -3,7 +3,7 @@ import { boolean, string } from '../params'
 import { Marks } from './marks'
 
 /**
- * Accordion (WAI-ARIA APG Accordion) on native `<details>` (R.33): one
+ * Accordion (WAI-ARIA APG Accordion) on native `<details>`: one
  * `<details>` per section, the same `name` for one open at a time
  * (Chrome 120, Safari 17.2, Firefox 130). Enter / Space, Tab and the
  * summary's button semantics are the platform's: APG asks nothing more.

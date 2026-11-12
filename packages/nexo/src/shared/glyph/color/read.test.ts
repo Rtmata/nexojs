@@ -35,7 +35,7 @@ describe('readColor reads every way CSS writes an sRGB colour', () => {
   })
 })
 
-describe('OKLCH and OKLab (C.5)', () => {
+describe('OKLCH and OKLab', () => {
   // CSS Color 4 §9.3 writes sRGB red as oklch(62.8% 0.2577 29.23).
   test('red is oklch(0.628 0.2577 29.23), both ways', () => {
     const red = oklabToOklch(rgbToOklab(readColor('red')))

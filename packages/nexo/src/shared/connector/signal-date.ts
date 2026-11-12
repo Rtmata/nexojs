@@ -70,7 +70,7 @@ export class SignalDate extends Date {
     this.time = signal(super.getTime())
   }
 
-  /** What JSON can hold, untracked like every `toJSON` (B.9c). */
+  /** What JSON can hold, untracked like every `toJSON`. */
   override toJSON(): string {
     return untrack(() => super.toJSON())
   }

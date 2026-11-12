@@ -1,7 +1,7 @@
 import { describe, expect, test } from 'bun:test'
 import { colorMix } from './mix'
 
-describe('colorMix: CSS color-mix(in oklch, a p%, b), computed (C.5)', () => {
+describe('colorMix: CSS color-mix(in oklch, a p%, b), computed', () => {
   test('the percent is how much of the first colour', () => {
     expect(colorMix('red', 'blue', 100)).toBe('oklch(0.628 0.2577 29.23)')
     expect(colorMix('#3b82f6', 'white', 20)).toBe('oklch(0.9246 0.0376 259.81)')

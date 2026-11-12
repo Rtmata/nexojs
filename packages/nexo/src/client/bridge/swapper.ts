@@ -35,7 +35,7 @@ export interface Prepared {
   outdated: boolean
   /** Waited for before the swap: the stylesheets a new page brings. Aborted, whatever it placed goes out again. */
   ready(signal: AbortSignal): Promise<void>
-  /** Before the swap: `bridge:leave` on what will go, its exits awaited (C.19b); `live` also marks and awaits CSS exits (E.4). */
+  /** Before the swap: `bridge:leave` on what will go, its exits awaited; `live` also marks and awaits CSS exits. */
   leave(live: boolean): Promise<void>
   /** The leave was for nothing (the navigation was cancelled): what was marked comes back. */
   stay(): void

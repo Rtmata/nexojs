@@ -13,7 +13,7 @@ export interface ForProps<T> {
    */
   key?: (item: T, index: number) => unknown
   /**
-   * Reordered rows slide to their new place (E.2). `move` lets CSS do it
+   * Reordered rows slide to their new place. `move` lets CSS do it
    * (`[data-moving] { transition: translate 0.3s }`); a function gets the
    * rows' elements and the reorder to run (theater's `moves(…)`), so it
    * picks the moment: measure, `update()`, animate. If it returns a
@@ -31,7 +31,7 @@ export interface ForProps<T> {
 }
 
 /**
- * A keyed list (C.14):
+ * A keyed list:
  *
  *   <For each={books} key={(book) => book.id}>
  *     {(book, index) => <li>{() => book.get().title}</li>}

@@ -1,12 +1,12 @@
 /**
- * A param's parser (D.3): how one `data-<panel>-<key>` attribute becomes a
+ * A param's parser: how one `data-<panel>-<key>` attribute becomes a
  * typed value, and the value when the attribute is missing. Plain functions
  * build them; one schema types the code and parses the markup.
  */
 export interface Param<T> {
   /** The attribute's text, or `null` when it's missing. */
   parse(text: string | null, where: string): T
-  /** The other way, for server markup (R.23): the text, `true` for a bare attribute, `null` to leave it out. */
+  /** The other way, for server markup: the text, `true` for a bare attribute, `null` to leave it out. */
   write(value: T): string | true | null
 }
 
@@ -86,8 +86,7 @@ export function oneOf<const W extends string>(
 /**
  * Missing → the fallback; present but not parsable → reported (an error
  * that names where: `panel: gallery.start: expected a number`) and the
- * fallback stands, so the panel still works: markup reports, JS throws
- * (audit item 4).
+ * fallback stands, so the panel still works: markup reports, JS throws.
  */
 function param<T>(
   fallback: T,
@@ -126,7 +125,7 @@ export function attributeOf(name: string, key: string): string {
   return `data-${name}-${key.replace(/[A-Z]/g, (c) => `-${c.toLowerCase()}`)}`
 }
 
-/** A wrong value in markup: reported, and the fallback stands (audit item 4). */
+/** A wrong value in markup: reported, and the fallback stands. */
 function wrong<T>(fallback: T, message: string): T {
   reportError(new Error(message))
   return fallback

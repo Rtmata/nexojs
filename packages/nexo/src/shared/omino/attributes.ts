@@ -61,7 +61,7 @@ export class Attributes {
   private one(tag: string, name: string, given: unknown): string {
     ensureName(tag, name)
     if (/^on/i.test(name)) return handlerOnServer(tag, name, given)
-    const raw = readOnce(given) // C.12: the server reads a hole once
+    const raw = readOnce(given) // the server reads a hole once
     const value = valueOf(tag, name, raw)
     if (value === null || value === undefined || value === false) return ''
     ensureNoCode(tag, name, value)
@@ -85,7 +85,7 @@ function ensureNoCode(tag: string, name: string, value: unknown): void {
 }
 
 /**
- * `on…` on the server (C.18d): a function (or `{ handleEvent }`) is the
+ * `on…` on the server: a function (or `{ handleEvent }`) is the
  * browser's, so it's left out and the same JSX renders on both sides; text
  * would be inline JavaScript, refused on both sides.
  */
@@ -98,7 +98,7 @@ function handlerOnServer(tag: string, name: string, value: unknown): string {
   )
 }
 
-/** Shared with the client: event names are lowercase, as in HTML (C.18a). */
+/** Shared with the client: event names are lowercase, as in HTML. */
 export function ensureEventName(tag: string, name: string): void {
   const type = name.slice(2)
   if (type === type.toLowerCase()) return
@@ -107,7 +107,7 @@ export function ensureEventName(tag: string, name: string): void {
   )
 }
 
-/** `class` lists and objects, `style` objects (C.20b); anything else as given. */
+/** `class` lists and objects, `style` objects; anything else as given. */
 function valueOf(tag: string, name: string, raw: unknown): unknown {
   if (name === 'class') return classNames(raw as ClassValue) || null
   if (name === 'style' && isStyleObject(raw)) return styleText(tag, raw) || null
@@ -140,7 +140,7 @@ export function ensureCssName(tag: string, name: string): void {
 
 /**
  * `bind:` on the server: the signal's value now, as the attribute that
- * shows it at first (C.16). The browser binds it once it mounts.
+ * shows it at first. The browser binds it once it mounts.
  */
 function initialValues(tag: string, props: Record<string, unknown>) {
   const read = (name: string) => readOnce(props[`bind:${name}`])

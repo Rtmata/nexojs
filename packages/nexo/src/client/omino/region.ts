@@ -19,10 +19,10 @@ interface Content {
 }
 
 /**
- * A hole that returns JSX (C.12): a place between two markers, replaced whole
+ * A hole that returns JSX: a place between two markers, replaced whole
  * when the hole changes. Text stays one text node and only its data changes.
  * The old content leaves with its exit, the new one comes with its entry, in
- * the region's `order` (C.15c): `out-in` by default.
+ * the region's `order`: `out-in` by default.
  */
 export class Region {
   private readonly start = document.createComment('')

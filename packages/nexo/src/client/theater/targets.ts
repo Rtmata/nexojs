@@ -3,7 +3,7 @@ export type Targets = Element | Iterable<Element>
 
 /**
  * The elements to animate, as an array. A selector string is refused:
- * "search from which root?" would be a hidden rule (B.1).
+ * "search from which root?" would be a hidden rule.
  */
 export function listOf(targets: Targets): Element[] {
   if (targets instanceof Element) return [targets]

@@ -31,7 +31,7 @@ export function codeValue(
 }
 
 /**
- * A value a person typed (C.4): its kind, then its type's grammar — a
+ * A value a person typed: its kind, then its type's grammar — a
  * colour glyph can read, so the contrast can be measured; a length, a
  * family list, a shadow… — each slot taking `var(--token)` of its type.
  * Text that could leave its declaration is refused before it is read.

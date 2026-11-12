@@ -16,7 +16,7 @@ export interface DtcgOutput {
 }
 
 /**
- * glyph's tokens as DTCG 2025.10 JSON (B.1), for Figma, Style Dictionary
+ * glyph's tokens as DTCG 2025.10 JSON, for Figma, Style Dictionary
  * and others: each group a top-level group with its `$type`, references as
  * `{group.token}`. Several token objects go in one file, so references
  * between them (a palette) stay references. A value DTCG has no form for

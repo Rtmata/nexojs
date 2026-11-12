@@ -1,4 +1,4 @@
-/** follow (B.6), scrollTo and smoothWheel (D.4) in Chrome. */
+/** follow, scrollTo and smoothWheel in Chrome. */
 import { afterAll, beforeAll, describe, expect, test } from 'bun:test'
 import { chromium, type Browser } from 'playwright'
 import { bundle, chrome, clockedPage, pageWith } from './page.fixture'

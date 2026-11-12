@@ -1,5 +1,5 @@
 /**
- * What reduced motion does to an animation (C.1): `false` leaves it alone
+ * What reduced motion does to an animation: `false` leaves it alone
  * (it is essential), `'jump'` makes all of it jump to the end, and the
  * default follows WCAG — only what moves jumps.
  */

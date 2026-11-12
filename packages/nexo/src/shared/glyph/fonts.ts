@@ -3,7 +3,7 @@ import type { Sheet } from './sheet'
 
 /** One file of a font: a weight (a range for a variable font) and a style. */
 export interface FontFile {
-  /** Your own file, a path or URL: glyph never downloads (F.1). */
+  /** Your own file, a path or URL: glyph never downloads. */
   readonly src: string
   /** `400`, or `'100 900'` for a variable font. */
   readonly weight?: number | string
@@ -12,7 +12,7 @@ export interface FontFile {
 
 /**
  * The fallback, adjusted to the font so nothing moves when it arrives
- * (F.2): a font on the device (`local`) and the numbers `measureFont`
+ *: a font on the device (`local`) and the numbers `measureFont`
  * prints, as ratios — `sizeAdjust: 1.07` is `size-adjust: 107%`.
  */
 export interface FontMetrics {
@@ -48,10 +48,10 @@ export type Fonts<F> = { readonly [K in keyof F]: Font } & Sheet
 
 /**
  * Your font files as `@font-face` rules, written once from one declaration
- * (F.1): the family name can't drift between the rule and its uses, since
+ *: the family name can't drift between the rule and its uses, since
  * the token takes `stack`. With `metrics`, a fallback face from a device
- * font, sized to match (F.2). The rules stay out of layers: `@font-face`
- * has no cascade to order, and the same text serves an iframe (C.6).
+ * font, sized to match. The rules stay out of layers: `@font-face`
+ * has no cascade to order, and the same text serves an iframe.
  *
  *   const fonts = defineFonts({
  *     body: { family: 'Inter', files: [{ src: '/fonts/inter.woff2', weight: '100 900' }], fallback: 'sans-serif' },

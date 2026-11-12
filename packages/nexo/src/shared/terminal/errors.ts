@@ -1,4 +1,4 @@
-/** Codes terminal itself answers with, besides each command's own (R.25, R.26). */
+/** Codes terminal itself answers with, besides each command's own. */
 export const RESERVED = {
   invalidArgs: 400,
   forbidden: 403,
@@ -11,9 +11,9 @@ export const RESERVED = {
 export type ReservedCode = keyof typeof RESERVED
 
 /**
- * A command that failed as its contract says it may (R.25): a code, a
+ * A command that failed as its contract says it may: a code, a
  * message, maybe data. What the client's promise rejects with, so a
- * `resource` (B.10) holds it in its `error`.
+ * `resource` holds it in its `error`.
  */
 export class CommandError<
   Code extends string = string,

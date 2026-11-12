@@ -31,7 +31,7 @@ function isNumber(text: string): boolean {
 /**
  * Reads a CSS easing — a keyword, `cubic-bezier()`, `steps()` or
  * `linear()` — into an easing function, for animations theater runs
- * itself (values, A.2). Elements get the string as it is: the browser
+ * itself (values). Elements get the string as it is: the browser
  * reads it there, exactly.
  *
  *   fromCss('cubic-bezier(.2, .8, .2, 1)')(0.5) // ≈ 0.94

@@ -1,6 +1,6 @@
 # panel library
 
-Built-in panels (D.4): industry patterns (WAI-ARIA APG, Open UI). Each one enhances the native element where there is one and works without JS. Register them like your own:
+Built-in panels: industry patterns (WAI-ARIA APG, Open UI). Each one enhances the native element where there is one and works without JS. Register them like your own:
 
 ```ts
 import {
@@ -59,7 +59,7 @@ On the native `<dialog>`. It already traps focus, closes on Escape and returns f
 </dialog>
 ```
 
-The panel names the dialog from its first heading (APG). The `closedby="any"` bridge closes only on a press that both starts and ends on the backdrop, as the platform does. An alert dialog is the standard `role="alertdialog"` on the same `<dialog>` (R.34): the panel then describes it with its first paragraph (`aria-describedby`), unless you wrote one. **Bridges**, each feature-checked: `command` / `commandfor` (missing in WebKitGTK 2.50) and `closedby` (`any`: a click on the backdrop closes it; `none`: Escape doesn't; missing in Safari 27.2 and WebKitGTK 2.52).
+The panel names the dialog from its first heading (APG). The `closedby="any"` bridge closes only on a press that both starts and ends on the backdrop, as the platform does. An alert dialog is the standard `role="alertdialog"` on the same `<dialog>`: the panel then describes it with its first paragraph (`aria-describedby`), unless you wrote one. **Bridges**, each feature-checked: `command` / `commandfor` (missing in WebKitGTK 2.50) and `closedby` (`any`: a click on the backdrop closes it; `none`: Escape doesn't; missing in Safari 27.2 and WebKitGTK 2.52).
 
 ## feed
 
@@ -79,7 +79,7 @@ A long press: `press-hold:press` with `{ pointerType }` after `duration` ms (400
 
 ## confirm-on-hold
 
-For destructive buttons: hold for `duration` ms (800) to fire `confirm-on-hold:confirm`; a plain click does nothing. CSS gets `data-holding` and `--hold-duration` to draw the progress. By keyboard (R.31) hold Space or Enter, or press once to arm (`data-armed`, the `armed` text announced in a live region) and again to confirm; Escape or leaving disarms.
+For destructive buttons: hold for `duration` ms (800) to fire `confirm-on-hold:confirm`; a plain click does nothing. CSS gets `data-holding` and `--hold-duration` to draw the progress. By keyboard hold Space or Enter, or press once to arm (`data-armed`, the `armed` text announced in a live region) and again to confirm; Escape or leaving disarms.
 
 ## gesture
 
@@ -131,7 +131,7 @@ Phases one after another, such as a page turn: `data-sequence-phases='["out","st
 
 ## listbox
 
-APG Listbox over a plain list, for choices that aren't a form's. In a form, write native radios (one choice) or checkboxes (several): they work without JS, send their value, and take rich labels; no panel needed (R.38).
+APG Listbox over a plain list, for choices that aren't a form's. In a form, write native radios (one choice) or checkboxes (several): they work without JS, send their value, and take rich labels; no panel needed.
 
 ```html
 <ul data-panel="listbox" aria-label="Platform">
@@ -145,7 +145,7 @@ Focus stays on the list (`aria-activedescendant`); style the active option with 
 
 ## combobox
 
-APG Combobox (R.39). The element you'd write without Nexo decides what it is:
+APG Combobox. The element you'd write without Nexo decides what it is:
 
 ```html
 <!-- free text with suggestions: layer 0 sends what was typed -->
@@ -169,7 +169,7 @@ On an `<input type="text">`, the list its `aria-controls` names holds the sugges
 
 ## menu
 
-APG Menu and Menubar + Menu Button, in Open UI's shape (R.35). Layer 0 is the native popover opened by its invoker; without JS the menus still open and their buttons still work:
+APG Menu and Menubar + Menu Button, in Open UI's shape. Layer 0 is the native popover opened by its invoker; without JS the menus still open and their buttons still work:
 
 ```html
 <button commandfor="acts" command="toggle-popover">More</button>
@@ -209,7 +209,7 @@ The defaults are what Chromium 156 does for `interest-delay: normal`. Place it w
 
 ## toast
 
-A messages region (R.40) that exists from the first render (a live region added later is often not announced). Its children are the messages, added by the app or by bridge (`data-bridge-swap="append"`). A message the server rendered after a form post is layer 0.
+A messages region that exists from the first render (a live region added later is often not announced). Its children are the messages, added by the app or by bridge (`data-bridge-swap="append"`). A message the server rendered after a form post is layer 0.
 
 ```html
 <div
@@ -240,7 +240,7 @@ toastRegion()!.insertAdjacentHTML(
 
 ## accordion
 
-APG Accordion on native `<details>` (R.33): the same `name` keeps one section open at a time (Chrome 120, Safari 17.2, Firefox 130), and Enter, Space and Tab are the platform's. Without the panel it already works.
+APG Accordion on native `<details>`: the same `name` keeps one section open at a time (Chrome 120, Safari 17.2, Firefox 130), and Enter, Space and Tab are the platform's. Without the panel it already works.
 
 ```html
 <div id="faq" data-panel="accordion" data-accordion-remember>
@@ -294,11 +294,11 @@ APG Grid on a native `<table>`, the table itself being layer 0 (every row shown)
 
 One tab stop, and APG's keys: the arrows move between cells and stop at the edges (a data grid never wraps), Home / End within the row, Ctrl+Home / End across the grid, Page Up / Down by `data-grid-page` rows (5). A cell with one simple widget (a link, a button, a checkbox) focuses the widget itself, and Enter there is the widget's own; a cell with several, or with a field that takes the arrows (a text input, a select), takes Enter or F2 to go in (Tab moves among them) and Escape, or leaving the cell, to come out. Header cells become `columnheader` (in `<thead>` or `scope="col"`) or `rowheader`.
 
-**Treegrid (R.36):** rows with `aria-level` make the table a `treegrid`. A row followed by deeper rows is a parent: it gets `aria-expanded` (closed unless you wrote `aria-expanded="true"`), its children hide while it's closed, and it takes focus as a row: → opens it (or enters its first cell), ← closes it (or, from the first cell, goes back to the row), ↑ ↓ Home End move between rows. `grid:toggle` carries `{ id, expanded }`. Not built (APG "if supported"): selection, `aria-rowcount` for virtual rows, sorting.
+**Treegrid:** rows with `aria-level` make the table a `treegrid`. A row followed by deeper rows is a parent: it gets `aria-expanded` (closed unless you wrote `aria-expanded="true"`), its children hide while it's closed, and it takes focus as a row: → opens it (or enters its first cell), ← closes it (or, from the first cell, goes back to the row), ↑ ↓ Home End move between rows. `grid:toggle` carries `{ id, expanded }`. Not built (APG "if supported"): selection, `aria-rowcount` for virtual rows, sorting.
 
 ## tree
 
-APG Tree View on plain nested lists (R.36). Without JS it's an outline with everything shown; nested `<details>` without a panel remain the right markup for an outline that must fold without JS (that's nested disclosures, not a tree: ARIA lets `<details>` carry no role).
+APG Tree View on plain nested lists. Without JS it's an outline with everything shown; nested `<details>` without a panel remain the right markup for an outline that must fold without JS (that's nested disclosures, not a tree: ARIA lets `<details>` carry no role).
 
 ```html
 <ul data-panel="tree" aria-label="Contents">
@@ -370,7 +370,7 @@ The panel writes `--splitter-size` (px) on the container and keeps `aria-valueno
 
 ## reveal, parallax, drag, pinch (theater's pieces as markup)
 
-The markup layer over theater (A.1): each wraps the piece of the same name, with its fallback, reduced motion and signal.
+The markup layer over theater: each wraps the piece of the same name, with its fallback, reduced motion and signal.
 
 ```html
 <!-- data-in-view while it is in view: CSS animates its arrival -->
@@ -407,23 +407,23 @@ The markup layer over theater (A.1): each wraps the piece of the same name, with
 
 Dragging and pinching need a way without them (WCAG 2.5.7): give buttons, or use theater's `drag(…).set()` / `pinch(…).set()` from JS.
 
-## Native already: markup and docs, no panel (R.33)
+## Native already: markup and docs, no panel
 
 These APG patterns are the platform's own; write the element and style it.
 
-| Pattern                                           | Write                                                                                                | Notes                                                                        |
-| ------------------------------------------------- | ---------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------- |
-| Checkbox, mixed state                             | `<input type="checkbox">`, `indeterminate` from script                                               | `bind:indeterminate` in omino                                                |
-| Radio group                                       | `<fieldset><legend>` + `<input type="radio" name>`                                                   | One tab stop and arrows are native. Prefer it over a listbox in forms (R.38) |
-| Spinbutton                                        | `<input type="number" min max step>`                                                                 |                                                                              |
-| Date picker                                       | `<input type="date">` (`month`, `time`, `datetime-local`)                                            | Open UI's datepicker has no native element yet (2026-11)                     |
-| Alert                                             | `<div role="alert">`, present from the first render                                                  | For messages that keep arriving, `toast` with `role="alert"`                 |
-| Toolbar                                           | `<div role="toolbar" data-panel="focusgroup" focusgroup="toolbar inline">`                           |                                                                              |
-| Disclosure                                        | `<details>` / `<summary>`                                                                            | Several with one `name` = `accordion`                                        |
-| Switch                                            | `<input type="checkbox" switch>` + `switch` panel where the attribute is missing                     |                                                                              |
-| Select, select-only combobox                      | `<select>`; `appearance: base-select` to style it (Chrome 135, Safari 27; a plain select elsewhere)  | A filterable one: `combobox` on the `<select>`                               |
-| Navigation bar                                    | `<nav>` + `<a aria-current="page">`; `indicator` for the moving mark                                 |                                                                              |
-| Button, link, table, meter, landmarks, breadcrumb | `<button>`, `<a href>`, `<table>`, `<meter>`, landmark elements, `<nav aria-label="Breadcrumb"><ol>` | Static APG patterns                                                          |
+| Pattern                                           | Write                                                                                                | Notes                                                                 |
+| ------------------------------------------------- | ---------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------- |
+| Checkbox, mixed state                             | `<input type="checkbox">`, `indeterminate` from script                                               | `bind:indeterminate` in omino                                         |
+| Radio group                                       | `<fieldset><legend>` + `<input type="radio" name>`                                                   | One tab stop and arrows are native. Prefer it over a listbox in forms |
+| Spinbutton                                        | `<input type="number" min max step>`                                                                 |                                                                       |
+| Date picker                                       | `<input type="date">` (`month`, `time`, `datetime-local`)                                            | Open UI's datepicker has no native element yet (2026-11)              |
+| Alert                                             | `<div role="alert">`, present from the first render                                                  | For messages that keep arriving, `toast` with `role="alert"`          |
+| Toolbar                                           | `<div role="toolbar" data-panel="focusgroup" focusgroup="toolbar inline">`                           |                                                                       |
+| Disclosure                                        | `<details>` / `<summary>`                                                                            | Several with one `name` = `accordion`                                 |
+| Switch                                            | `<input type="checkbox" switch>` + `switch` panel where the attribute is missing                     |                                                                       |
+| Select, select-only combobox                      | `<select>`; `appearance: base-select` to style it (Chrome 135, Safari 27; a plain select elsewhere)  | A filterable one: `combobox` on the `<select>`                        |
+| Navigation bar                                    | `<nav>` + `<a aria-current="page">`; `indicator` for the moving mark                                 |                                                                       |
+| Button, link, table, meter, landmarks, breadcrumb | `<button>`, `<a href>`, `<table>`, `<meter>`, landmark elements, `<nav aria-label="Breadcrumb"><ol>` | Static APG patterns                                                   |
 
 ## Lazy media: markup, no panel
 

@@ -58,7 +58,7 @@ class Gesture {
     signal.addEventListener('abort', () => this.abort(), { once: true })
   }
 
-  /** One pointer at a time, followed by theater's `PointerTrack` (F.1: one tracker, one velocity). */
+  /** One pointer at a time, followed by theater's `PointerTrack` (one tracker, one velocity). */
   down(event: PointerEvent): void {
     if (event.button !== 0 || this.track) return
     this.marks.toggle(this.el, 'data-flung', false)

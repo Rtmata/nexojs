@@ -1,7 +1,7 @@
 import type { Marks } from './marks'
 
 /**
- * Expanding and collapsing nodes of a hierarchy (R.36), shared by grid's
+ * Expanding and collapsing nodes of a hierarchy, shared by grid's
  * treegrid rows and tree: `aria-expanded` on parents only, descendants of
  * a collapsed node hidden, `aria-level` kept. Which nodes are children is
  * the hierarchy's business (`Leveled`: flat nodes in document order, a

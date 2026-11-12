@@ -13,11 +13,11 @@ export interface ScrollToOptions extends AnimateOptions {
 }
 
 /**
- * Scrolls to an element or a position with theater's curve (D.4): a
- * value on the frame loop (B.3 / B.4), stopped by its signal. Under
+ * Scrolls to an element or a position with theater's curve: a
+ * value on the frame loop, stopped by its signal. Under
  * reduced motion it jumps there at once (`reduce: 'jump'`: it moves the
  * whole page). Note that importing it shadows `window.scrollTo` in your
- * file (G.3b).
+ * file.
  *
  *   scrollTo(nesRoom, { spring: { duration: 600 }, offset: 64, signal })
  */

@@ -18,10 +18,10 @@ import {
 import { CSS_NAME } from './token-group'
 
 /**
- * A component's look (A.1, D): vars with defaults, a base that reads them,
+ * A component's look: vars with defaults, a base that reads them,
  * variants that only change vars, compound variants and parts. Calling it
- * gives readable classes, every variant as group + value (D.2); it is also
- * the sheet a `styles` list names (A.2), in `glyph.recipes`, base below
+ * gives readable classes, every variant as group + value; it is also
+ * the sheet a `styles` list names, in `glyph.recipes`, base below
  * variants so a variant wins without specificity.
  *
  *   const button = recipe('button', {
@@ -180,7 +180,7 @@ class RecipeDefinition {
     return classes.join('')
   }
 
-  /** A variant writes vars only (D.1), by their custom property. */
+  /** A variant writes vars only, by their custom property. */
   private varLines(set: StyleObject, at: string): string[] {
     const where = `recipe "${this.name}" ${at}`
     const name = (key: string) => {

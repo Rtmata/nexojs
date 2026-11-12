@@ -20,7 +20,7 @@ function files(dir: string): string[] {
     .map((f) => join(dir, f))
 }
 
-describe('the client build (F.2)', () => {
+describe('the client build', () => {
   test('every nexo-built subpath gets its file, shared code once', async () => {
     const build = Bun.spawnSync([
       'bun',

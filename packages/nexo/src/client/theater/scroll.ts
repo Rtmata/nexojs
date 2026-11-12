@@ -14,7 +14,7 @@ import { ValueAnimation } from './value'
 export type ScrollAxis = 'block' | 'inline' | 'x' | 'y'
 
 /**
- * What drives the animation (D.1), in the platform's own words: a
+ * What drives the animation, in the platform's own words: a
  * `ScrollTimeline` of `source`, or — with `subject` — a `ViewTimeline` of
  * that element crossing its scroller.
  */
@@ -29,7 +29,7 @@ export interface ScrollOptions {
   rangeStart?: string
   /** `cover 100%` by default. */
   rangeEnd?: string
-  /** Aborting unlinks it; elements stay as they are (B.5b). */
+  /** Aborting unlinks it; elements stay as they are. */
   signal?: AbortSignal
 }
 
@@ -40,7 +40,7 @@ export function vertical(axis: ScrollAxis = 'block'): boolean {
 
 /**
  * The nearest scroll container above it, else the page's scroller: the
- * one a `ViewTimeline` picks, so the fallback (R.5) follows the same box.
+ * one a `ViewTimeline` picks, so the fallback follows the same box.
  */
 function scrollerOf(el: Element): Element {
   for (let at = el.parentElement; at; at = at.parentElement)
@@ -99,7 +99,7 @@ export class Direction {
 
 /**
  * Reads the scroll's progress from the page's geometry: the fallback where
- * the browser has no scroll timelines (R.5), and how values follow it.
+ * the browser has no scroll timelines, and how values follow it.
  */
 class Gauge {
   readonly source: Element
@@ -233,7 +233,7 @@ class Follower {
   }
 }
 
-/** On abort (or already aborted), element members are unlinked and kept where they are (B.5b). */
+/** On abort (or already aborted), element members are unlinked and kept where they are. */
 function unlinkOnAbort(target: Playback, signal?: AbortSignal): void {
   const members = membersOf(target)
   const unlink = () =>
@@ -243,11 +243,11 @@ function unlinkOnAbort(target: Playback, signal?: AbortSignal): void {
 }
 
 /**
- * Links an animation (or a function of progress) to a scroll (D.1): the
+ * Links an animation (or a function of progress) to a scroll: the
  * scroll position drives its time. Element animations go to the
  * browser's `ScrollTimeline` / `ViewTimeline` where there is one; values,
  * functions and browsers without timelines follow a listener doing the
- * same (R.5). For CSS-only pages, use `animation-timeline` inside
+ * same. For CSS-only pages, use `animation-timeline` inside
  * `@supports (animation-timeline: view())`.
  *
  *   scroll(animate(cover, { rotate: ['-8deg', '8deg'] }), { subject: cover, signal })

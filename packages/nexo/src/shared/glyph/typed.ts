@@ -1,9 +1,9 @@
 /**
- * What a token can be (B.3). The type names are DTCG 2025.10's `$type`s,
+ * What a token can be. The type names are DTCG 2025.10's `$type`s,
  * so the DTCG piece can write them out as they are.
  */
 export interface TokenValues {
-  /** Any CSS colour, or one per colour scheme: emitted as `light-dark()` (C.3). */
+  /** Any CSS colour, or one per colour scheme: emitted as `light-dark()`. */
   color: string | LightDark
   dimension: string
   fontFamily: string
@@ -24,7 +24,7 @@ export interface LightDark {
   readonly dark: string
 }
 
-/** Another token, the leaf of a token object: a token may point to one (B.2). */
+/** Another token, the leaf of a token object: a token may point to one. */
 export type Reference = `var(--${string})`
 
 /** A group's tokens: name → value of its type, or a reference. */
@@ -33,7 +33,7 @@ export type GroupOf<T extends TokenType> = {
 }
 
 /**
- * The groups whose type is known by their name (B.3). Any other group says
+ * The groups whose type is known by their name. Any other group says
  * its type with `typed`.
  */
 export const GROUP_TYPES = {
@@ -61,7 +61,7 @@ export class TypedGroup<T extends TokenType, N extends GroupOf<T>> {
 
 /**
  * A token group whose name isn't one of the known ones, with its type
- * (B.3): the type says what the values are, so a value of another kind is
+ *: the type says what the values are, so a value of another kind is
  * a TS error.
  *
  *   const palette = defineTokens({ blue: typed('color', { 500: '#3b82f6' }) })

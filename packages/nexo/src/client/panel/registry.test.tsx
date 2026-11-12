@@ -14,7 +14,7 @@ const gallery = panel({
 const tabs = panel({ params: { open: param.number(0) } })
 const panels = registry({ gallery, tabs })
 
-describe('typed server markup (R.23)', () => {
+describe('typed server markup', () => {
   test('one panel: data-panel and each param by its own parser', () => {
     expect(
       panels.markup('gallery', {

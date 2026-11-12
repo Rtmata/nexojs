@@ -1,4 +1,4 @@
-/** Sequences (B.2, B.2b) and stagger in Chrome, on the test clock. */
+/** Sequences and stagger in Chrome, on the test clock. */
 import { afterAll, beforeAll, describe, expect, test } from 'bun:test'
 import { chromium, type Browser, type Page } from 'playwright'
 import { bundle, chrome, clockedPage } from './page.fixture'
@@ -9,7 +9,7 @@ let code: string
 const ROOM =
   '<h1 id="title">Arcade</h1><ul id="shelves"><li>1</li></ul><output id="count"></output>'
 
-/** The room of the B.2 preview: title, shelves 200 ms after it starts, counter 100 ms before they end. */
+/** The museum room of the sequence preview: title, shelves 200 ms after it starts, counter 100 ms before they end. */
 function enterRoom(page: Page): Promise<number> {
   return page.evaluate(() => {
     const w = window as any
@@ -52,7 +52,7 @@ describe.skipIf(!chrome)('sequences in Chrome', () => {
     await browser?.close()
   })
 
-  test('segments are placed by B.2b: after, with previous + delay, a negative delay', async () => {
+  test('segments are placed after, or with the previous + delay, and a delay may be negative', async () => {
     const { page, clock } = await clockedPage(browser, code, ROOM)
     expect(await enterRoom(page)).toBe(1300)
     await clock.advance(100)

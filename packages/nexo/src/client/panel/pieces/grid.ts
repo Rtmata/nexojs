@@ -1,2 +1,2 @@
-/** The `grid` panel: its own import path (A.1b). */
+/** The `grid` panel: its own import path. */
 export { grid } from '../library/grid'

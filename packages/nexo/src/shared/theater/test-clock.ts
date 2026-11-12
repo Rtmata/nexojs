@@ -219,7 +219,7 @@ class TestClock {
 export type { TestClock }
 
 /**
- * One clock for both of theater's engines in a browser test (G.1).
+ * One clock for both of theater's engines in a browser test.
  * `advance(ms)` moves Playwright's clock — timers, `requestAnimationFrame`
  * and `performance`, so theater's frame loop — and every element
  * animation by the same amount, a frame at a time. Element animations stay

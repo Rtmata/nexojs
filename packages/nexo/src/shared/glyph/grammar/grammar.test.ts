@@ -24,7 +24,7 @@ function reads(
   return texts.map((text) => grammar.issue(type, text) === undefined)
 }
 
-describe('Grammar: what a person may type, by type (C.4)', () => {
+describe('Grammar: what a person may type, by type', () => {
   test('dimension: lengths, percentages, 0', () => {
     expect(
       reads('dimension', [

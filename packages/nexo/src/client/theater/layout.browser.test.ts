@@ -1,4 +1,4 @@
-/** FLIP (E.1), `For` moves (E.2) and shared elements (E.3) in Chrome. */
+/** FLIP, `For` moves and shared elements in Chrome. */
 import { afterAll, beforeAll, describe, expect, test } from 'bun:test'
 import { chromium, type Browser, type Page } from 'playwright'
 import { bundle, chrome, clockedPage, pageWith } from './page.fixture'
@@ -286,7 +286,7 @@ describe.skipIf(!chrome)('layout in Chrome', () => {
     expect(parts[0]).toEqual([700, 'linear'])
   })
 
-  test('animateView without View Transitions: the named element FLIPs (R.5)', async () => {
+  test('animateView without View Transitions: the named element FLIPs', async () => {
     const page = await pageWith(
       browser,
       code,

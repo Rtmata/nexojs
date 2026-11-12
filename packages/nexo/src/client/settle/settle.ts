@@ -1,12 +1,12 @@
 /**
  * Coming and going, as every Nexo module that moves elements does it
- * (C.15c): the marks, and how long to wait for what they start. Internal:
+ *: the marks, and how long to wait for what they start. Internal:
  * omino, bridge and theater share it; it is not a public path.
  */
 
 /** On an element while its exit plays. */
 export const EXITING = 'data-exiting'
-/** On an element while its entry plays (item 36). */
+/** On an element while its entry plays. */
 export const ENTERING = 'data-entering'
 
 /** A JS motion or an endless animation: how long to wait at most (Angular's 4 s). */

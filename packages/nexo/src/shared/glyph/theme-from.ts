@@ -9,7 +9,7 @@ export type ThemeFromResult<D> =
   | { readonly ok: false; readonly errors: readonly ThemeError[] }
 
 /**
- * A theme from a JSON value a person wrote (C.4: Archive's own themes),
+ * A theme from a JSON value a person wrote (Archive's own themes),
  * checked against the tokens: the same kind of theme `defineTheme` makes,
  * or every mistake as a `ThemeError` — where (`color.primry`), which kind
  * (`unknownToken`), its facts, and an English message (`color.primry: no

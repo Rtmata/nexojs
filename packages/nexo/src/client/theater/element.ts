@@ -11,7 +11,7 @@ import { reducedMotion } from './reduce'
 import { speedOf } from './speed'
 
 /**
- * WAAPI timing from theater's options (A.2, B.3, B.4, C.1b): time divided
+ * WAAPI timing from theater's options: time divided
  * by the element's speed; a CSS easing passed as it is (the browser reads
  * it exactly); a function or a spring sampled into `linear()`.
  */
@@ -45,7 +45,7 @@ export function curveTiming(
 }
 
 /**
- * "What you see stays" (B.5b): at its end the animation's values are
+ * "What you see stays": at its end the animation's values are
  * written inline and it is retired, so nothing jumps back and nothing
  * piles up. Aborting the signal does the same where it is. An explicit
  * `cancel()` is WAAPI's: back to the start.
@@ -78,7 +78,7 @@ function settleAtEnd(animation: Animation): void {
 }
 
 /**
- * Animations driven by scroll (D.1): reaching their end is not the end of
+ * Animations driven by scroll: reaching their end is not the end of
  * them — scrolling back runs them again — so they are only retired when
  * unlinked (the scroll's signal aborts).
  */
@@ -88,7 +88,7 @@ export function linkToScroll(animation: Animation): void {
   scrollLinked.add(animation)
 }
 
-/** Unlinks it from the scroll and retires it where it is (B.5b). */
+/** Unlinks it from the scroll and retires it where it is. */
 export function unlinkFromScroll(animation: Animation): void {
   scrollLinked.delete(animation)
   settle(animation)
@@ -124,22 +124,21 @@ function commitIfRendered(animation: Animation): void {
 }
 
 /**
- * Where a sequence puts an element's animation (B.2): when it starts and
+ * Where a sequence puts an element's animation: when it starts and
  * how long it holds after it ends, both in ms after speed, so every part
  * of the sequence ends together. The sequence, not the part, settles it.
  */
 export interface Place {
   delay: number
   endDelay: number
-  /** The sequence's speed: all its parts keep one time (C.1b). */
+  /** The sequence's speed: all its parts keep one time. */
   speed: number
 }
 
 /**
- * One element's animation on WAAPI (A.2): the browser runs it (transform
+ * One element's animation on WAAPI: the browser runs it (transform
  * and opacity off the main thread) and `getAnimations()` sees it, so
- * omino's exits wait for it. Reduced motion is applied when it starts
- * (C.1).
+ * omino's exits wait for it. Reduced motion is applied when it starts.
  */
 export function animateElement(
   el: Element,
@@ -159,9 +158,9 @@ export function animateElement(
 }
 
 /**
- * What reduced motion takes out goes straight to its end (C.1): written
+ * What reduced motion takes out goes straight to its end: written
  * inline, or — added on top of what is under it — as an instant
- * animation with the same composite, settled as any (B.5b). In a
+ * animation with the same composite, settled as any. In a
  * sequence it lands at once too, as an inline jump does: not at its
  * part's delay, and outside the sequence's seek.
  */

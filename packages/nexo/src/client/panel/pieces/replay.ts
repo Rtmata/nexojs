@@ -1,2 +1,2 @@
-/** The `replay` panel: its own import path (A.1b). */
+/** The `replay` panel: its own import path. */
 export { replay, replayAnimations } from '../library/replay'

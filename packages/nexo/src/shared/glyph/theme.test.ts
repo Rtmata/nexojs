@@ -23,7 +23,7 @@ const tokens = defineTokens(
   { refersTo: [palette], contrastChecks: [['text', 'surface', 'text']] },
 )
 
-describe('defineTheme (C.1–C.3)', () => {
+describe('defineTheme', () => {
   test('every value under data-theme, in glyph.themes, with its text and surface', () => {
     const night = defineTheme(tokens, 'night', {
       color: { text: '#eee', surface: '#111' },
@@ -45,7 +45,7 @@ describe('defineTheme (C.1–C.3)', () => {
 `)
   })
 
-  test('from: changes over another theme, keeping its scheme and the rest (C.2)', () => {
+  test('from: changes over another theme, keeping its scheme and the rest', () => {
     const night = defineTheme(tokens, 'night', {
       colorScheme: 'dark',
       color: { text: '#eee', surface: '#111' },
@@ -71,7 +71,7 @@ describe('defineTheme (C.1–C.3)', () => {
 `)
   })
 
-  test('a theme over light-dark tokens follows the system, as the tokens do (C.3)', () => {
+  test('a theme over light-dark tokens follows the system, as the tokens do', () => {
     const dual = defineTokens({
       color: { text: { light: '#222', dark: '#eee' }, surface: '#fff' },
     })
@@ -118,7 +118,7 @@ describe('defineTheme (C.1–C.3)', () => {
     )
   })
 
-  test('any text names a theme; the selector escapes what could end it (C.1)', () => {
+  test('any text names a theme; the selector escapes what could end it', () => {
     expect(defineTheme(tokens, 'modo noche', {}).css).toContain(
       '[data-theme="modo noche"] {',
     )
@@ -149,7 +149,7 @@ describe('defineTheme (C.1–C.3)', () => {
   })
 })
 
-describe('defineTheme: contrast checks (C.5)', () => {
+describe('defineTheme: contrast checks', () => {
   test('a pair that falls short throws, with the ratio and what it needs', () => {
     expect(() =>
       defineTheme(tokens, 'pale', {

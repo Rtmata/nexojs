@@ -6,14 +6,14 @@ export type Keyframes = PropertyIndexedKeyframes | Keyframe[]
 /** Keys of a frame that are not properties. */
 const NOT_PROPERTIES = new Set(['offset', 'easing', 'composite'])
 
-/** What runs, and what jumps straight to its end (C.1). */
+/** What runs, and what jumps straight to its end. */
 export interface Split {
   keyframes: Keyframes
   jumps: Map<string, string>
 }
 
 /**
- * Under reduced motion, takes out what jumps (C.1): with the default rule,
+ * Under reduced motion, takes out what jumps: with the default rule,
  * the properties that move (WCAG 2.3.3); with `'jump'`, all of them.
  * `reduced` is the visitor's preference, read by the caller.
  *

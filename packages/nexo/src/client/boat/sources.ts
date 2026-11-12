@@ -2,9 +2,9 @@
 export type Arrival = 'push' | 'replace' | 'traverse' | 'reload'
 
 /**
- * Where the client router's URL comes from (E.1): the app picks one,
+ * Where the client router's URL comes from: the app picks one,
  * visibly, and the router's logic is the same for every one. Each turns
- * scrolling and focus restoration over to Nexo (E.1: one owner).
+ * scrolling and focus restoration over to Nexo (one owner).
  */
 export interface UrlSource {
   /** The URL now. */
@@ -28,7 +28,7 @@ export interface SourceListener {
 /**
  * The Navigation API (museum, Android): every navigation the router claims
  * is intercepted, with scroll and focus left to Nexo. Baseline 2026; on
- * non-HTTP schemes (`tauri://`) WebKit only intercepts `#…` changes (E.1).
+ * non-HTTP schemes (`tauri://`) WebKit only intercepts `#…` changes.
  */
 export function navigationUrl(): UrlSource {
   const nav = (globalThis as any).navigation
@@ -82,7 +82,7 @@ interface Address {
 
 /**
  * The History API: `pushState` for new entries, `popstate` for back and
- * forward, `scrollRestoration = 'manual'` (E.1).
+ * forward, `scrollRestoration = 'manual'`.
  */
 export function historyUrl(): UrlSource {
   return new PushStateUrl({
@@ -93,7 +93,7 @@ export function historyUrl(): UrlSource {
 
 /**
  * The hash (`#/book/3`): the route is what follows `#`; works on any scheme,
- * `tauri://` included (Lector on Linux, E.1).
+ * `tauri://` included (Lector on Linux).
  */
 export function hashUrl(): UrlSource {
   return new PushStateUrl({

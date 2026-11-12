@@ -31,7 +31,7 @@ export type {
 export type { Targets } from './targets'
 
 /**
- * A journey from A to B (B.1), on the clock its target asks for (A.2):
+ * A journey from A to B, on the clock its target asks for:
  * an element (or a list) runs on WAAPI, a value on theater's frame loop.
  * It returns WAAPI's `Animation` shape either way.
  *
@@ -80,7 +80,7 @@ function animateElements(
   return new AnimationGroup(list.map(each))
 }
 
-/** A value on theater's frame loop (A.2). Reduced motion leaves it alone unless `reduce: 'jump'` (C.1). */
+/** A value on theater's frame loop. Reduced motion leaves it alone unless `reduce: 'jump'`. */
 function animateValue(
   keyframes: number[],
   target: ValueTarget<number>,

@@ -23,7 +23,7 @@ export interface Options {
   swap: 'replace' | 'append' | 'prepend'
   /** Where the focus goes afterwards: `auto` by default (see `FocusMove`). */
   focus: Focus
-  /** Snapshots or live, and the types (decision 35, E.4). */
+  /** Snapshots or live, and the types. */
   transition: TransitionSays
   /** Set by a return through history; otherwise it follows `history`. */
   direction?: ReturnDirection
@@ -149,7 +149,7 @@ function oneOf<V extends string, D>(
   return fallback
 }
 
-/** What a wrong value of `role` does (audit item 4): markup reports it and the default stands; a script's call throws. Asked per role: a script's options mix its own values with the markup's around `from`. */
+/** What a wrong value of `role` does: markup reports it and the default stands; a script's call throws. Asked per role: a script's options mix its own values with the markup's around `from`. */
 type Complain = (role: string, message: string) => void
 
 const reported: Complain = (_, message) => reportError(new Error(message))

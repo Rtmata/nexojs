@@ -11,11 +11,11 @@ import { Scroll } from './scroll'
 import type { Arrival, UrlSource } from './sources'
 
 export interface BoatClientOptions {
-  /** URL → route and params, or `null`: `routes({ … })`, or your own (E.1). */
+  /** URL → route and params, or `null`: `routes({ … })`, or your own. */
   match: (url: URL) => ClientMatch | null
   /** Where the URL comes from: `navigationUrl()`, `historyUrl()`, `hashUrl()`, `memoryUrl()`. */
   source: UrlSource
-  /** The signals library, as a value (R.20). */
+  /** The signals library, as a value. */
   reactivity: Reactivity
   /** The router's lifetime: aborting it stops every listener. */
   signal: AbortSignal
@@ -28,7 +28,7 @@ interface Place {
 }
 
 /**
- * The client router (E.1, E.2, R.20). Its `page` is a hole for omino; the
+ * The client router. Its `page` is a hole for omino; the
  * current route's data is a `resource` over the navigation, so the latest
  * one wins and a stale answer is dropped. While a route loads, the page
  * before it stays (bridge's `aria-busy` idea): `data.isLoading` says so.
@@ -77,7 +77,7 @@ export class ClientRouter {
 
   /**
    * The page for what no route has, and for a `load` that returns
-   * `notFound()` (E.2). With it the router claims every URL; without it an
+   * `notFound()`. With it the router claims every URL; without it an
    * unmatched one goes on to bridge, then the server.
    */
   notFound(page: (ctx: PageContext) => unknown): this {
@@ -86,7 +86,7 @@ export class ClientRouter {
   }
 
   /**
-   * The page for a `load` that throws (R.41), when the route has no
+   * The page for a `load` that throws, when the route has no
    * `failed` of its own: the nearest wins, as SvelteKit's `+error` and React
    * Router's boundaries. It gets `{ error, retry, url, params }`. Without
    * either, the page before stays and the error is reported.

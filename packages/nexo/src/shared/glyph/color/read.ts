@@ -20,7 +20,7 @@ const DEGREES: Record<string, number> = {
 const FULL = { rgb: 255, alpha: 1, hslPercent: 100, lightness: 1, chroma: 0.4 }
 
 /**
- * A CSS colour as sRGB, read by glyph itself (C.5, zero dependencies):
+ * A CSS colour as sRGB, read by glyph itself (zero dependencies):
  * hex, `rgb()`/`rgba()`, `hsl()`/`hsla()`, `oklch()`, `oklab()` — comma or
  * space syntax, `/ alpha` — and the named colours. A token reference or any
  * other CSS (`currentColor`, `color-mix()`) throws: glyph computes with

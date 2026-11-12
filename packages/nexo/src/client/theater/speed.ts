@@ -1,7 +1,7 @@
 import { isSpeed, SPEED_PROPERTY, speedAt } from '../settle/speed'
 
 /**
- * The speed of every animation below an element (C.1b): one inherited CSS
+ * The speed of every animation below an element: one inherited CSS
  * custom property is the single source. Site CSS reads it in `calc()`,
  * theater reads it from the element it animates, bridge from `<html>`.
  *

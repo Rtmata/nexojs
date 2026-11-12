@@ -5,17 +5,17 @@ import { InsertedPhase, Life } from './life'
 import type { Reactivity } from './reactivity'
 
 export interface MountOptions {
-  /** Its lifetime (B.8): aborting it ends every component and removes the content. */
+  /** Its lifetime: aborting it ends every component and removes the content. */
   signal: AbortSignal
-  /** The signals library, as a value (R.12): `import * as connector from '@nexoamigos/nexo/connector'`. */
+  /** The signals library, as a value: `import * as connector from '@nexoamigos/nexo/connector'`. */
   reactivity: Reactivity
   /** What every `template(context)` receives, as on the server's `render()`. */
   context?: RenderContext
 }
 
 /**
- * Build a tree into `el`, replacing its content (C.19a). When this returns,
- * the DOM is complete (R.15); `mounted` and `ref` have run, children first.
+ * Build a tree into `el`, replacing its content. When this returns,
+ * the DOM is complete; `mounted` and `ref` have run, children first.
  *
  *   mount(<Gallery shots={shots} />, el, { signal, reactivity: connector })
  */

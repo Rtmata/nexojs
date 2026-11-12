@@ -1,2 +1,2 @@
-/** The `easing/elastic` piece: one easing family (A.1b). */
+/** The `easing/elastic` piece: one easing family. */
 export * from '../../../../shared/theater/easing/elastic'

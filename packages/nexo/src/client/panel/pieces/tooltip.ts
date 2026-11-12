@@ -1,2 +1,2 @@
-/** The `tooltip` panel: its own import path (A.1b). */
+/** The `tooltip` panel: its own import path. */
 export { hasInterest, tooltip } from '../library/tooltip'

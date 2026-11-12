@@ -28,7 +28,7 @@ export function jsx(
 
 /**
  * The compiler hands `key` apart from the props. Only `<For>` reconciles by
- * key (C.14), so only there it goes back into them.
+ * key, so only there it goes back into them.
  */
 function withKey(props: Record<string, unknown>, key: unknown) {
   return key === undefined ? props : { ...props, key }

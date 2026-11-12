@@ -1,4 +1,4 @@
-/** The built-in panels (D.4) in real engines, with real keys (Playwright). */
+/** The built-in panels in real engines, with real keys (Playwright). */
 import {
   afterAll,
   beforeAll,
@@ -478,7 +478,7 @@ for (const [name, engine] of engines) {
       expect(await call('events')).toEqual([])
     })
 
-    test('confirm-on-hold by keyboard: hold, or press to arm and press again (R.31)', async () => {
+    test('confirm-on-hold by keyboard: hold, or press to arm and press again', async () => {
       await call(
         'setup',
         '<button id="del" data-panel="confirm-on-hold" data-confirm-on-hold-duration="300">delete</button>',

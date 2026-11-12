@@ -13,7 +13,7 @@ const tokens = defineTokens({
   font: { body: 'system-ui', mono: 'ui-monospace' },
 })
 
-test('base: classless styles that read your tokens, in glyph.base (E.2)', () => {
+test('base: classless styles that read your tokens, in glyph.base', () => {
   expect(base(tokens).name).toBe('glyph.base')
   expect(base(tokens).css)
     .toBe(`@layer glyph.reset, glyph.base, glyph.tokens, glyph.themes, glyph.recipes;

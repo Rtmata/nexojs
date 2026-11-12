@@ -1,4 +1,4 @@
-/** panel in real engines (F.3): Chromium, WebKit, Firefox. */
+/** panel in real engines: Chromium, WebKit, Firefox. */
 import { afterAll, beforeAll, describe, expect, test } from 'bun:test'
 import {
   chromium,
@@ -68,7 +68,7 @@ for (const [name, engine] of engines) {
       const caught = await play('errors')
       expect(caught[0]).toContain('names no panel')
       expect(caught[1]).toContain('gallery.start: expected a number')
-      expect(caught[2]).toBe('connected 2') // a bad param is reported and its default stands (audit item 4): only the unknown panel stays out
+      expect(caught[2]).toBe('connected 2') // a bad param is reported and its default stands: only the unknown panel stays out
     })
 
     test('the same panel as an omino ref, with typed params', async () => {
@@ -80,7 +80,7 @@ for (const [name, engine] of engines) {
       ])
     })
 
-    test('what markup() writes, attach() reads back the same (R.23)', async () => {
+    test('what markup() writes, attach() reads back the same', async () => {
       expect(await play('roundTrip')).toEqual(['connect 4 true 3'])
     })
 

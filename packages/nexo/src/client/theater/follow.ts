@@ -5,10 +5,10 @@ import type { AnimateOptions } from '../../shared/theater/options'
 import { tween } from './tween'
 
 /**
- * A signal that follows another with a spring or an easing (B.6, Svelte's
+ * A signal that follows another with a spring or an easing (Svelte's
  * `Tween.of`): it is exactly a signal, a `tween` over it, and a `watch`
  * that calls `.set` — no rule of its own. The one theater piece that
- * imports connector; `animate` and `tween` never do (A.1b).
+ * imports connector; `animate` and `tween` never do.
  *
  *   const smooth = follow(price, { spring: { duration: 300 }, signal })
  *   <span>{smooth}</span>

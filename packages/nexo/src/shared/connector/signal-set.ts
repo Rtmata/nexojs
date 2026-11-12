@@ -2,7 +2,7 @@ import { batch } from './batch'
 import { KeySignals, Shape } from './key-signals'
 
 /**
- * A `Set` whose reads are tracked (B.9a). `has(x)` for a value in it depends
+ * A `Set` whose reads are tracked. `has(x)` for a value in it depends
  * on that value only; for one not in it, on what the set holds. Iterating and
  * `size` depend on what it holds.
  *
@@ -106,7 +106,7 @@ export class SignalSet<T> implements Iterable<T> {
     return this.read().isDisjointFrom(other)
   }
 
-  /** What JSON can hold: the values, as an array (B.9c). */
+  /** What JSON can hold: the values, as an array. */
   toJSON(): T[] {
     return [...this.items]
   }

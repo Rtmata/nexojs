@@ -18,11 +18,11 @@ import { speedOf } from './speed'
 import { listOf, type Targets } from './targets'
 import { isValueCall, startValue, valueTrack, type Track } from './value'
 
-/** A segment's options: an animation's, plus where it goes (B.2b). */
+/** A segment's options: an animation's, plus where it goes. */
 export interface SegmentOptions extends AnimateOptions {
   /** Start with the previous segment (`'previous'`) or at a label. */
   with?: string
-  /** An absolute time, in ms before speed (C.1b), as `delay` is. */
+  /** An absolute time, in ms before speed, as `delay` is. */
   at?: number
 }
 
@@ -32,12 +32,12 @@ export type Segment =
   | [number[], ValueTarget<number>, SegmentOptions?]
   | [SequenceItem[], SegmentOptions?]
 
-/** A segment, or a label: a plain string marking a moment (B.2b). */
+/** A segment, or a label: a plain string marking a moment. */
 export type SequenceItem = Segment | string
 
 /** Options of a whole sequence. */
 export interface SequenceOptions {
-  /** Aborting stops every part where it is (B.5b). */
+  /** Aborting stops every part where it is. */
   signal?: AbortSignal
 }
 
@@ -54,9 +54,8 @@ interface Part {
 }
 
 /**
- * Where the segment asks to go; a numeric `delay` is a shift (B.2b). In
- * ms after speed, as lengths are, so the whole sequence keeps one time
- * (C.1b).
+ * Where the segment asks to go; a numeric `delay` is a shift. In
+ * ms after speed, as lengths are, so the whole sequence keeps one time.
  */
 function positionOf(options: SegmentOptions, speed: number): Position {
   const shift = typeof options.delay === 'number' ? delayOf(options) : 0
@@ -139,7 +138,7 @@ class ValuePart implements Part {
   }
 }
 
-/** A whole sequence: its segments placed by `schedule` (B.2b). */
+/** A whole sequence: its segments placed by `schedule`. */
 class SequencePart implements Part {
   readonly length: number
   private readonly parts: Part[]
@@ -198,10 +197,10 @@ export function isSequence(value: unknown): value is SequenceItem[] {
 }
 
 /**
- * A sequence playing as one `Animation` (B.2): `pause`, `reverse`,
+ * A sequence playing as one `Animation`: `pause`, `reverse`,
  * `currentTime` and `playbackRate` act on all of it. Every part ends at
  * the sequence's end; then — or when the signal aborts — what is seen is
- * written inline and the element parts are retired (B.5b).
+ * written inline and the element parts are retired.
  */
 export class Sequence extends AnimationGroup {
   constructor(
@@ -236,10 +235,10 @@ function settleReporting(animation: Animation): void {
 }
 
 /**
- * Plays segments as one (B.2, B.2b): with no position a segment goes after
+ * Plays segments as one: with no position a segment goes after
  * the previous one; `with: 'previous'` or `with: <label>` starts it there;
  * a number `delay` shifts it; `at` is absolute. A string is a label. The
- * whole sequence reads its speed from `<html>` (C.1b).
+ * whole sequence reads its speed from `<html>`.
  *
  *   animate([
  *     [title, { opacity: [0, 1] }],

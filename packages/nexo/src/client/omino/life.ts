@@ -1,7 +1,7 @@
 import type { Scheduler } from './reactivity'
 
 /**
- * How long a part of the tree lives (B.8): a signal, aborted with its
+ * How long a part of the tree lives: a signal, aborted with its
  * parent's. Each component and each region's content has its own.
  */
 export class Life {
@@ -28,7 +28,7 @@ export class Life {
 }
 
 /**
- * The `inserted` phase (C.15b, C.17a): `mounted` and `ref` are effects on
+ * The `inserted` phase: `mounted` and `ref` are effects on
  * this scheduler, so they wait until their nodes are in the document. They're
  * queued as the tree is built, children first, and run in that order.
  */

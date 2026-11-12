@@ -33,7 +33,7 @@ export type Loader<V, T> = (
 export type ResourceOptions = EffectOptions
 
 /**
- * A `watch` that loads (B.10): when its sources change it calls the loader with
+ * A `watch` that loads: when its sources change it calls the loader with
  * the run's `signal`, so the latest run wins and a stale answer is dropped.
  * `value` never throws; a failure is in `error` and goes to `onError`.
  */
@@ -156,7 +156,7 @@ export class Resource<T> {
     if (!load.signal.aborted) this.write(value, undefined, 'ready')
   }
 
-  /** A stale load writes nothing, but a real error is still reported (R.7). */
+  /** A stale load writes nothing, but a real error is still reported. */
   private reject(error: unknown, load: AbortController): void {
     if (isOwnCancel(load.signal, error)) return
     if (!load.signal.aborted) this.write(this.current.peek(), error, 'error')
@@ -177,7 +177,7 @@ export class Resource<T> {
 }
 
 /**
- * Async state from sources (B.10):
+ * Async state from sources:
  *
  *   const book = resource(id, (id, { signal }) =>
  *     fetch(`/books/${id}`, { signal }).then((r) => r.json()))

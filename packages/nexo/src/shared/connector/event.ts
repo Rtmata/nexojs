@@ -21,7 +21,7 @@ type Listener<T> = (value: T) => unknown
 type Payload<T> = [T] extends [void] ? [value?: T] : [value: T]
 
 /**
- * Something that happens, as a signal is something that is (B.4, R.9). One
+ * Something that happens, as a signal is something that is. One
  * object per event; a group of them is a plain object.
  */
 export class TypedEvent<T> {
@@ -111,7 +111,7 @@ export function event<T = void>(options?: EventOptions): TypedEvent<T> {
 }
 
 /**
- * The bridge from state to events (B.4): `target` emits the source's new value
+ * The bridge from state to events: `target` emits the source's new value
  * each time it changes. Exactly `watch(source, now => target.emit(now))`.
  *
  *   changed(settings.theme, themeChanged)

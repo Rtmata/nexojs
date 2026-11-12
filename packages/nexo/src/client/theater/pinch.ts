@@ -14,7 +14,7 @@ export interface PinchOptions {
   pan?: boolean
   /** Past a limit it follows at this share: 0.35 by default. */
   elastic?: number
-  /** The spring back inside the limits on release (B.3). */
+  /** The spring back inside the limits on release. */
   release?: { spring?: SpringOptions }
   signal?: AbortSignal
 }
@@ -70,9 +70,9 @@ const GESTURE_SPAN = spanOf({ x: 0, y: 0 }, { x: 1, y: 0 })
 
 /**
  * Zooms (and turns, and moves) an element with two fingers or a trackpad
- * (F.2): scale, rotation and offset follow the fingers' distance, angle
+ *: scale, rotation and offset follow the fingers' distance, angle
  * and middle point; past its limits the zoom stretches, and on release a
- * spring brings it back, at the speed it had (F.1's estimator). Give it
+ * spring brings it back, at the speed it had (the velocity drag measures). Give it
  * zoom buttons too: `set` animates the zoom.
  *
  *   const zoom = pinch(screen, { scale: { min: 1, max: 4 }, pan: true, signal })
@@ -194,7 +194,7 @@ class Pinch implements Pinchable {
     this.release(speed(this.samples, 'x'))
   }
 
-  /** Back inside the limits with a spring, starting at the zoom's speed (B.3). */
+  /** Back inside the limits with a spring, starting at the zoom's speed. */
   private release(velocity: number): void {
     const target = this.limited(this.scale)
     const span = target - this.scale

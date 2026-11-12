@@ -1,4 +1,4 @@
-/** The `define-fonts` piece: its own import path (A.1b), only what is public. */
+/** The `define-fonts` piece: its own import path, only what is public. */
 export { defineFonts } from '../fonts'
 export type {
   Font,

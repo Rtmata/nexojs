@@ -1,5 +1,5 @@
 /**
- * omino's client renderer in real engines (F.3): Chromium, WebKit and
+ * omino's client renderer in real engines: Chromium, WebKit and
  * Firefox through Playwright. The scenarios live in mount.fixture.tsx,
  * bundled once and imported into a blank page of each browser.
  */

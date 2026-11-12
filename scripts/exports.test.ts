@@ -1,5 +1,5 @@
 /**
- * The exports map: one pattern per module's `pieces/` folder (A.1b), so a
+ * The exports map: one pattern per module's `pieces/` folder, so a
  * piece's import path is its file name there. These check that Bun, from
  * inside the package as from an app, finds every piece by that path, and
  * that the exact keys (indexes, JSX runtimes, bridge's script) still win.
@@ -170,7 +170,7 @@ const RENAMED: Record<string, string> = {
 
 const kept = FORMER.filter((path) => !(path in RENAMED))
 
-describe('the exports map (A.1b)', () => {
+describe('the exports map', () => {
   test('every pattern points at a pieces/ folder', () => {
     for (const [, target] of patterns)
       expect(sourceOf(target)).toMatch(/\/pieces\/\*\.ts$/)

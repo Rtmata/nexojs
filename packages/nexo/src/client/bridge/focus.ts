@@ -97,7 +97,7 @@ function focusable(element: HTMLElement): boolean {
   return element.matches(FOCUSABLE)
 }
 
-/** Markup that names a segment the page doesn't have: reported (audit item 4). */
+/** Markup that names a segment the page doesn't have: reported. */
 function noSegment(name: string): void {
   reportError(new Error(`bridge: data-bridge-focus names no segment "${name}"`))
 }

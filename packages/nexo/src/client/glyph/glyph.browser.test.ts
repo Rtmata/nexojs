@@ -1,5 +1,5 @@
 /**
- * adoptTheme in real engines (G.2): Chromium, WebKit and Firefox through
+ * adoptTheme in real engines: Chromium, WebKit and Firefox through
  * Playwright. The theme is made in Bun, as `themeFrom` would make it from
  * a person's JSON; the page only adopts it and lets it go.
  */
@@ -69,7 +69,7 @@ for (const [name, engine] of engines) {
       await browser?.close()
     })
 
-    test('applies the theme while the signal lives, and removes it on abort (C.4)', async () => {
+    test('applies the theme while the signal lives, and removes it on abort', async () => {
       expect(await computed(page, 'color')).toBe('rgb(0, 0, 0)')
       await page.evaluate(
         (css) => (window as any).glyph.adopt(css),

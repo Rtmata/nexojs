@@ -1,7 +1,7 @@
 /**
  * theater: motion for Nexo (Phase 6). Every piece has its own path
- * (`@nexoamigos/nexo/theater/speed`); this index only lists them (A.1b).
- * There is no `theater()`: nothing to start, only pieces (G.3b).
+ * (`@nexoamigos/nexo/theater/speed`); this index only lists them.
+ * There is no `theater()`: nothing to start, only pieces.
  * `flashes` and `test-clock` are left out: they run in a Playwright test,
  * beside the browser, and are imported by their own paths.
  */

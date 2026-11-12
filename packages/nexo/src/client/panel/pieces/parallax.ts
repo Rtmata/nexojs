@@ -1,2 +1,2 @@
-/** The `parallax` panel: its own import path (A.1b). */
+/** The `parallax` panel: its own import path. */
 export { parallax } from '../library/parallax'

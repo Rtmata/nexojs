@@ -7,7 +7,7 @@ export interface LoadableFontFile extends Omit<FontFile, 'src'> {
   readonly src: string | ArrayBuffer | ArrayBufferView
 }
 
-/** What `loadFont` takes: `defineFonts`' shape (F.3), files from a person. */
+/** What `loadFont` takes: `defineFonts`' shape, files from a person. */
 export interface LoadableFont {
   readonly family: string
   readonly files: readonly LoadableFontFile[]
@@ -15,10 +15,10 @@ export interface LoadableFont {
 }
 
 /**
- * A font a person imports (F.3), in the page while `signal` lives: each
+ * A font a person imports, in the page while `signal` lives: each
  * file loaded as a `FontFace` and added to `document.fonts`, taken away on
  * abort. It gives the `@font-face` text for a document the page's fonts
- * don't reach, an iframe (C.6): bytes are written as a `blob:` URL, freed
+ * don't reach, an iframe: bytes are written as a `blob:` URL, freed
  * on abort too, which a same-origin iframe can read. A file the browser
  * can't read rejects, saying which formats it reads; so does an abort.
  *

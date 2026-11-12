@@ -1,2 +1,2 @@
-/** The `follow` piece: its own import path (A.1b), only what is public. */
+/** The `follow` piece: its own import path, only what is public. */
 export { follow } from '../follow'

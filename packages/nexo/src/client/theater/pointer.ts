@@ -11,7 +11,7 @@ function sample(event: PointerEvent): Sample {
 }
 
 /**
- * One pointer followed from its press (F.1): where it was pressed, so its
+ * One pointer followed from its press: where it was pressed, so its
  * offset, and its last 100 ms of samples, so its real speed (least
  * squares, `speed`). It is followed on the document, not captured: a
  * capture would take the click from the links and buttons inside.
@@ -58,7 +58,7 @@ export class PointerTrack {
   }
 
   private moved(event: PointerEvent): void {
-    // Optional call: where the browser has no coalesced events (R.5), each
+    // Optional call: where the browser has no coalesced events, each
     // move is one sample — fewer points for `speed`, not a wrong one.
     this.add(event.getCoalescedEvents?.() ?? [event])
     this.events.move(this)

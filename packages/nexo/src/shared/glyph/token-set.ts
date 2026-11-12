@@ -2,17 +2,17 @@ import type { ContrastUse } from './color/contrast'
 import type { TokenGroup } from './token-group'
 import type { TokenType } from './typed'
 
-/** Light or dark: what CSS's `color-scheme` picks, and `light-dark()` with it (C.3). */
+/** Light or dark: what CSS's `color-scheme` picks, and `light-dark()` with it. */
 export type ColorScheme = 'light' | 'dark'
 
 /**
  * What a theme may say of its scheme: one fixed, or `inherit`, CSS's own
- * word, to take the scheme of the room around it (C.3).
+ * word, to take the scheme of the room around it.
  */
 export type ThemeScheme = ColorScheme | 'inherit'
 
 /**
- * A pair to check (C.5): foreground and background, names in the `color`
+ * A pair to check: foreground and background, names in the `color`
  * group, and what the foreground is — `text` needs 4.5:1 (WCAG 2.2 1.4.3),
  * `ui` 3:1 (1.4.11).
  */
@@ -43,7 +43,7 @@ export interface Defined<D> {
 /**
  * The values behind a token object or a theme: its groups, the pairs whose
  * contrast it keeps, the token objects its references point into, and the
- * scheme it fixes, if any. Themes are new sets made by `with` (C.2): a set
+ * scheme it fixes, if any. Themes are new sets made by `with`: a set
  * never changes.
  */
 export class TokenSet<D = unknown> {
@@ -104,12 +104,12 @@ export class TokenSet<D = unknown> {
     return this.groups.flatMap((group) => group.declarations())
   }
 
-  /** Whether a colour depends on the scheme: `light-dark()` needs `color-scheme` (C.3). */
+  /** Whether a colour depends on the scheme: `light-dark()` needs `color-scheme`. */
   hasLightDark(): boolean {
     return this.groups.some((group) => group.hasLightDark())
   }
 
-  /** A new set: `changes` over these values, more pairs, maybe a fixed scheme (C.2). */
+  /** A new set: `changes` over these values, more pairs, maybe a fixed scheme. */
   with(
     changes: Readonly<Record<string, Readonly<Record<string, unknown>>>>,
     more: { checks: readonly ContrastCheck[]; colorScheme?: ThemeScheme },

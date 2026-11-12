@@ -8,9 +8,9 @@ export type Invoke = (
 ) => Promise<unknown>
 
 /**
- * Commands through Tauri's `invoke` (A.2). Rust already checks the types, so
+ * Commands through Tauri's `invoke`. Rust already checks the types, so
  * a table of `custom<T>()` is enough here. A rejected command's
- * `{ kind, message }` becomes a `CommandError` with `code = kind` (R.25).
+ * `{ kind, message }` becomes a `CommandError` with `code = kind`.
  * `invoke` can't be cancelled (tauri#8351): aborting stops waiting, the Rust
  * command keeps running.
  */

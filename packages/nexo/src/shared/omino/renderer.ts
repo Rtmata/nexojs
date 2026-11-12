@@ -44,7 +44,7 @@ export class Renderer {
     private readonly foreign = false,
     /** Set by `render(page, { only })`: collects the segments asked for. */
     private readonly picker?: SegmentPicker,
-    /** The page's component styles, each once (C.20a). */
+    /** The page's component styles, each once. */
     readonly sheets = new PageSheets(),
   ) {
     this.rawText = new RawText(slots)
@@ -57,7 +57,7 @@ export class Renderer {
 
   /** Leaves answer at once; only elements and lists may wait. */
   private child(child: Child, scope: Scope): string | Promise<string> {
-    if (isHole(child)) return this.child(readOnce(child) as Child, scope) // C.12
+    if (isHole(child)) return this.child(readOnce(child) as Child, scope) // the server reads a hole once
     const html = leafHtml(child)
     return html ?? this.branch(child, scope)
   }
@@ -172,7 +172,7 @@ export class Renderer {
     return html
   }
 
-  /** Its root marked, and its CSS kept for the page's head (C.20a). */
+  /** Its root marked, and its CSS kept for the page's head. */
   private styled(type: ComponentClass, tree: Child): Child {
     const listed = stylesOf(type)
     if (!listed) return tree
@@ -195,7 +195,7 @@ export class Renderer {
   }
 }
 
-/** The server renders once: a component's lifetime never ends there (R.14). */
+/** The server renders once: a component's lifetime never ends there. */
 const SERVER_RUN = { signal: new AbortController().signal }
 
 /** Where a browser takes over XML rules for the elements inside. */

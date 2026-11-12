@@ -10,7 +10,7 @@ import { Marks } from './marks'
  * `<button commandfor="info" command="show-modal">` opens it, `command="close"`
  * closes it. The panel adds what APG asks and the platform leaves to you,
  * a name from its first heading, a description for an alert dialog
- * (`role="alertdialog"`: its first paragraph, R.34), and bridges two gaps:
+ * (`role="alertdialog"`: its first paragraph), and bridges two gaps:
  *
  * GAP BRIDGE `command`/`commandfor` (shared, `commands.ts`).
  * GAP BRIDGE `closedby` (`any` light dismiss, `none` no Escape): missing in
@@ -53,8 +53,8 @@ function named(dialog: HTMLDialogElement, marks: Marks): void {
 }
 
 /**
- * APG: an alert dialog (`role="alertdialog"`, the standard role as the
- * switch, R.34) must describe its message; without `aria-describedby`,
+ * APG: an alert dialog (`role="alertdialog"`, the standard role, as with
+ * switch) must describe its message; without `aria-describedby`,
  * its first paragraph is the description.
  */
 function described(dialog: HTMLDialogElement, marks: Marks): void {

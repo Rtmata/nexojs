@@ -1,5 +1,5 @@
 /**
- * Segment lifetimes in Chrome (C.19b, R.17): arrivals at load and after a
+ * Segment lifetimes in Chrome: arrivals at load and after a
  * swap, bridge:leave awaited, nested signals ended, data-bridge-persist,
  * component styles a segment brings. Pages served by keep with bridge.
  */

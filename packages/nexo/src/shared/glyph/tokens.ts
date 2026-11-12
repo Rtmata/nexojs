@@ -18,7 +18,7 @@ import type {
 
 type Reserved = 'css' | 'name' | 'from' | 'colorScheme' | 'contrastChecks'
 
-/** The message TS shows for a group it can't type (B.3). */
+/** The message TS shows for a group it can't type. */
 type UnknownGroup<G extends string> =
   `glyph: "${G}" is not a known token group (color, space, size, radius, font, weight, shadow, duration, easing, z); say its type: ${G}: typed('color', { … })`
 
@@ -56,7 +56,7 @@ export type Tokens<D> = {
 /** `defineTokens`' options. */
 export interface TokenOptions<D> {
   /**
-   * Pairs whose contrast these tokens keep (C.5), checked now and in
+   * Pairs whose contrast these tokens keep, checked now and in
    * every theme made from them: `[['on-primary', 'primary', 'text']]`.
    * A name is a token of `color`; `brand.ink` names one of another colour
    * group of these tokens.
@@ -72,11 +72,11 @@ export interface TokenOptions<D> {
 
 /**
  * Tokens as custom properties by one visible rule, `--<group>-<name>`
- * (B.1). Each leaf of the result is the `var()` that reads its token, the
+ *. Each leaf of the result is the `var()` that reads its token, the
  * result is also the sheet that defines them on `:root`, in the
- * `glyph.tokens` layer. A token may point to another (B.2); a colour may be
- * `{ light, dark }`, emitted as `light-dark()` with `color-scheme` (C.3).
- * Pairs in `contrastChecks` that fall short throw, naming each (C.5).
+ * `glyph.tokens` layer. A token may point to another; a colour may be
+ * `{ light, dark }`, emitted as `light-dark()` with `color-scheme`.
+ * Pairs in `contrastChecks` that fall short throw, naming each.
  *
  *   const palette = defineTokens({ blue: typed('color', { 500: '#3b82f6' }) })
  *   const tokens = defineTokens(
@@ -138,7 +138,7 @@ function checkedSet(
  */
 function tokenSheet(table: TokenGroup[], set: TokenSet): Sheet {
   const name = `glyph.tokens(${table.map((group) => group.name).join(', ')})`
-  const scheme = set.hasLightDark() ? ['color-scheme: light dark;'] : [] // light-dark() follows it (C.3)
+  const scheme = set.hasLightDark() ? ['color-scheme: light dark;'] : [] // light-dark() follows it
   const lines = [...scheme, ...set.declarations()]
   return sheet(name, 'glyph.tokens', rule(':root', lines))
 }

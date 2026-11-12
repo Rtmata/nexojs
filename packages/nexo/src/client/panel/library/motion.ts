@@ -1,12 +1,12 @@
 /**
  * Shared by the effect panels: waiting for animations — theater's pieces
- * underneath (A.1: panels wrap theater), so the rule is written once —
+ * underneath (panels wrap theater), so the rule is written once —
  * and speaking text.
  */
 import { finished } from '../../theater/finished'
 import { FIXED_WAIT } from '../../settle/settle'
 
-/** At most this long for a promise that never ends (C.15c's fallback). */
+/** At most this long for a promise that never ends (omino's fallback wait). */
 export function atMost<T>(promise: Promise<T>): Promise<T | void> {
   let timer: ReturnType<typeof setTimeout>
   const cap = new Promise<void>(
@@ -15,7 +15,7 @@ export function atMost<T>(promise: Promise<T>): Promise<T | void> {
   return Promise.race([promise, cap]).finally(() => clearTimeout(timer))
 }
 
-/** The element's animations (its subtree's too) finished, or none to wait for: theater's `finished` (C.2). */
+/** The element's animations (its subtree's too) finished, or none to wait for: theater's `finished`. */
 export function animationsDone(el: Element): Promise<void> {
   return finished(el, { subtree: true })
 }

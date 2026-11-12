@@ -4,7 +4,7 @@ import { emit, followPointer, Hold, swallowNextClick } from './hold'
 import { Marks } from './marks'
 
 /**
- * Hold to confirm (Archive; R.31). Pointer: hold for `duration` ms; let go
+ * Hold to confirm (Archive). Pointer: hold for `duration` ms; let go
  * early, anywhere, and nothing happens (WCAG 2.5.2: never on the down
  * event). Keyboard: hold Space/Enter the same way, OR press once to arm it
  * (the `armed` text is announced) and once more to confirm, with no timing

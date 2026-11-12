@@ -189,7 +189,7 @@ function shareOf(element: Element): number {
 }
 
 /**
- * The predicted source of the flash checker (C.3): from the keyframes of
+ * The predicted source of the flash checker: from the keyframes of
  * the animations running in `root` — their background or text colour and
  * opacity, their timing and easing — the flashes each would make, counted
  * by WCAG 2.3.1's rule. Cheap enough for development; it can't see

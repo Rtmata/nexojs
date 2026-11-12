@@ -8,7 +8,7 @@ import { Marks } from './marks'
  *
  *   <div data-panel="focusgroup" focusgroup="toolbar inline wrap">…</div>
  *
- * GAP BRIDGE (D.4, R.29): Chromium 150+ does this natively, Safari,
+ * GAP BRIDGE: Chromium 150+ does this natively, Safari,
  * Firefox and WebKitGTK don't (2026-11), and no feature check can tell
  * them apart. So the panel reads the same standard attribute and handles
  * the keys everywhere, marking them handled so the native behavior never

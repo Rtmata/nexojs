@@ -15,8 +15,8 @@ export interface Transport {
 }
 
 /**
- * The client side (A.2, F.1): `commands.exec('book', { id }, { signal })`,
- * a plain promise; it rejects with a `CommandError` (R.25). Args are checked
+ * The client side: `commands.exec('book', { id }, { signal })`,
+ * a plain promise; it rejects with a `CommandError`. Args are checked
  * before they leave, so a mistake fails here, not on the server.
  */
 export class Client<T extends Table> {

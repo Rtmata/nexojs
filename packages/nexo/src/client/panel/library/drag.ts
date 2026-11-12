@@ -3,7 +3,7 @@ import { panel } from '../panel'
 import { number, oneOf } from '../params'
 
 /**
- * Drag (F.1): the element follows the pointer and flings with inertia —
+ * Drag: the element follows the pointer and flings with inertia —
  * theater's `drag` underneath. `data-drag-axis` (`x`, `y`, `both`),
  * `-min` / `-max` (px from where it starts), `-elastic` (0.35), `-snap`
  * (a grid step in px; 0 for none). Give the same moves buttons too

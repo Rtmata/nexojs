@@ -3,7 +3,7 @@ import { panel } from '../panel'
 import { number, oneOf } from '../params'
 
 /**
- * Parallax (D.3): the element lags (or leads) the scroll by its depth —
+ * Parallax: the element lags (or leads) the scroll by its depth —
  * theater's `parallax` underneath, with its fallback and its "nothing
  * under reduced motion". `data-parallax-depth` (0.5 by default),
  * `data-parallax-axis`.

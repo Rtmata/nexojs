@@ -1,7 +1,7 @@
 import type { Sheet } from '../../shared/glyph/sheet'
 
 /**
- * Puts a theme on the page while `signal` lives (C.4): its CSS in a
+ * Puts a theme on the page while `signal` lives: its CSS in a
  * constructed stylesheet added to `document.adoptedStyleSheets`, taken
  * away on abort. For themes made at runtime (`themeFrom`, a person's own);
  * once adopted it works as any theme, by `data-theme`, nested or not.

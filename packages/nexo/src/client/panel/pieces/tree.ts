@@ -1,2 +1,2 @@
-/** The `tree` panel: its own import path (A.1b). */
+/** The `tree` panel: its own import path. */
 export { tree } from '../library/tree'

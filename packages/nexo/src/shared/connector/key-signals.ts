@@ -3,7 +3,7 @@ import { signal, type Signal } from './signal'
 /**
  * One plain signal per key, made the first time someone reads that key. The
  * collections are built of these and one `shape` signal, and notify only by
- * writing them (B.9a): there's no notify of their own.
+ * writing them: there's no notify of their own.
  */
 export class KeySignals<K, V> {
   private readonly signals = new Map<K, Signal<V>>()

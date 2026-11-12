@@ -613,7 +613,7 @@ export async function rowsComeAndGo() {
   return { during, after }
 }
 
-/** Rows that slide (E.2) and leave by a CSS transition, 300 ms each. */
+/** Rows that slide and leave by a CSS transition, 300 ms each. */
 function slidingRows(start: number[]) {
   if (!document.getElementById('slides')) {
     const style = document.createElement('style')

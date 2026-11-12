@@ -147,7 +147,7 @@ export class Navigation {
     await this.change(loaded, prepared, flight)
   }
 
-  /** The change of view (E.4): marked and announced, the leave, then the swap — unless the flight is cancelled meanwhile, and then what left comes back. */
+  /** The change of view: marked and announced, the leave, then the swap — unless the flight is cancelled meanwhile, and then what left comes back. */
   private async change(
     loaded: Loaded,
     prepared: Prepared,
@@ -174,7 +174,7 @@ export class Navigation {
     if (elements) this.outcome = this.done(loaded.url, elements, before)
   }
 
-  /** The change of view (E.4): the trigger's word, else the arriving page's `<html>`. */
+  /** The change of view: the trigger's word, else the arriving page's `<html>`. */
   private changeFor(loaded: Loaded): ViewChange {
     const root = loaded.page.documentElement
     const arriving = root.getAttribute(`${ATTRIBUTE_PREFIX}transition`)
@@ -314,7 +314,7 @@ function anchorOf(hash: string): Element | null {
   }
 }
 
-/** With the new element's lifetime (C.19b): aborted when bridge takes it out. */
+/** With the new element's lifetime: aborted when bridge takes it out. */
 function swapped(element: Element, url: URL): void {
   const name = element.getAttribute(SEGMENT_ATTRIBUTE)
   announce(element, 'bridge:swapped', { url, name, signal: lives.of(element) })

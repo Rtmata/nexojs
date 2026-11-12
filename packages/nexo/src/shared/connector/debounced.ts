@@ -9,7 +9,7 @@ export interface DebouncedOptions extends DebounceOptions, Named {}
 
 /**
  * A value that follows its source once the source stops changing for `ms`
- * (R.8). Nothing of its own: a `signal`, written by a `watch` on `sync` (it
+ *. Nothing of its own: a `signal`, written by a `watch` on `sync` (it
  * hears every change, through computeds too) whose callback is `debounce`d.
  */
 export class DebouncedValue<T> implements ReadonlyView<T> {

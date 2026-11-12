@@ -17,7 +17,7 @@ const tokens = defineTokens(
   { contrastChecks: [['on-primary', 'primary', 'text']] },
 )
 
-describe('themeFrom (C.4)', () => {
+describe('themeFrom', () => {
   test('a valid JSON gives the same theme defineTheme makes', () => {
     const json = JSON.parse(
       '{ "name": "sea", "colorScheme": "dark", "color": { "surface": "#012", "text": "#eee" } }',
@@ -181,7 +181,7 @@ describe('themeFrom (C.4)', () => {
     })
   })
 
-  test("the tokens' pairs that fall short are among its errors (C.5)", () => {
+  test("the tokens' pairs that fall short are among its errors", () => {
     const result = themeFrom(tokens, {
       name: 'pale',
       color: { primary: '#93c5fd' },

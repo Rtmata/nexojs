@@ -1,6 +1,6 @@
 /**
  * omino in the browser: the same JSX as on the server, built into the DOM
- * (R.11). `mount` is the entry; reactivity arrives as a value (R.12).
+ *. `mount` is the entry; reactivity arrives as a value.
  */
 export { mount } from './mount'
 export type { MountOptions } from './mount'

@@ -1,4 +1,4 @@
-/** `finished` (C.2) in Chrome, on the test clock. */
+/** `finished` in Chrome, on the test clock. */
 import { afterAll, beforeAll, describe, expect, test } from 'bun:test'
 import { chromium, type Browser, type Page } from 'playwright'
 import { bundle, chrome, clockedPage } from './page.fixture'

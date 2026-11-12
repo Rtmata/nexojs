@@ -9,7 +9,7 @@ export interface ListenerObject {
 }
 
 /**
- * `on<lowercase>` exactly as HTML (C.18a): a direct `addEventListener`,
+ * `on<lowercase>` exactly as HTML: a direct `addEventListener`,
  * removed when `signal` aborts. A function, or a `ListenerObject` for
  * `passive` / `capture` / `once`. No delegation: `stopPropagation` keeps its
  * platform meaning.
@@ -53,7 +53,7 @@ function options(value: ListenerObject, signal: AbortSignal) {
   return { passive, capture, once, signal }
 }
 
-/** A string would be inline JavaScript: refused, as on the server (C.18d). */
+/** A string would be inline JavaScript: refused, as on the server. */
 function notAListener(el: Element, name: string, value: unknown): Error {
   if (typeof value === 'string')
     return new Error(

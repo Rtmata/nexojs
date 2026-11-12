@@ -1,5 +1,5 @@
 /**
- * Fonts in real engines (F.1–F.3): Chromium, WebKit and Firefox through
+ * Fonts in real engines: Chromium, WebKit and Firefox through
  * Playwright, with DejaVu Sans Mono (fixtures/, Bitstream Vera license)
  * served at http://glyph.test/fonts/test.ttf.
  */

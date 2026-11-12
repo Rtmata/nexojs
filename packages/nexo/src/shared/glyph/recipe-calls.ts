@@ -1,7 +1,7 @@
 /**
  * Module state, on purpose and only this: the sheets of the recipes called
  * so far, and who listens. `checkRecipes` (development, in the browser)
- * compares them with the page's sheets (A.2). A recipe can't know which
+ * compares them with the page's sheets. A recipe can't know which
  * component calls it; the page can say whether its sheet arrived.
  */
 const called = new Set<string>()

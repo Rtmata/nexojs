@@ -1,7 +1,7 @@
 /**
- * boat in the browser (E.1, E.2): the client router. It takes `match` as a
+ * boat in the browser: the client router. It takes `match` as a
  * plain function and the URL source the app picks; reactivity arrives as a
- * value (R.20). It imports neither omino nor connector.
+ * value. It imports neither omino nor connector.
  */
 export * from './pieces/not-found'
 export * from './pieces/router'

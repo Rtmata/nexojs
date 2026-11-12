@@ -1,4 +1,4 @@
-/** Where a segment goes in a sequence (B.2b). */
+/** Where a segment goes in a sequence. */
 export interface Position {
   /** Start together with the previous segment, or at a label. */
   with?: string
@@ -18,7 +18,7 @@ export interface Timetable {
 }
 
 /**
- * Places a sequence's segments (B.2b): with no position a segment goes
+ * Places a sequence's segments: with no position a segment goes
  * after the previous one ends; `with: 'previous'` starts it with the
  * previous one, `with: <label>` at a label; `delay` shifts it from there;
  * `at` is an absolute time. A label marks where the previous segment

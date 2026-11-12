@@ -7,7 +7,7 @@ import { animationsDone } from './motion'
 import { topModal } from './close-top'
 
 /**
- * Toast (R.40): a messages region that exists from the first render
+ * Toast: a messages region that exists from the first render
  * (Roselli: a live region added later is often not announced), whose
  * children are the messages, added by the app or by bridge
  * (`data-bridge-swap="append"`). A message the server rendered is layer 0.
@@ -143,7 +143,7 @@ class Toasts {
     this.timers.get(message)?.stop()
     this.timers.delete(message)
     if (message.contains(document.activeElement)) this.keepFocus(message)
-    this.marks.toggle(message, EXITING, true) // the one leaving mark (C.15c), as omino and bridge
+    this.marks.toggle(message, EXITING, true) // the one leaving mark, as omino and bridge
     await animationsDone(message)
     this.gone(message, reason)
   }

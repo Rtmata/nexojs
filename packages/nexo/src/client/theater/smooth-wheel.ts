@@ -17,7 +17,7 @@ const REST_PX = 0.5
 const MOVED_PX = 1
 
 /**
- * The page's wheel, smoothed (D.4, Lenis's model): only the vertical
+ * The page's wheel, smoothed (Lenis's model): only the vertical
  * wheel — touch, keys, scrollbars and anchors stay native, and so does
  * the page's own scroll (sticky, find-in-page); when one of them moves
  * the page, the glide lets go and starts again from there. Off unless

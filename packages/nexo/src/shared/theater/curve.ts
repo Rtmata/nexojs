@@ -2,7 +2,7 @@ import type { Easing } from './easing/easing'
 import { toCss } from './easing/to-css'
 
 /**
- * An animation's shape over time, the central concept of theater (A.2):
+ * An animation's shape over time, the central concept of theater:
  * progress from 0 (start) to 1 (end), which may overshoot. The target only
  * decides which clock reads it — the browser's (an element, through CSS
  * `linear()`) or theater's frame loop (a value, through `at`).
@@ -22,7 +22,7 @@ export interface Curve {
 const STEP_MS = 0.01
 
 /**
- * An easing over a fixed duration (B.4): a CSS string read into a
+ * An easing over a fixed duration: a CSS string read into a
  * function, or a function. The duration comes checked (`curveOf`).
  *
  *   const curve = new EasedCurve(cubicOut, 400)
@@ -52,7 +52,7 @@ export class EasedCurve implements Curve {
 }
 
 /**
- * A curve run at `speed` (C.1b): the same shape in `1 / speed` the time.
+ * A curve run at `speed`: the same shape in `1 / speed` the time.
  * Its CSS is the same: `linear()` is drawn over the progress, not time.
  *
  *   atSpeed(spring, 2).duration // half the spring's

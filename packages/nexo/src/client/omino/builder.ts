@@ -47,7 +47,7 @@ export interface Place {
 }
 
 /**
- * Turns a tree into DOM nodes, outside-in (R.11): each component gets its
+ * Turns a tree into DOM nodes, outside-in: each component gets its
  * parent's life, the context and its slots before its children are built.
  * One method per kind of node, as the server's `Renderer`.
  */
@@ -90,7 +90,7 @@ export class DomBuilder {
       .flatMap(({ child, scope }) => this.build(child, { ...place, scope }))
   }
 
-  /** A hole as a child: a region the hole fills (C.12), `out-in` unless a `Swap` says. */
+  /** A hole as a child: a region the hole fills, `out-in` unless a `Swap` says. */
   private region(hole: Child, place: Place, order?: SwapOrder): Node[] {
     const region = this.regionAt(place, order)
     const show = (value: unknown) => region.show(value as Child)
@@ -104,7 +104,7 @@ export class DomBuilder {
     return new Region(life, this.into(place), this.motions, order, phase)
   }
 
-  /** `<Swap order>` (C.15c): its child hole is a region with that order. */
+  /** `<Swap order>`: its child hole is a region with that order. */
   private swap(props: Record<string, unknown>, place: Place): Node[] {
     const order = props.order as SwapOrder | undefined
     const child = props.children as Child
@@ -112,7 +112,7 @@ export class DomBuilder {
     return this.region(child, place, order)
   }
 
-  /** `<For>` (C.14): a keyed region, fed by `each`. */
+  /** `<For>`: a keyed region, fed by `each`. */
   private keyed(props: ForProps<unknown>, place: Place): Node[] {
     const { life, phase } = place
     const into = this.into(place)
@@ -147,7 +147,7 @@ export class DomBuilder {
   }
 
   /**
-   * `if={hole}` (C.15a): created when it turns true, removed when it turns
+   * `if={hole}`: created when it turns true, removed when it turns
    * false, never recreated while it stays true.
    */
   private presence(element: OminoElement, place: Place): Node[] {
@@ -183,14 +183,14 @@ export class DomBuilder {
     el.append(...nodes)
   }
 
-  /** `shadow` (item 36): the content in the element's shadow root, the styles adopted. */
+  /** `shadow`: the content in the element's shadow root, the styles adopted. */
   private shadow(el: Element, shadow: ShadowContent, place: Place): void {
     const root = el.attachShadow({ mode: 'open' })
     root.adoptedStyleSheets = [shadowSheet(shadow.styles)]
     root.append(...this.build(shadow.content, { ...place, ns: HTML }))
   }
 
-  /** `ref={(el, { signal }) => …}` (C.17a): once, when the element is in the document. */
+  /** `ref={(el, { signal }) => …}`: once, when the element is in the document. */
   private ref(el: Element, ref: unknown, place: Place): void {
     if (typeof ref !== 'function')
       throw new Error(
@@ -213,14 +213,14 @@ export class DomBuilder {
     return nodes
   }
 
-  /** `mounted({ signal })` (C.15b): after its children's, on the inserted phase. */
+  /** `mounted({ signal })`: after its children's, on the inserted phase. */
   private whenMounted(instance: Component<any>, place: Place): void {
     if (!instance.mounted) return
     const run = { signal: place.life.signal }
     this.inserted(() => instance.mounted!(run), place)
   }
 
-  /** Runs once, untracked (C.12); on the client it can't wait (R.16). */
+  /** Runs once, untracked; on the client it can't wait. */
   private template(instance: Component<any>, life: Life): Child {
     const run = { signal: life.signal }
     const tree = this.reactivity.untrack(() =>
@@ -228,7 +228,7 @@ export class DomBuilder {
     )
     if (!(tree instanceof Promise)) return tree
     throw new Error(
-      `omino: ${instance.constructor.name}.template() returned a promise. In the browser a template can't wait: load data with resource() and show its status (R.16)`,
+      `omino: ${instance.constructor.name}.template() returned a promise. In the browser a template can't wait: load data with resource() and show its status`,
     )
   }
 
@@ -249,7 +249,7 @@ export class DomBuilder {
     return { signal: place.life.signal, inserted }
   }
 
-  /** An untracked effect on the inserted phase (C.15b): once, children first. */
+  /** An untracked effect on the inserted phase: once, children first. */
   private inserted(fn: () => unknown, place: Place): void {
     const { effect, untrack } = this.reactivity
     effect(() => untrack(fn), {
@@ -259,7 +259,7 @@ export class DomBuilder {
   }
 }
 
-/** Its root marked and its CSS in the document (C.20a), or its shadow root (item 36). */
+/** Its root marked and its CSS in the document, or its shadow root. */
 function styled(type: ComponentClass, tree: Child): Child {
   const listed = stylesOf(type)
   if (!listed) return tree

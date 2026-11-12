@@ -5,7 +5,7 @@ import { Marks } from './marks'
 import { Typeahead } from './typeahead'
 
 /**
- * Tree (WAI-ARIA APG Tree View) on plain nested lists (R.36): without JS
+ * Tree (WAI-ARIA APG Tree View) on plain nested lists: without JS
  * it's an outline with everything shown. As APG's examples, the treeitem
  * is the `<li>`, or the link that starts it (then the `<li>` is `none`);
  * a list inside an item is its `group`.

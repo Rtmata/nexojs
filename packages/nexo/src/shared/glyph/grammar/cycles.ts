@@ -3,7 +3,7 @@ import type { ThemeError } from '../theme-error'
 import type { TokenSet } from '../token-set'
 
 /**
- * The reference loops a person's changes make (C.4), one per loop, at the
+ * The reference loops a person's changes make, one per loop, at the
  * first changed token that runs into it: `color.surface` → `color.primary`
  * → `color.surface`. Followed in both schemes, since `{ light, dark }` may
  * loop on one side only. Other dead ends are the tokens' own, from code:

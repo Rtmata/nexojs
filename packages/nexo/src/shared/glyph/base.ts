@@ -17,9 +17,9 @@ export interface BaseTokens {
 }
 
 /**
- * Classless styles from your tokens (E.2), Pico-like but small: the page's
+ * Classless styles from your tokens, Pico-like but small: the page's
  * text, headings, links, code, forms and tables, with no class to write.
- * Optional: it applies only where a `styles` list names it (A.2).
+ * Optional: it applies only where a `styles` list names it.
  *
  *   const tokens = defineTokens({ color: { text: '#222', … }, font: { … } })
  *   static styles = [reset, tokens, base(tokens)]

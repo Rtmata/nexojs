@@ -15,7 +15,7 @@ import type { ValueAnimation } from './value'
 export type Styles = Record<string, string | number>
 
 /**
- * A value that lives over time (B.1): `set(next)` is exactly `animate`
+ * A value that lives over time: `set(next)` is exactly `animate`
  * from where it is now to `next`, and returns that `Animation`. A spring
  * keeps the speed it had, so a new target in the middle doesn't jolt.
  */
@@ -25,7 +25,7 @@ export interface Tween<T> {
 
 /**
  * One trip at a time: starting the next stops the last where it is
- * (B.5b), and each trip also stops with the caller's signal.
+ *, and each trip also stops with the caller's signal.
  */
 class Trips {
   private current = new AbortController()
@@ -184,9 +184,9 @@ function firstSpan(from: Styles, next: Styles): number | null {
 }
 
 /**
- * A value that lives over time (B.1), on an element or a value: give it
+ * A value that lives over time, on an element or a value: give it
  * where it starts; each `set(next)` animates from where it is now and
- * returns that `Animation`. On an element it stays on WAAPI (A.2).
+ * returns that `Animation`. On an element it stays on WAAPI.
  *
  *   const size = tween(cover, { scale: 1 }, { spring: { duration: 300 } })
  *   cover.onpointerenter = () => size.set({ scale: 1.05 })

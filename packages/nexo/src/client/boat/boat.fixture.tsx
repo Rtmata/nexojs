@@ -213,7 +213,7 @@ export async function clickChain(kind: 'navigation' | 'history' | 'hash') {
   return { ...after, back }
 }
 
-/** R.41: a load that throws shows the route's `failed` page, else the router's, with a working retry. */
+/** A load that throws shows the route's `failed` page, else the router's, with a working retry. */
 export async function failing() {
   let attempts = 0
   const match = routes({

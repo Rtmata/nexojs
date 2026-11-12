@@ -2,7 +2,7 @@ import { uniqueId } from './ids'
 import type { Marks } from './marks'
 
 /**
- * The filterable select (R.39, GOV.UK accessible-autocomplete's
+ * The filterable select (GOV.UK accessible-autocomplete's
  * progressive enhancement): layer 0 is the `<select>`, which sends the
  * option's value without JS. The panel puts a text input and a list made
  * from its options after it, hides it, and writes every choice back to it.

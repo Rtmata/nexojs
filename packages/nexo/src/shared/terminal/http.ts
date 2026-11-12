@@ -4,14 +4,14 @@ import { CommandError } from './errors'
 export const BASE = '/_nexo/terminal'
 
 export interface HttpOptions {
-  /** Where the server's commands are (R.26). `/_nexo/terminal` by default. */
+  /** Where the server's commands are. `/_nexo/terminal` by default. */
   base?: string
   /** Your `fetch`, for a test or another origin: called as `fetch(url, init)`. */
   fetch?: (url: string, init: RequestInit) => Promise<Response>
 }
 
 /**
- * Commands over HTTP (R.26): `POST <base>/<name>` with JSON args; a
+ * Commands over HTTP: `POST <base>/<name>` with JSON args; a
  * command that only reads goes as `GET <base>/<name>?args=…`, cacheable.
  * A declared error comes back with its status and `{ code, message, data }`.
  */

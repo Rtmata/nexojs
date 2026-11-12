@@ -1,2 +1,2 @@
-/** The `gesture` panel: its own import path (A.1b). */
+/** The `gesture` panel: its own import path. */
 export { gesture } from '../library/gesture'

@@ -52,7 +52,7 @@ export function cssValue(type: TokenType, value: unknown): string | undefined {
 
 /**
  * One group of tokens and its type. Each token becomes the custom property
- * `--<group>-<name>`, the one rule (B.1), and is read through `var()` of it.
+ * `--<group>-<name>`, the one rule, and is read through `var()` of it.
  */
 export class TokenGroup {
   constructor(
@@ -98,7 +98,7 @@ export class TokenGroup {
     return this.has(token) ? this.tokens[token] : undefined
   }
 
-  /** The same group with `changes` over its values (C.2): a theme's group. */
+  /** The same group with `changes` over its values: a theme's group. */
   with(changes: Readonly<Record<string, unknown>>): TokenGroup {
     return new TokenGroup(this.name, this.type, { ...this.tokens, ...changes })
   }

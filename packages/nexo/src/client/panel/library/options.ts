@@ -42,7 +42,7 @@ export class Options {
     this.marks.set(this.controller, 'aria-activedescendant', option.id)
     for (const o of this.all())
       this.marks.toggle(o, 'data-active', o === option)
-    option.scrollIntoView({ block: 'nearest' }) // every browser has it (R.5)
+    option.scrollIntoView({ block: 'nearest' }) // every browser has it
   }
 
   /** The option `by` steps away, stopping at the ends; ±Infinity for first and last. */

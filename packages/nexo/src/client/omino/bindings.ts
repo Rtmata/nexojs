@@ -6,7 +6,7 @@ export interface Where {
   inserted(fn: () => unknown): void
 }
 
-/** What `bind:` accepts (C.16): a signal, or any `{ get, set }` for a transform. */
+/** What `bind:` accepts: a signal, or any `{ get, set }` for a transform. */
 export interface WritableLike {
   get(): unknown
   set(value: unknown): void
@@ -15,7 +15,7 @@ export interface WritableLike {
 /**
  * One kind of binding: the events that carry the DOM's value to the signal,
  * how to read it, and how to write the signal's value back (absent for the
- * read-only ones). The table below is the whole control table of C.16.
+ * read-only ones). The table below is every control omino binds.
  */
 interface Kind {
   events: readonly string[]
@@ -32,7 +32,7 @@ type Picker = (el: Element) => Kind | undefined
 const NUMBER_TYPES = new Set(['number', 'range'])
 const DATE_TYPES = new Set(['date', 'time', 'month', 'week', 'datetime-local'])
 
-/** `bind:value`: text (on `input`, or `bind-on`), numbers, dates, selects (C.16 a–e). */
+/** `bind:value`: text (on `input`, or `bind-on`), numbers, dates, selects. */
 function valueKind(el: Element): Kind | undefined {
   if (el instanceof HTMLSelectElement)
     return el.multiple ? MULTI_SELECT : SELECT
@@ -117,7 +117,7 @@ const OPEN: Kind = {
   afterInsertion: true,
 }
 
-/** contenteditable (C.16d, item 36): text only; no `innerHTML` (XSS). */
+/** contenteditable: text only; no `innerHTML` (XSS). */
 function editable(property: 'textContent' | 'innerText'): Kind {
   return {
     events: ['input'],
@@ -126,7 +126,7 @@ function editable(property: 'textContent' | 'innerText'): Kind {
   }
 }
 
-/** Media (item 36): two-way where the platform lets you write, read-only elsewhere. */
+/** Media: two-way where the platform lets you write, read-only elsewhere. */
 function media(property: string, events: string[], writable: boolean): Kind {
   const read = (el: Element) => (el as any)[property]
   if (!writable) return { events, read }
@@ -197,7 +197,7 @@ const PICKERS: Record<string, Picker> = {
   ...pickFrom(NATURAL, (el) => el instanceof HTMLImageElement),
 }
 
-/** Element sizes (item 36): read-only, from one shared `ResizeObserver` per box. */
+/** Element sizes: read-only, from one shared `ResizeObserver` per box. */
 const SIZES = new Set([
   'clientWidth',
   'clientHeight',
@@ -210,7 +210,7 @@ const SIZES = new Set([
 ])
 
 /**
- * Two-way binding (C.16): `bind:value={signal}`. The DOM's events write the
+ * Two-way binding: `bind:value={signal}`. The DOM's events write the
  * signal; the signal's changes write the DOM, compared with its live value
  * first (Lit's `live()`), so the caret only moves when the value really
  * differs. Typing with an IME writes once the composition ends.
@@ -277,7 +277,7 @@ export class Bindings {
   }
 }
 
-/** `bind:group` (C.16d): grouped by the shared signal, not by component. */
+/** `bind:group`: grouped by the shared signal, not by component. */
 const GROUP_CHECKBOX: Kind = {
   events: ['change'],
   read: (el) => (el as HTMLInputElement).value,
@@ -302,7 +302,7 @@ PICKERS.group = (el) =>
       ? GROUP_RADIO
       : undefined
 
-/** `bind-on="change"` waits for commit (C.16a), only where text is typed. */
+/** `bind-on="change"` waits for commit, only where text is typed. */
 function eventsOf(
   el: Element,
   kind: Kind,
@@ -316,7 +316,7 @@ function eventsOf(
   )
 }
 
-/** Several observers would be one per element: one per box, shared (item 36). */
+/** Several observers would be one per element: one per box, shared. */
 class Sizes {
   private readonly observers = new Map<string, ResizeObserver>()
   private readonly targets = new WeakMap<Element, Map<string, WritableLike>>()
@@ -355,7 +355,7 @@ class Sizes {
   }
 }
 
-/** One for the whole page, shared by every mount (item 36). */
+/** One for the whole page, shared by every mount. */
 const sizes = new Sizes()
 
 function boxOf(name: string): ResizeObserverBoxOptions {
@@ -458,7 +458,7 @@ function notBindable(el: Element, name: string): Error {
       ? `<input type="${el.type}">`
       : `<${el.localName}>`
   return new Error(
-    `omino: bind:${name} doesn't work on ${what}. See the control table (C.16d)`,
+    `omino: bind:${name} doesn't work on ${what}. See the control table`,
   )
 }
 

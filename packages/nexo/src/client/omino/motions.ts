@@ -9,7 +9,7 @@ import {
 } from '../settle/settle'
 import { elementsIn } from './row-moves'
 
-/** An element's own `enter` / `exit` (C.15c, item 36): awaited instead of its CSS. */
+/** An element's own `enter` / `exit`: awaited instead of its CSS. */
 export type MotionFn = (
   el: Element,
   run: { signal: AbortSignal; reducedMotion: boolean },
@@ -20,7 +20,7 @@ const MOTION_STATE = { enter: ENTERING, exit: EXITING } as const
 type Kind = keyof typeof MOTION_STATE
 
 /**
- * How elements come and go (C.15c). Leaving: marked `data-exiting`, made
+ * How elements come and go. Leaving: marked `data-exiting`, made
  * `inert`, focus moved out, then its `exit` or its CSS animations are
  * awaited, at most a fallback time. Entering: the mirror, with
  * `data-entering`. Nexo never skips them by itself: `reducedMotion` is
@@ -111,7 +111,7 @@ export class Motions {
 
 /** Live: read when each motion starts. */
 function reducedMotion(): boolean {
-  return matchMedia('(prefers-reduced-motion: reduce)').matches // every browser has it (R.5: no silent fallback)
+  return matchMedia('(prefers-reduced-motion: reduce)').matches // every browser has it (no silent fallback)
 }
 
 /** `exit-timeout` in ms: a non-negative number, else an error (NaN would be "no wait at all"). */

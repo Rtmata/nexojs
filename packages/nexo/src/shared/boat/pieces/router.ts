@@ -1,4 +1,4 @@
-/** The `router` piece: its own import path (A.1b), only what is public. */
+/** The `router` piece: its own import path, only what is public. */
 export { boat } from '../router'
 export type {
   BoatOptions,

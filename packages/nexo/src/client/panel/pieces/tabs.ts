@@ -1,2 +1,2 @@
-/** The `tabs` panel: its own import path (A.1b). */
+/** The `tabs` panel: its own import path. */
 export { tabs } from '../library/tabs'

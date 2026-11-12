@@ -1,2 +1,2 @@
-/** The `feed` panel: its own import path (A.1b). */
+/** The `feed` panel: its own import path. */
 export { feed } from '../library/feed'

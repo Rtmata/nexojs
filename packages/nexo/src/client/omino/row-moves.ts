@@ -1,4 +1,4 @@
-/** Marks a row while CSS slides it to its new place (E.2). */
+/** Marks a row while CSS slides it to its new place. */
 export const MOVING = 'data-moving'
 
 /** The elements among a row's nodes (by `nodeType`: an element from another realm is one too). */
@@ -15,7 +15,7 @@ interface Borrowed {
 }
 
 /**
- * Rows slide by CSS (E.2, Vue's move-class model): measure, reorder, put
+ * Rows slide by CSS (Vue's move-class model): measure, reorder, put
  * each moved row back where it was with an inline `translate` and no
  * transition, let the browser lay that out once, then hand the row to
  * the page's `[data-moving] { transition: translate … }`, which plays it

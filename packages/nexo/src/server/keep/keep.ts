@@ -337,7 +337,7 @@ class Timeout {
 /** Bun's longest idle timeout, in seconds. */
 const BUN_IDLE_LIMIT = 255
 
-/** Nexo times are milliseconds (audit item 2); Bun counts whole seconds. */
+/** Nexo times are milliseconds; Bun counts whole seconds. */
 function bunSeconds(ms: number): number {
   const seconds = Math.ceil(ms / 1000)
   // NaN fails the first test, Infinity the second.

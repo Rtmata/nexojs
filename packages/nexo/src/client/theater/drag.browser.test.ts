@@ -1,4 +1,4 @@
-/** `drag` (F.1) in Chrome, with Playwright's mouse on the test clock. */
+/** `drag` in Chrome, with Playwright's mouse on the test clock. */
 import { afterAll, beforeAll, describe, expect, test } from 'bun:test'
 import { chromium, type Browser, type Page } from 'playwright'
 import type { TestClock } from '../../shared/theater/test-clock'

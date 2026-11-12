@@ -1,2 +1,2 @@
-/** The `activity` panel: its own import path (A.1b). */
+/** The `activity` panel: its own import path. */
 export { activity } from '../library/activity'

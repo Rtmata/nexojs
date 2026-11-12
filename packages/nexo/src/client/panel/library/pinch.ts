@@ -3,7 +3,7 @@ import { panel } from '../panel'
 import { boolean, number } from '../params'
 
 /**
- * Pinch (F.2): two fingers or a trackpad zoom the element — theater's
+ * Pinch: two fingers or a trackpad zoom the element — theater's
  * `pinch` underneath. `data-pinch-min` / `-max` (1 to 4), `-pan`,
  * `-rotate`. Give zoom buttons too.
  *

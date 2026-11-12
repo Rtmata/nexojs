@@ -1,2 +1,2 @@
-/** The `splitter` panel: its own import path (A.1b). */
+/** The `splitter` panel: its own import path. */
 export { splitter } from '../library/splitter'

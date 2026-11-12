@@ -1,2 +1,2 @@
-/** The `dialog` panel: its own import path (A.1b). */
+/** The `dialog` panel: its own import path. */
 export { dialog } from '../library/dialog'

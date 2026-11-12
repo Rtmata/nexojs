@@ -3,7 +3,7 @@ import { closest } from './closest'
 
 const names = ['primary', 'surface', 'text', 'on-primary']
 
-describe('closest: "did you mean" (C.4), as rustc finds one', () => {
+describe('closest: "did you mean", as rustc finds one', () => {
   test('a letter missing, extra or changed', () => {
     expect(closest('primry', names)).toBe('primary')
     expect(closest('surfacee', names)).toBe('surface')

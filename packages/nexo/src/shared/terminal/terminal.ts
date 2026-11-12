@@ -3,10 +3,10 @@ import type { Table } from './contract'
 import { CommandServer, type Handlers } from './server'
 
 /**
- * A typed command table, shared by both sides (A.2, R.24): each command's
+ * A typed command table, shared by both sides: each command's
  * args, result, errors, and whether it only reads.
  *
- *   import * as v from '@nexoamigos/nexo/terminal/validators' // a namespace, as Valibot's (audit item 11)
+ *   import * as v from '@nexoamigos/nexo/terminal/validators' // a namespace, as Valibot's
  *
  *   export const api = terminal({
  *     book: { args: v.object({ id: v.number() }), result: v.custom<Book>(), errors: { notFound: { status: 404 } }, read: true },

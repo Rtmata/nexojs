@@ -7,7 +7,7 @@ import {
   type SpringOptions,
 } from './spring'
 
-/** A flung value, slowing down by itself (B.3b). */
+/** A flung value, slowing down by itself. */
 export interface InertiaOptions {
   /** Speed at release, in units per second (panel `gesture`, a wheel…). */
   velocity?: number
@@ -17,7 +17,7 @@ export interface InertiaOptions {
   timeConstant?: number
   /** Where it must stay; past an edge it springs back to it. */
   bounds?: { min?: number; max?: number }
-  /** The spring at an edge (B.3, either form). Motion's 500 / 10 by default. */
+  /** The spring at an edge (either form). Motion's 500 / 10 by default. */
   edge?: SpringOptions
   /** Where it may stop: a function, or the points to choose the nearest of. */
   snap?: ((value: number) => number) | number[]
@@ -78,7 +78,7 @@ interface Bounce {
 }
 
 /**
- * Where a flung value goes, in its own units (B.3b): it decays from the
+ * Where a flung value goes, in its own units: it decays from the
  * release speed toward a target (`snap` moves the target), and when it
  * would cross an edge it hands its speed to the edge spring. Not a 0 → 1
  * curve: its end is computed and may even be where it started.

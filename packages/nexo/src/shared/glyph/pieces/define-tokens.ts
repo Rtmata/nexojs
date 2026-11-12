@@ -1,4 +1,4 @@
-/** The `define-tokens` piece: its own import path (A.1b), only what is public. */
+/** The `define-tokens` piece: its own import path, only what is public. */
 export { defineTokens } from '../tokens'
 export type { TokenOptions, Tokens } from '../tokens'
 export type { LightDark, TokenType } from '../typed'

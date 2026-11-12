@@ -1,7 +1,7 @@
 import type { Playback } from './playback'
 
 /**
- * Several animations as one (B.1): a list of elements answers with the
+ * Several animations as one: a list of elements answers with the
  * same `Animation` shape. Commands go to every member; queries read the
  * first (they all started together, with the same timing).
  *

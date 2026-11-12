@@ -4,7 +4,7 @@ import { Pattern } from '../../shared/boat/pattern'
 import type { Params } from '../../shared/boat/types'
 import { decodedSegments } from '../../shared/url/decode'
 
-/** What a client route's `load` gets (E.2): no `Request` here, a signal for the latest-wins. */
+/** What a client route's `load` gets: no `Request` here, a signal for the latest-wins. */
 export interface LoadContext<P extends Params = Params> {
   params: P
   url: URL
@@ -17,7 +17,7 @@ export interface PageContext<P extends Params = Params> {
   url: URL
 }
 
-/** What a `failed` page gets (R.41): the error `load` threw, and a way to try again. */
+/** What a `failed` page gets: the error `load` threw, and a way to try again. */
 export interface FailedContext<
   P extends Params = Params,
 > extends PageContext<P> {
@@ -26,8 +26,8 @@ export interface FailedContext<
 }
 
 /**
- * boat's server form `{ load, page }` (E.2); `page` returns JSX here, not a
- * `Response`. `failed` (R.41) is the page for a `load` that throws, this
+ * boat's server form `{ load, page }`; `page` returns JSX here, not a
+ * `Response`. `failed` is the page for a `load` that throws, this
  * route's own; without it the router's `failed(page)` answers.
  */
 export interface ClientRoute<P extends Params = Params, D = any> {
@@ -44,9 +44,9 @@ export interface ClientMatch {
 type Table<R> = { [Path in keyof R]: ClientRoute<PathParams<Path & string>> }
 
 /**
- * Client routes (R.21): the same patterns as the server's — `:id`, `*`,
+ * Client routes: the same patterns as the server's — `:id`, `*`,
  * decoding, the most specific wins — returned as the plain `match` function
- * the client router takes (E.1).
+ * the client router takes.
  *
  *   const match = routes({ '/': shelf, '/book/:id': { load, page } })
  */

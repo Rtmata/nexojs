@@ -28,8 +28,8 @@ const LONGEST_DELTA = 40
 const FIRST_DELTA = 1000 / 60
 
 /**
- * One `requestAnimationFrame` for everything theater runs itself (values,
- * A.2; decided item 33): jobs run every frame, phase by phase, until their
+ * One `requestAnimationFrame` for everything theater runs itself (values
+ * only): jobs run every frame, phase by phase, until their
  * signal aborts. It sleeps while no job is left. An error in a job is
  * reported and the others keep going.
  *
@@ -108,7 +108,7 @@ let shared: FrameLoop | null = null
 /**
  * The page's frame loop, made the first time something asks (never at
  * import). Only in a browser: elsewhere there are no frames, and saying
- * so beats a loop that silently never runs (R.5).
+ * so beats a loop that silently never runs.
  */
 export function frames(): FrameLoop {
   if (typeof requestAnimationFrame === 'undefined') {

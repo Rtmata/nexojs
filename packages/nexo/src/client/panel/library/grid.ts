@@ -5,7 +5,7 @@ import { emit } from './hold'
 import { Marks } from './marks'
 
 /**
- * Grid (WAI-ARIA APG Grid, and Treegrid: R.36) on a native `<table>`:
+ * Grid (WAI-ARIA APG Grid and Treegrid) on a native `<table>`:
  * layer 0 is the table, every row shown. The panel makes it one tab stop
  * and gives it APG's keys: arrows between cells (stopping at the edges:
  * a data grid never wraps), Home / End in the row, Ctrl+Home / End in the

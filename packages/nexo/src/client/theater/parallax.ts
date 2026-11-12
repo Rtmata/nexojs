@@ -18,9 +18,9 @@ const REACH = 50
 
 /**
  * A layer moving at its own speed while its element crosses the viewport
- * (D.3). It is exactly `scroll(animate(el, { translate }), { subject: el })`
+ *. It is exactly `scroll(animate(el, { translate }), { subject: el })`
  * — with that piece's fallback and signal. Under reduced motion there is
- * no parallax at all: the layer stays where the page puts it (C.1).
+ * no parallax at all: the layer stays where the page puts it.
  *
  *   parallax(far, { depth: 0.2, signal })
  */

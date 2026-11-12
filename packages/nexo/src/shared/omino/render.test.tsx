@@ -116,7 +116,7 @@ describe('elements', () => {
     ).toBe('<i class="a b c"></i>')
   })
 
-  test("a function handler is the browser's: left out (C.18d); text is refused", async () => {
+  test("a function handler is the browser's: left out; text is refused", async () => {
     expect(await renderToString(<button onclick={() => {}} />)).toBe(
       '<button></button>',
     )
@@ -894,7 +894,7 @@ describe("Nexo's own props on the server", () => {
 })
 
 describe('the server side of client features', () => {
-  test('style objects: CSS names, holes read once, null left out (C.20b)', async () => {
+  test('style objects: CSS names, holes read once, null left out', async () => {
     const size = { get: () => '10px' }
     expect(
       await renderToString(
@@ -906,7 +906,7 @@ describe('the server side of client features', () => {
     ).rejects.toThrow("'font-size'")
   })
 
-  test('bind: writes the value it starts with (C.16)', async () => {
+  test('bind: writes the value it starts with', async () => {
     const name = { get: () => 'Ada', set() {} }
     const on = { get: () => true, set() {} }
     const size = { get: () => 'm', set() {} }

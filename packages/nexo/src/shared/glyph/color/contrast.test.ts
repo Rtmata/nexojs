@@ -41,7 +41,7 @@ describe('checkPair: text needs 4.5:1, ui 3:1', () => {
   })
 })
 
-describe('readableOn (C.5)', () => {
+describe('readableOn', () => {
   test('the candidate with the best contrast, any colours', () => {
     expect(readableOn('#3b82f6', ['#fff', '#0f172a'])).toBe('#0f172a')
     expect(readableOn('#1e3a8a', ['#0f172a', 'ivory'])).toBe('ivory')

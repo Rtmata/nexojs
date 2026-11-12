@@ -5,7 +5,7 @@ import { PAGE_SHEET } from '../../shared/markup/vocabulary'
  * Development only: add it from your dev entry, never from the production
  * one (the CSS may live in a built `.css` file there, with no sheet on the
  * page to find). From now on, a recipe called whose sheet never reaches
- * the page — listed in no `styles` list (A.2) — warns once, naming it.
+ * the page — listed in no `styles` list — warns once, naming it.
  * It looks one microtask after the call: omino adds a component's sheets
  * right after its template runs.
  *

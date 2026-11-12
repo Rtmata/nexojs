@@ -5,7 +5,7 @@ import { typed } from './typed'
 const ORDER =
   '@layer glyph.reset, glyph.base, glyph.tokens, glyph.themes, glyph.recipes;'
 
-describe('defineTokens (B.1)', () => {
+describe('defineTokens', () => {
   test('each token is --<group>-<name>, read through its var()', () => {
     const tokens = defineTokens({
       color: { primary: '#3b82f6', 'on-primary': 'white' },
@@ -55,7 +55,7 @@ describe('defineTokens (B.1)', () => {
 `)
   })
 
-  test('a token pointing to another shows the chain in the CSS (B.2)', () => {
+  test('a token pointing to another shows the chain in the CSS', () => {
     const palette = defineTokens({
       blue: typed('color', { 300: '#93c5fd', 500: '#3b82f6' }),
       step: typed('duration', { base: 200 }),
@@ -76,7 +76,7 @@ describe('defineTokens (B.1)', () => {
 `)
   })
 
-  test('a { light, dark } colour is light-dark(), and the root follows the scheme (C.3)', () => {
+  test('a { light, dark } colour is light-dark(), and the root follows the scheme', () => {
     const palette = defineTokens({ blue: typed('color', { 500: '#3b82f6' }) })
     const tokens = defineTokens({
       color: {
@@ -103,7 +103,7 @@ describe('defineTokens (B.1)', () => {
 })
 
 describe('defineTokens: a mistake throws and says how to fix it', () => {
-  test('a group whose type is unknown (B.3)', () => {
+  test('a group whose type is unknown', () => {
     // @ts-expect-error — "brand" isn't a known group: TS asks for typed()
     expect(() => defineTokens({ brand: { main: '#f00' } })).toThrow(
       `glyph: "brand" is not a known token group (color, space, size, radius, font, weight, shadow, duration, easing, z); say its type: brand: typed('color', { … })`,
@@ -159,7 +159,7 @@ test('the types: each leaf is the exact var() string, a typo is an error', () =>
   expect(tokens.color.primry).toBeUndefined()
 })
 
-describe('defineTokens: contrast checks (C.5)', () => {
+describe('defineTokens: contrast checks', () => {
   test('a pair of the tokens that falls short throws, in each scheme it differs', () => {
     expect(() =>
       defineTokens(

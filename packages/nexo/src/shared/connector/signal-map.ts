@@ -2,7 +2,7 @@ import { batch } from './batch'
 import { KeySignals, Shape } from './key-signals'
 
 /**
- * A `Map` whose reads are tracked (B.9a). `get(k)` depends on that key's value;
+ * A `Map` whose reads are tracked. `get(k)` depends on that key's value;
  * `has(k)` on whether that key is in it; for a key not in it, both depend on
  * what the map holds. `keys()` and `size` depend on which keys there are;
  * `values()`, `entries()` and iterating also on every value.
@@ -91,7 +91,7 @@ export class SignalMap<K, V> implements Iterable<[K, V]> {
     return this.entries()
   }
 
-  /** What JSON can hold: the entries, as `[key, value]` pairs (B.9c). */
+  /** What JSON can hold: the entries, as `[key, value]` pairs. */
   toJSON(): [K, V][] {
     return [...this.items]
   }

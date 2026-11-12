@@ -2,9 +2,9 @@
 export type CssValue = string | number
 
 /**
- * Declarations with CSS's own property names (kebab-case, C.20b), and rules
- * nested by CSS's own selectors as keys (`'&:hover'`, `'@media (…)'`,
- * D.3), written as native CSS nesting.
+ * Declarations with CSS's own property names (kebab-case), and rules
+ * nested by CSS's own selectors as keys (`'&:hover'`, `'@media (…)'`),
+ * written as native CSS nesting.
  */
 export interface StyleObject {
   readonly [key: string]: CssValue | StyleObject

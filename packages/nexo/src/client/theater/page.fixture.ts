@@ -33,7 +33,7 @@ export async function pageWith(
   return page
 }
 
-/** A page whose time only moves when the test says (G.1). */
+/** A page whose time only moves when the test says. */
 export async function clockedPage(
   browser: Browser,
   code: string,

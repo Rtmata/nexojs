@@ -14,7 +14,7 @@ import { reducedMotion } from './reduce'
 export interface Track {
   readonly duration: number
   valueAt(ms: number): number
-  /** Units per second at `ms`: what a new target starts with (B.1). */
+  /** Units per second at `ms`: what a new target starts with. */
   velocityAt(ms: number): number
 }
 
@@ -65,11 +65,11 @@ export interface ValueTiming {
 }
 
 /**
- * A value animated on theater's frame loop (A.2), shaped as WAAPI's
- * `Animation` (B.1) and moving between its states as WAAPI's does. Each
+ * A value animated on theater's frame loop, shaped as WAAPI's
+ * `Animation` and moving between its states as WAAPI's does. Each
  * frame it writes where the track is. `finish()` writes the end,
  * `cancel()` writes the start (WAAPI: the effect goes away); aborting the
- * signal stops it where it is (B.5b). `finished` rejects with an
+ * signal stops it where it is. `finished` rejects with an
  * AbortError on both, as WAAPI's does, and with the error when a write
  * throws.
  */
@@ -219,7 +219,7 @@ export class ValueAnimation implements Playback {
     this.done.resolve(this)
   }
 
-  /** Stops where it is: the signal's abort (B.5b). */
+  /** Stops where it is: the signal's abort. */
   private stop(): void {
     if (this.state === 'idle') return
     this.fail(abortError())
@@ -356,7 +356,7 @@ export function isValueCall(
 }
 
 /**
- * Where a sequence puts a value (B.2): when it starts and how long it
+ * Where a sequence puts a value: when it starts and how long it
  * holds after its end, both in ms after speed.
  */
 export interface ValuePlace {
@@ -365,8 +365,8 @@ export interface ValuePlace {
 }
 
 /**
- * A value's track from theater's options (B.1, B.3b): keyframes along the
- * curve, or a fling from the first one; time divided by `speed` (C.1b).
+ * A value's track from theater's options: keyframes along the
+ * curve, or a fling from the first one; time divided by `speed`.
  * The one builder for `animate` and a sequence's value parts.
  *
  *   valueTrack([0, 1200], { duration: 800 }, speedOf(document.documentElement))
@@ -407,7 +407,7 @@ function atSpeedTrack(track: Track, speed: number): Track {
 }
 
 /**
- * Starts a value on `track` with theater's options (B.1, C.1): now, or at
+ * Starts a value on `track` with theater's options: now, or at
  * its `place` in a sequence. Reduced motion leaves it alone unless
  * `reduce: 'jump'`, which ends it at once.
  *
@@ -429,7 +429,7 @@ export function startValue(
   return animation
 }
 
-/** WAAPI's timing for a value, checked; time divided by the page's speed (C.1b). */
+/** WAAPI's timing for a value, checked; time divided by the page's speed. */
 function valueTiming(
   options: AnimateOptions,
   speed: number,

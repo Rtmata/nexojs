@@ -19,7 +19,7 @@ export interface DragOptions {
   bounds?: Bounds | { x?: Bounds; y?: Bounds }
   /** Past a bound it follows at this share of the pointer: 0 stops, 1 is free. 0.35 by default (Motion's). */
   elastic?: number
-  /** After release: inertia (B.3b) by default, or a spring back inside the bounds. */
+  /** After release: inertia by default, or a spring back inside the bounds. */
   release?: {
     inertia?: Omit<InertiaOptions, 'velocity' | 'bounds'>
     spring?: SpringOptions
@@ -94,9 +94,9 @@ function boundsFor(
 }
 
 /**
- * Drags an element with the pointer (F.1): it follows through `translate`,
+ * Drags an element with the pointer: it follows through `translate`,
  * stretching past its bounds, and on release keeps the pointer's real
- * speed — inertia with its edge spring and snap (B.3b) — or springs back
+ * speed — inertia with its edge spring and snap — or springs back
  * inside. A press that hardly moves stays a click. Give the same moves a
  * button too (WCAG 2.5.7): `set` animates it there.
  *
@@ -198,7 +198,7 @@ class Drag implements Draggable, TrackEvents {
       this.release(axis, released ? track.velocity[axis.name] : 0, signal)
   }
 
-  /** Inertia from the pointer's speed (B.3b), or a spring back inside the bounds. */
+  /** Inertia from the pointer's speed, or a spring back inside the bounds. */
   private release(axis: Axis, velocity: number, signal: AbortSignal): void {
     const { inertia, spring } = this.options.release ?? {}
     if (spring)
@@ -210,7 +210,7 @@ class Drag implements Draggable, TrackEvents {
     this.run(axis, [axis.value], { inertia: fling, signal })
   }
 
-  /** A value animation of one axis; under reduced motion it jumps (C.1: it moves the element). */
+  /** A value animation of one axis; under reduced motion it jumps (it moves the element). */
   private run(
     axis: Axis,
     keyframes: number[],

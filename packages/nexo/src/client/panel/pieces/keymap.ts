@@ -1,2 +1,2 @@
-/** The `keymap` panel: its own import path (A.1b). */
+/** The `keymap` panel: its own import path. */
 export { keymap } from '../library/keymap'

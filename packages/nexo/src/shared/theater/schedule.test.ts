@@ -2,7 +2,7 @@ import { describe, expect, test } from 'bun:test'
 import { schedule } from './schedule'
 import { stagger } from './stagger'
 
-describe('schedule (B.2b)', () => {
+describe('schedule', () => {
   test('with no position, each segment goes after the previous one', () => {
     const table = schedule([
       { length: 300, position: {} },

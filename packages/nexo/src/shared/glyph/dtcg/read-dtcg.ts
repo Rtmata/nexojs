@@ -34,7 +34,7 @@ const GENERIC_FAMILIES = new Set([
 ])
 
 /**
- * DTCG 2025.10 JSON as glyph's tokens (B.1): a token file, or a resolver
+ * DTCG 2025.10 JSON as glyph's tokens: a token file, or a resolver
  * whose modifier has `light` and `dark` contexts — those colours become
  * `{ light, dark }`. A top-level group is a glyph group; deeper levels join
  * with `-` (`color.blue.500` → `--color-blue-500`). References, `{a.b}` or

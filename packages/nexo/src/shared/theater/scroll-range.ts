@@ -61,7 +61,7 @@ export function positionOf(point: RangePoint, view: ViewGeometry): number {
 
 /**
  * How far through `[from, to]` the scroll is, 0 to 1 (clamped), for a
- * view timeline: the fallback where the browser has none (D.1, R.5).
+ * view timeline: the fallback where the browser has none.
  *
  *   viewProgress(700, geometry, rangePoint('cover 0%'), rangePoint('cover 100%'))
  */

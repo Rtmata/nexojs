@@ -3,13 +3,13 @@ import { Element as OminoElement, Fragment, type Child } from './element'
 import { escapeHtml } from './html'
 
 /**
- * How a component's styles reach only its own markup (C.20a, item 36):
+ * How a component's styles reach only its own markup:
  * `scope` (the default) with the platform's `@scope`; `shadow` in a shadow
  * root; `none` global, as written.
  */
 export type Encapsulation = 'scope' | 'shadow' | 'none'
 
-/** The root of a component with styles carries its name (C.20a). */
+/** The root of a component with styles carries its name. */
 export const SCOPE_ATTRIBUTE = 'data-scope'
 
 /**
@@ -33,7 +33,7 @@ export interface ComponentStyles {
 
 /**
  * A page-wide sheet in a `styles` list: any value with a name and its CSS
- * (glyph's tokens, themes, recipes; A.2). omino puts it once per page as
+ * (glyph's tokens, themes, recipes). omino puts it once per page as
  * it is, with no scope: it brings its own classes and layers.
  */
 export interface PageSheet {
@@ -190,7 +190,7 @@ export class PageSheets {
     this.sheets.set(styles.name, styles)
   }
 
-  /** Once per page by name; one name with two different CSS is an error (glyph item 10). */
+  /** Once per page by name; one name with two different CSS is an error. */
   addPageWide(sheet: PageSheet): void {
     const known = this.pageWide.get(sheet.name)
     if (known && known.css !== sheet.css) throw samePageSheet(sheet.name)

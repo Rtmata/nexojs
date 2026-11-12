@@ -9,7 +9,7 @@ const SAMPLE = 'The quick brown fox jumps over the lazy dog, 0123456789.'
 
 /**
  * Development only, from your dev entry: the numbers for a font's
- * `metrics` (F.2), measured by this browser itself — no font-file reader.
+ * `metrics`, measured by this browser itself — no font-file reader.
  * Loads the font's first file, measures it and the device font with a
  * canvas at 100px, prints a line to copy and returns the same numbers.
  * Browsers read different tables of a font, so this is this browser's

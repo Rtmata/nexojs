@@ -2,7 +2,7 @@ import { readColor } from './read'
 import { oklabToOklch, rgbToOklab, type Oklch } from './spaces'
 
 /**
- * `percent` of `a` mixed with the rest of `b` in OKLCH (C.5), as CSS's
+ * `percent` of `a` mixed with the rest of `b` in OKLCH, as CSS's
  * `color-mix(in oklch, a percent%, b)` does — the shorter way round the hue,
  * a grey taking the other's hue, alpha premultiplied — so a computed value
  * looks like the one the browser would compute. Returns `oklch()` text: it

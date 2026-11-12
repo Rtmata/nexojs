@@ -1,5 +1,5 @@
 /**
- * The links the client router takes (E.2: one visible chain per link). It
+ * The links the client router takes (one visible chain per link). It
  * listens in the capture phase, before bridge; a link it claims is marked
  * `preventDefault()`, so bridge (which skips handled clicks) and then the
  * browser only see the rest. Neither module imports the other.

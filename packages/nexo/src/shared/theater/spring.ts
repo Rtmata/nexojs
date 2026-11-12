@@ -1,7 +1,7 @@
 import type { Curve } from './curve'
 import { toCss } from './easing/to-css'
 
-/** "400 ms, a little bounce" (B.3): how it looks, not how it's built. */
+/** "400 ms, a little bounce": how it looks, not how it's built. */
 export interface PerceptualSpring {
   /** About how long it takes to arrive, in ms. 500 by default (SwiftUI). */
   duration?: number
@@ -9,7 +9,7 @@ export interface PerceptualSpring {
   bounce?: number
 }
 
-/** The physical oscillator, as Figma or Motion write it (B.3). */
+/** The physical oscillator, as Figma or Motion write it. */
 export interface PhysicalSpring {
   stiffness: number
   damping: number
@@ -230,7 +230,7 @@ export function oscillatorOf(physics: Physics, release: Release): Oscillator {
 }
 
 /**
- * A spring as a curve (B.3): the same oscillator for elements (sampled
+ * A spring as a curve: the same oscillator for elements (sampled
  * into `linear()`) and values (read each frame). It runs until it rests —
  * that is its `duration`, so it fits in a sequence.
  *

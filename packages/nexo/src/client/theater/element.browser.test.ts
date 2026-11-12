@@ -1,4 +1,4 @@
-/** An element animation's retirement (B.5b) in Chrome. */
+/** An element animation's retirement in Chrome. */
 import { afterAll, beforeAll, describe, expect, test } from 'bun:test'
 import { chromium, type Browser, type Page } from 'playwright'
 import { bundle, chrome, pageWith } from './page.fixture'

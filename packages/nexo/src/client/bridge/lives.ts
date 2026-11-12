@@ -1,13 +1,13 @@
 import { SEGMENT_ATTRIBUTE } from '../../shared/markup/vocabulary'
 
-/** Kept alive across swaps, as Turbo's `data-turbo-permanent` (C.19b). */
+/** Kept alive across swaps, as Turbo's `data-turbo-permanent`. */
 export const PERSIST = 'data-bridge-persist'
 
 /** What lives on its own: the page root, each segment, each persisted element. */
 const OWNER = `[${SEGMENT_ATTRIBUTE}], [${PERSIST}]`
 
 /**
- * Each segment's lifetime (C.19b, R.17): a signal, made the first time it's
+ * Each segment's lifetime: a signal, made the first time it's
  * asked for, a child of the closest enclosing segment's, so an outer
  * segment replaced ends the inner ones. A persisted element lives on its
  * own: it outlives the segments it moves between, and whole-page swaps. The
@@ -65,7 +65,7 @@ export type Arrival = (
 
 /**
  * Run `fn` now for every segment on the page, innermost first and the page
- * root last, then for each one that arrives (R.17). The first load is one
+ * root last, then for each one that arrives. The first load is one
  * more arrival, so a module that starts late misses nothing.
  *
  *   arrivals((segment, { signal }) => attach(segment, registry, { signal }), { signal })

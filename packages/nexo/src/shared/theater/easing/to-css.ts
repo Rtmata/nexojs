@@ -9,7 +9,7 @@ const DECIMALS = 4
 
 /**
  * An easing function as a CSS `linear()` string, so the browser can run
- * it on an element (A.2, B.4): sampled every 10 ms of `duration`. A CSS
+ * it on an element: sampled every 10 ms of `duration`. A CSS
  * string needs none of this — it goes to the browser as it is.
  *
  *   toCss(elasticOut, 600) // 'linear(0, 0.4239, …, 1)'

@@ -23,7 +23,7 @@ export interface Entry {
    * entries that share it have nothing to bring between them.
    */
   content: string
-  /** Its place in the line of entries: a return compares them to know back from forward (E.4). */
+  /** Its place in the line of entries: a return compares them to know back from forward. */
   index: number
 }
 
@@ -179,7 +179,7 @@ function changedBetween(a: Entry, b: Entry): string[] {
   return [...new Set(changed)]
 }
 
-/** Entries written by a script from before E.4 have no index: the first place, so a return compares numbers. */
+/** Entries written by a script from before indexed entries have no index: the first place, so a return compares numbers. */
 function indexed(entry: Entry): Entry {
   return { ...entry, index: entry.index ?? 0 }
 }

@@ -13,7 +13,7 @@ interface Measured {
 
 /**
  * Whether each pair names colour tokens and a use glyph knows, one line
- * per mistake. Pairs are written by hand (C.5): no naming convention
+ * per mistake. Pairs are written by hand: no naming convention
  * guesses them, so a typo must not pass unchecked.
  */
 export function checkProblems(

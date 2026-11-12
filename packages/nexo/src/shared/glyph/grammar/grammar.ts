@@ -7,7 +7,7 @@ import { dimensionOf, isLength, numberOf } from './numbers'
 import { splitTop } from './split'
 
 /**
- * Each type's grammar, for values a person typed (C.4): only what reads as
+ * Each type's grammar, for values a person typed: only what reads as
  * that type passes, so nothing else can reach the CSS. Every slot of a
  * type also takes `var(--token)` of that type, the theme's own or a
  * palette's. Values are text here; numbers were checked by kind before.

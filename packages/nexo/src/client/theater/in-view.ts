@@ -67,7 +67,7 @@ class Visits {
 }
 
 /**
- * Runs `enter` each time an element comes into view (D.2), over an
+ * Runs `enter` each time an element comes into view, over an
  * IntersectionObserver. Each visit gets a signal that aborts when the
  * element leaves: whatever was started with it (an animation, a scroll
  * link, a fetch) stops by itself.

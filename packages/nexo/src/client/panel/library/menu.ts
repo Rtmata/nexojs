@@ -8,7 +8,7 @@ import { Typeahead } from './typeahead'
 
 /**
  * Menu (WAI-ARIA APG Menu and Menubar + Menu Button), in Open UI's shape
- * (R.35). Layer 0 is the native popover and its invoker:
+ *. Layer 0 is the native popover and its invoker:
  *
  *   <button commandfor="acts" command="toggle-popover">⋯</button>
  *   <div id="acts" data-panel="menu" popover>

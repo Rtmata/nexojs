@@ -1,5 +1,5 @@
 /**
- * Per-piece imports (A.1b): importing one piece through a module's index
+ * Per-piece imports: importing one piece through a module's index
  * bundles no more than importing that piece by its own path. It holds
  * because the package declares `sideEffects` (only bridge's script acts
  * on import) and every index only lists its pieces.
@@ -57,7 +57,7 @@ async function bundled(
   return (await built.outputs[0]!.text()).length
 }
 
-describe('per-piece imports (A.1b)', () => {
+describe('per-piece imports', () => {
   test.each(CASES)(
     '%s → %s: the index bundles no more than the piece',
     async (module, piece, name) => {

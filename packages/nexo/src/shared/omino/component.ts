@@ -37,15 +37,15 @@ export abstract class Component<P extends object = {}> {
   static defaults: object = {}
 
   /**
-   * The component's CSS (C.20a) and the page-wide sheets it uses (glyph's
-   * tokens, themes, recipes; A.2), in one list:
+   * The component's CSS and the page-wide sheets it uses (glyph's
+   * tokens, themes, recipes), in one list:
    * `static styles = [tokens, button, css\`:scope { … }\`]`. Its own CSS
    * reaches only this component's markup (`:scope` is its root); a sheet
    * goes once per page, as it is.
    */
   static styles?: readonly (string | PageSheet)[]
 
-  /** How the styles stay inside (item 36): `@scope` by default. */
+  /** How the styles stay inside: `@scope` by default. */
   static encapsulation?: Encapsulation
 
   readonly props: ComponentProps<P>
@@ -68,7 +68,7 @@ export abstract class Component<P extends object = {}> {
    * test with `new Badge(props).template(context)`. Props stay the main way
    * in; the context is for page-wide values like the language.
    *
-   * `run.signal` is the component's lifetime (R.14): pass it to the effects,
+   * `run.signal` is the component's lifetime: pass it to the effects,
    * listeners and fetches made here, and they end with the component.
    *
    * Type the parameter as `RenderContext` (declare its fields once, see
@@ -83,14 +83,14 @@ export abstract class Component<P extends object = {}> {
 
   /**
    * In the browser: runs once, when the component's nodes are in the
-   * document, before paint (C.15b). Its children's run first. Clean up
+   * document, before paint. Its children's run first. Clean up
    * through `signal`, or return a function. Never called on the server.
    */
   mounted?(run: ComponentRun): unknown
 }
 
 /**
- * What each component's `template()` and `mounted()` receive (R.14): its
+ * What each component's `template()` and `mounted()` receive: its
  * lifetime. Aborted when the component leaves; on the server it never is.
  */
 export interface ComponentRun {

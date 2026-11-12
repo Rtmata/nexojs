@@ -5,7 +5,7 @@ export class NotFound {
 
 /**
  * Return it from a loader when the route matched but what it names doesn't
- * exist (E.2 c), apart from "no route" (TanStack's two kinds). The server
+ * exist, apart from "no route" (TanStack's two kinds). The server
  * answers with the router's `notFound` handler; the client router shows its.
  *
  *   load: async ({ params }) => (await find(params.id)) ?? notFound()

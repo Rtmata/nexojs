@@ -30,16 +30,16 @@ export type Child =
   | null
   | undefined
   | readonly Child[]
-  /** A value that can change (C.12): bound in the browser, read once on the server. */
+  /** A value that can change: bound in the browser, read once on the server. */
   | ChildReadable
   | ChildFunction
 
-/** A `Readable` child: a hole (C.13). Interfaces, so `Child` can refer to itself. */
+/** A `Readable` child: a hole. Interfaces, so `Child` can refer to itself. */
 export interface ChildReadable {
   get(): Child
 }
 
-/** A function child: a hole too (C.13). */
+/** A function child: a hole too. */
 export interface ChildFunction {
   (): Child
 }

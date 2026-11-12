@@ -1,7 +1,7 @@
 import type { Arrival } from './sources'
 
 /**
- * Scrolling is Nexo's (E.1: one owner, bridge's vocabulary): a new page
+ * Scrolling is Nexo's (one owner, bridge's vocabulary): a new page
  * starts at the top, or at its `#target`; back and forward return where
  * the visitor was on that page.
  */

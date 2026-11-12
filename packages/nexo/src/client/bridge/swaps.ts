@@ -106,7 +106,7 @@ function put({ current, incoming, mode }: Placed): Element {
   return current
 }
 
-/** Persisted elements carried over; then the old segment's life ends (C.19b) and it goes. */
+/** Persisted elements carried over; then the old segment's life ends and it goes. */
 function replace(current: Element, incoming: Element): Element {
   carryPersisted(current, incoming)
   lives.end(current)
@@ -160,11 +160,11 @@ interface Held {
 const held = new WeakMap<Element, Held>()
 
 /**
- * One navigation's leave (C.19b): `bridge:leave` on each element about
+ * One navigation's leave: `bridge:leave` on each element about
  * to go, and what its listeners hand `detail.waitUntil(promise)` — their
- * exits — is awaited. When the change is live (E.4) each also gets
+ * exits — is awaited. When the change is live each also gets
  * omino's leaving marks (`data-exiting`, inert, focus out) and its CSS
- * animations are awaited (C.15c's fallback), endless ones not. With
+ * animations are awaited (at most omino's fallback wait), endless ones not. With
  * snapshots the View Transition shows the leave.
  */
 export class Leave {
@@ -177,7 +177,7 @@ export class Leave {
     for (const element of elements)
       announce(element, 'bridge:leave', { waitUntil })
     if (live) waits.push(this.exits(elements))
-    const atMost = new Promise((done) => setTimeout(done, FIXED_WAIT)) // exits that never finish (C.15c)
+    const atMost = new Promise((done) => setTimeout(done, FIXED_WAIT)) // exits that never finish
     await Promise.race([Promise.all(waits), atMost])
   }
 
@@ -191,7 +191,7 @@ export class Leave {
     }
   }
 
-  /** omino's leaving marks on each, and their CSS animations to the end (C.15c). */
+  /** omino's leaving marks on each, and their CSS animations to the end. */
   private exits(elements: Element[]): Promise<void> {
     this.elements = elements
     for (const element of elements) this.hold(element)
@@ -210,7 +210,7 @@ function animationsOf(element: Element): Animation[] {
   return element.getAnimations({ subtree: true })
 }
 
-/** `data-bridge-persist` (C.19b): the element itself takes its twin's place in what comes in. */
+/** `data-bridge-persist`: the element itself takes its twin's place in what comes in. */
 export function carryPersisted(current: Element, incoming: Element): void {
   for (const kept of current.querySelectorAll(`[${PERSIST}][id]`)) {
     const twin = incoming.querySelector(`[id="${CSS.escape(kept.id)}"]`)
@@ -218,7 +218,7 @@ export function carryPersisted(current: Element, incoming: Element): void {
   }
 }
 
-/** A segment response brings its styles in front — components' and page-wide sheets — into the head, once (C.20a). */
+/** A segment response brings its styles in front — components' and page-wide sheets — into the head, once. */
 export function adoptStyles(page: Document): void {
   for (const marker of [COMPONENT_STYLE, PAGE_SHEET])
     for (const style of page.querySelectorAll(`style[${marker}]`)) {

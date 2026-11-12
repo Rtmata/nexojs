@@ -18,10 +18,10 @@ function nameOf(animation: Animation): string | undefined {
 }
 
 /**
- * Waits for an element's animations — CSS and WAAPI — to end (C.2): all
+ * Waits for an element's animations — CSS and WAAPI — to end: all
  * of them, or the one `name`d. A cancelled animation counts as ended. An
  * endless one is not waited for (a spinner is no exit), unless it is the
- * one `name`d: then it is let go after 4 s (C.15c); a finite one after
+ * one `name`d: then it is let go after 4 s; a finite one after
  * the longest left plus 500 ms. With nothing to wait for (reduced
  * motion removed it) it resolves at once.
  *

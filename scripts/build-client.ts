@@ -1,5 +1,5 @@
 /**
- * The client modules built for apps whose bundler isn't Bun (F.2, R.18):
+ * The client modules built for apps whose bundler isn't Bun:
  * one `bun build` of every subpath marked `nexo-built` in the package's
  * `exports`, each piece a pattern matches included, with `splitting` so
  * code they share (omino's `Element`) exists once. The same transform as bridge's script: target browser, ESM, nothing

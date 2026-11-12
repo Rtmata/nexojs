@@ -8,7 +8,7 @@ import { graphemes, speakingText } from './motion'
 /**
  * Typewriter (Archive): the element's text appears a character at a time
  * (whole graphemes: an emoji never shows half), one every `interval` ms
- * divided by the page's speed (`--theater-speed`, C.1b); the
+ * divided by the page's speed (`--theater-speed`); the
  * whole content stays readable by assistive technology meanwhile, and
  * shows at once with reduced motion. `typewriter:done` at the end.
  */

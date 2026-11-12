@@ -79,7 +79,7 @@ describe('validators (Standard Schema)', () => {
   })
 })
 
-describe('terminal over HTTP (R.24–R.26)', () => {
+describe('terminal over HTTP', () => {
   test('a read command goes as GET; a change as POST with JSON', async () => {
     requests.length = 0
     expect(await commands.exec('book', { id: 1 })).toEqual({

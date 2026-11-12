@@ -3,7 +3,7 @@ import type { TokenType } from '../typed'
 /** A JSON object, as DTCG files are made of. */
 export type Json = { [key: string]: unknown }
 
-/** glyph's types and DTCG's `$type`s: the same words but one (B.3, step 1 item 4). */
+/** glyph's types and DTCG's `$type`s: the same words but one. */
 export const DTCG_TYPE: Record<TokenType, string> = {
   color: 'color',
   dimension: 'dimension',

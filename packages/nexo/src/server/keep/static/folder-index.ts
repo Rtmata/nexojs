@@ -19,7 +19,7 @@ import { inside, isPublicName, isPublicPath } from './safe-file'
  * Watching costs the system inotify watches: one per folder since Bun 1.4
  * (Bun 1.3 took one per FILE; Linux allows 65,536 by default). A folder
  * whose files never change while the server runs (pictures named by their
- * content) skips all of it (`watch: false`, R.42): no index, no watcher;
+ * content) skips all of it (`watch: false`): no index, no watcher;
  * every request asks the disk, as Express's serve-static and Caddy's
  * file_server always do, and the startup report leaves it out.
  *
@@ -38,7 +38,7 @@ export class FolderIndex {
 
   constructor(
     readonly dir: string,
-    /** `false`: no index at all (R.42) — every request asks the disk, nothing is walked or watched. */
+    /** `false`: no index at all — every request asks the disk, nothing is walked or watched. */
     readonly watched = true,
   ) {
     this.walker = new FolderWalker(dir)

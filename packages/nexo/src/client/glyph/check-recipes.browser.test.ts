@@ -1,4 +1,4 @@
-/** checkRecipes in real engines (A.2): Chromium, WebKit and Firefox through Playwright. */
+/** checkRecipes in real engines: Chromium, WebKit and Firefox through Playwright. */
 import { afterAll, describe, expect, test } from 'bun:test'
 import {
   chromium,
