@@ -28,7 +28,8 @@ export function witness(): (handler: Handler) => Handler {
   return (handler) => async (ctx) => {
     if (ctx.url.pathname === RELOAD_PATH) return helloStream(boot, ctx.request)
     const response = await answerOf(handler, ctx)
-    return isDocument(ctx.request) ? withScript(response, boot) : response
+    if (!isDocument(ctx.request)) return response
+    return withScript(response, scriptFor(boot, ctx.nonce))
   }
 }
 
@@ -64,12 +65,12 @@ function isDocument(request: Request): boolean {
 }
 
 /** The page with the script after it, never cached: a stored copy would carry an old id. */
-function withScript(response: Response, boot: string): Response {
+function withScript(response: Response, script: string): Response {
   if (!canRewrite(response)) return response
   const headers = new Headers(response.headers)
   for (const name of STALE_HEADERS) headers.delete(name)
   headers.set('cache-control', 'no-store')
-  const body = response.body.pipeThrough(appending(scriptFor(boot)))
+  const body = response.body.pipeThrough(appending(script))
   const { status, statusText } = response
   return new Response(body, { status, statusText, headers })
 }
@@ -154,9 +155,13 @@ const SSE_HEADERS = {
   'cache-control': 'no-cache',
 }
 
-/** The script for a page made by the process `boot`; once per window. */
-function scriptFor(boot: string): string {
-  return `<script>
+/**
+ * The script for a page made by the process `boot`; once per window. With
+ * keep's security headers on, it carries the request's nonce, so a
+ * nonce-only Content Security Policy lets it run.
+ */
+function scriptFor(boot: string, nonce: string | undefined): string {
+  return `<script${nonce ? ` nonce="${nonce}"` : ''}>
 (() => {
   // Injected by witness() — development only.
   if (window.__witness) return

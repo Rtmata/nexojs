@@ -50,7 +50,7 @@ Add `witness()` from a development entry file only. Add it before any middleware
 
 `RELOAD_PATH` exports the path, for a test or a proxy rule. Everything Nexo reserves lives under `/_nexo/`, so it never clashes with your routes.
 
-A Content Security Policy that only allows scripts with a nonce blocks this script, because it carries none. While developing, use keep's `securityHeaders: { reportOnly: true }` or leave the policy off.
+With keep's security headers on, the script carries the request's nonce (`ctx.nonce`), so a nonce-only Content Security Policy lets it run.
 
 ## Why it works this way
 

@@ -29,7 +29,7 @@ describe('the script in pages', () => {
         '/',
       ),
     )
-    expect(text).toStartWith('<body><h1>Museo</h1></body><script>')
+    expect(text).toStartWith('<body><h1>Museo</h1></body><script nonce="')
     expect(text).toContain(`new EventSource('${RELOAD_PATH}')`)
   })
 
@@ -94,6 +94,27 @@ describe('the script in pages', () => {
   })
 })
 
+describe('the script under a Content Security Policy', () => {
+  test("it carries the request's nonce, the one the policy allows", async () => {
+    const router = boat().get('/', () => html('<body></body>'))
+    const server = keep({
+      router,
+      securityHeaders: { csp: { 'script-src': ['nonce'] } },
+    }).use(witness())
+    const response = await get(server, '/')
+    const policy = response.headers.get('content-security-policy') ?? ''
+    const nonce = /'nonce-([^']+)'/.exec(policy)?.[1]
+    expect(nonce).toBeDefined()
+    expect(await response.text()).toContain(`<script nonce="${nonce}">`)
+  })
+
+  test('without security headers there is no nonce to carry', async () => {
+    const router = boat().get('/', () => html('<body></body>'))
+    const server = keep({ router, securityHeaders: false }).use(witness())
+    expect(await textOf(await get(server, '/'))).toContain('</body><script>')
+  })
+})
+
 describe('the page streams through', () => {
   test('byte for byte, with the script after it', async () => {
     const latin1 = new Uint8Array([
@@ -106,7 +127,7 @@ describe('the page streams through', () => {
     )
     const bytes = new Uint8Array(await (await get(server, '/')).arrayBuffer())
     expect([...bytes.slice(0, 8)]).toEqual([...latin1])
-    expect(new TextDecoder().decode(bytes.slice(8))).toStartWith('<script>')
+    expect(new TextDecoder().decode(bytes.slice(8))).toStartWith('<script')
   })
 
   test('parts, downloads and UTF-16 are left alone', async () => {
