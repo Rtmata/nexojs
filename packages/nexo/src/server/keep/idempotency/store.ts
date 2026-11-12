@@ -14,10 +14,21 @@ export interface RecordedResponse {
 
 /**
  * Where keep's idempotency keeps its recordings. One process needs nothing but memory;
- * several share one through anything with these three methods (a Redis
- * client behind a small adapter). `ttl` is milliseconds from now.
+ * several share one through anything with these methods (a Redis client
+ * behind a small adapter). `ttl` is milliseconds from now.
  */
 export interface IdempotencyStore {
+  /**
+   * Records `key` only if no live recording has it, and says whether it
+   * did. It must be one atomic step — Redis `SET key value NX PX ttl` —
+   * so two tries of a request arriving together can't both win: a lookup
+   * then a write leaves a gap where both see the key free.
+   */
+  claim(
+    key: string,
+    recorded: Recorded,
+    ttl: number,
+  ): boolean | Promise<boolean>
   get(key: string): Recorded | undefined | Promise<Recorded | undefined>
   set(key: string, recorded: Recorded, ttl: number): void | Promise<void>
   delete(key: string): void | Promise<void>
@@ -38,6 +49,13 @@ export class MemoryStore implements IdempotencyStore {
     if (entry.until > this.now()) return entry.recorded
     this.entries.delete(key)
     return undefined
+  }
+
+  /** Atomic by being synchronous: nothing runs between the check and the write. */
+  claim(key: string, recorded: Recorded, ttl: number): boolean {
+    if (this.get(key)) return false
+    this.set(key, recorded, ttl)
+    return true
   }
 
   set(key: string, recorded: Recorded, ttl: number): void {

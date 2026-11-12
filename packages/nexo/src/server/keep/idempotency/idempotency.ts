@@ -43,10 +43,11 @@ class Chamber {
     const key = ctx.request.headers.get(KEY_HEADER)
     if (!key || SAFE_METHODS.has(ctx.request.method)) return handler(ctx)
     const fingerprint = await fingerprintOf(ctx.request)
-    const known = await this.store.get(key)
-    if (known) return this.again(known, fingerprint)
-    await this.store.set(key, { fingerprint, response: null }, this.ttl)
-    return this.first(key, fingerprint, ctx, handler)
+    const running = { fingerprint, response: null }
+    if (await this.store.claim(key, running, this.ttl))
+      return this.first(key, fingerprint, ctx, handler)
+    // Claimed by another try; gone again by now (expired) still means one is in hand
+    return this.again((await this.store.get(key)) ?? running, fingerprint)
   }
 
   /** A key seen before: the same request gets the recording, another is a mistake, one still running must wait. */

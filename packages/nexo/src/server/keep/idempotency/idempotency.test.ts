@@ -158,6 +158,10 @@ describe('idempotency', () => {
     const seen: string[] = []
     const inner = new MemoryStore()
     const store: IdempotencyStore = {
+      claim: (key, recorded, ttl) => (
+        seen.push(`claim ${key} ${ttl}`),
+        inner.claim(key, recorded, ttl)
+      ),
       get: (key) => (seen.push(`get ${key}`), inner.get(key)),
       set: (key, recorded, ttl) => (
         seen.push(`set ${key} ${ttl}`),
@@ -168,6 +172,36 @@ describe('idempotency', () => {
     const { s } = server({ idempotency: { store, ttl: 5000 } })
     await post(s, '/order', 'k1')
     await post(s, '/order', 'k1')
-    expect(seen).toEqual(['get k1', 'set k1 5000', 'set k1 5000', 'get k1'])
+    expect(seen).toEqual([
+      'claim k1 5000',
+      'set k1 5000',
+      'claim k1 5000',
+      'get k1',
+    ])
+  })
+
+  test('two tries arriving together with a store that waits (Redis-like): the handler runs once', async () => {
+    const inner = new MemoryStore()
+    const tick = () => new Promise((done) => setTimeout(done, 1))
+    const store: IdempotencyStore = {
+      claim: async (key, recorded, ttl) => (
+        await tick(),
+        inner.claim(key, recorded, ttl)
+      ),
+      get: async (key) => (await tick(), inner.get(key)),
+      set: async (key, recorded, ttl) => (
+        await tick(),
+        inner.set(key, recorded, ttl)
+      ),
+      delete: async (key) => (await tick(), inner.delete(key)),
+    }
+    const { s, orders } = server({ idempotency: { store } })
+    const answers = await Promise.all([
+      post(s, '/order', 'k1'),
+      post(s, '/order', 'k1'),
+    ])
+    expect(orders()).toBe(1)
+    // the other try waits (409) or, if the first is done by then, gets its answer (200)
+    for (const a of answers) expect([200, 409]).toContain(a.status)
   })
 })
